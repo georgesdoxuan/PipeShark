@@ -11,6 +11,17 @@ export async function GET(request: Request) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const basePath = baseUrl.replace(/\/$/, '');
 
+  const returnUrl = `${basePath}/dashboard`;
+
+  if (errorParam) {
+    console.error('Google OAuth error:', errorParam, searchParams.get('error_description'));
+    return NextResponse.redirect(`${returnUrl}?gmail_error=${encodeURIComponent(errorParam)}`);
+  }
+
+  if (!code || !state) {
+    return NextResponse.redirect(`${returnUrl}?gmail_error=missing_params`);
+  }
+
   try {
     let statePayload: { userId: string; nonce: string; returnTo?: string };
     try {
@@ -20,16 +31,7 @@ export async function GET(request: Request) {
     }
 
     const returnPath = statePayload.returnTo || '/dashboard';
-    const returnUrl = `${basePath}${returnPath.startsWith('/') ? returnPath : '/' + returnPath}`;
-
-    if (errorParam) {
-      console.error('Google OAuth error:', errorParam, searchParams.get('error_description'));
-      return NextResponse.redirect(`${returnUrl}?gmail_error=${encodeURIComponent(errorParam)}`);
-    }
-
-    if (!code || !state) {
-      return NextResponse.redirect(`${returnUrl}?gmail_error=missing_params`);
-    }
+    const finalReturnUrl = `${basePath}${returnPath.startsWith('/') ? returnPath : '/' + returnPath}`;
 
     const supabase = await createServerSupabaseClient();
     const {
@@ -37,7 +39,7 @@ export async function GET(request: Request) {
     } = await supabase.auth.getUser();
 
     if (!user || user.id !== statePayload.userId) {
-      return NextResponse.redirect(`${returnUrl}?gmail_error=unauthorized`);
+      return NextResponse.redirect(`${finalReturnUrl}?gmail_error=unauthorized`);
     }
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
@@ -45,7 +47,7 @@ export async function GET(request: Request) {
     const redirectUri = process.env.NEXT_PUBLIC_REDIRECT_URI;
 
     if (!clientId || !clientSecret || !redirectUri) {
-      return NextResponse.redirect(`${returnUrl}?gmail_error=config`);
+      return NextResponse.redirect(`${finalReturnUrl}?gmail_error=config`);
     }
 
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -64,7 +66,7 @@ export async function GET(request: Request) {
 
     if (!tokenResponse.ok) {
       console.error('Token exchange failed:', tokenData);
-      return NextResponse.redirect(`${returnUrl}?gmail_error=token_exchange`);
+      return NextResponse.redirect(`${finalReturnUrl}?gmail_error=token_exchange`);
     }
 
     const accessToken = tokenData.access_token;
@@ -101,10 +103,10 @@ export async function GET(request: Request) {
 
     if (error) {
       console.error('Failed to save Gmail tokens:', error);
-      return NextResponse.redirect(`${returnUrl}?gmail_error=save_failed`);
+      return NextResponse.redirect(`${finalReturnUrl}?gmail_error=save_failed`);
     }
 
-    return NextResponse.redirect(`${returnUrl}?gmail_connected=1`);
+    return NextResponse.redirect(`${finalReturnUrl}?gmail_connected=1`);
   } catch (err) {
     console.error('Gmail callback error:', err);
     const basePath = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
