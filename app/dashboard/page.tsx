@@ -394,7 +394,7 @@ export default function CampaignsPage() {
               {/* Schedule daily launch */}
               <div className="flex flex-wrap items-center gap-2 bg-sky-50 dark:bg-sky-950/40 rounded-full px-3 py-1.5 shadow-sm">
                 <Clock className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400 flex-shrink-0" />
-                <label htmlFor="schedule-time" className="text-xs font-medium text-zinc-700 dark:text-neutral-200 whitespace-nowrap" title="Heure UTC. Sur le plan Hobby, le cron s'exécute une fois par jour à 9h00 UTC.">
+                <label htmlFor="schedule-time" className="text-xs font-medium text-zinc-700 dark:text-neutral-200 whitespace-nowrap" title="UTC time. On Hobby plan, cron runs once per day at 9:00 UTC.">
                   Daily launch (UTC):
                 </label>
                 <input
@@ -418,7 +418,7 @@ export default function CampaignsPage() {
                     className="text-xs font-medium text-sky-600 dark:text-sky-400 hover:underline whitespace-nowrap"
                   >
                     {scheduledCampaignIds.length === 0
-                      ? 'All campaigns'
+                      ? 'Choose campaigns'
                       : `${scheduledCampaignIds.length} campaign(s) selected`}
                   </button>
                 )}
@@ -464,7 +464,7 @@ export default function CampaignsPage() {
                       onClick={exitSelectMode}
                       className="px-2 py-1 text-xs bg-sky-100 dark:bg-[#051a28] text-zinc-800 dark:text-white rounded-lg hover:opacity-90 transition-opacity"
                     >
-                      Annuler
+                      Cancel
                     </button>
                     <button
                       onClick={() => setBulkDeleteConfirm(true)}
@@ -472,7 +472,7 @@ export default function CampaignsPage() {
                       className="flex items-center gap-2 px-3 py-1.5 text-sm bg-red-600/80 border border-red-500/50 rounded-lg text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
-                      Supprimer ({selectedCampaignIds.size})
+                      Delete ({selectedCampaignIds.size})
                     </button>
                   </>
                 )}
@@ -664,10 +664,10 @@ export default function CampaignsPage() {
                                               });
                                               setOpenMenuCampaignId(null);
                                             }}
-                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-300 hover:bg-neutral-700 hover:text-red-200 transition-colors"
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-600 dark:text-red-300 hover:bg-zinc-100 dark:hover:bg-neutral-700 hover:text-red-700 dark:hover:text-red-200 transition-colors"
                                           >
                                             <Trash2 className="w-4 h-4 shrink-0" />
-                                            Supprimer
+                                            Delete
                                           </button>
                                         </div>
                                       </>
@@ -724,25 +724,25 @@ export default function CampaignsPage() {
           {/* Delete Confirmation Modal */}
           {deleteConfirm && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-              <div className="bg-neutral-900 rounded-xl border border-neutral-700 shadow-2xl p-6 max-w-md w-full mx-4">
+              <div className="bg-white dark:bg-neutral-900 rounded-xl border border-zinc-200 dark:border-neutral-700 shadow-2xl p-6 max-w-md w-full mx-4">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-red-900/20 rounded-lg">
-                    <AlertTriangle className="w-6 h-6 text-red-400" />
+                  <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
+                    <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
                   </div>
-                  <h3 className="text-xl font-display font-bold text-white">
+                  <h3 className="text-xl font-display font-bold text-zinc-900 dark:text-white">
                     Delete Campaign
                   </h3>
                 </div>
                 
-                <p className="text-neutral-300 mb-6">
-                  Are you sure you want to delete the campaign <span className="font-semibold text-white">"{deleteConfirm.campaignName}"</span>? This action cannot be undone.
+                <p className="text-zinc-600 dark:text-neutral-300 mb-6">
+                  Are you sure you want to delete the campaign <span className="font-semibold text-zinc-900 dark:text-white">"{deleteConfirm.campaignName}"</span>? This action cannot be undone.
                 </p>
                 
                 <div className="flex gap-3">
                   <button
                     onClick={() => setDeleteConfirm(null)}
                     disabled={deleting}
-                    className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                    className="flex-1 px-4 py-2 bg-zinc-200 dark:bg-neutral-700 hover:bg-zinc-300 dark:hover:bg-neutral-600 text-zinc-900 dark:text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                   >
                     Cancel
                   </button>
@@ -754,7 +754,7 @@ export default function CampaignsPage() {
                     {deleting ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Deleting...
+                        Deleting…
                       </>
                     ) : (
                       <>
@@ -771,27 +771,27 @@ export default function CampaignsPage() {
           {/* Bulk Delete Confirmation Modal */}
           {bulkDeleteConfirm && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-              <div className="bg-neutral-900 rounded-xl border border-neutral-700 shadow-2xl p-6 max-w-md w-full mx-4">
+              <div className="bg-white dark:bg-neutral-900 rounded-xl border border-zinc-200 dark:border-neutral-700 shadow-2xl p-6 max-w-md w-full mx-4">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-red-900/20 rounded-lg">
-                    <AlertTriangle className="w-6 h-6 text-red-400" />
+                  <div className="p-2 bg-red-100 dark:bg-red-900/20 rounded-lg">
+                    <AlertTriangle className="w-6 h-6 text-red-600 dark:text-red-400" />
                   </div>
-                  <h3 className="text-xl font-display font-bold text-white">
-                    Supprimer les campagnes
+                  <h3 className="text-xl font-display font-bold text-zinc-900 dark:text-white">
+                    Delete campaigns
                   </h3>
                 </div>
                 
-                <p className="text-neutral-300 mb-6">
-                  Êtes-vous sûr de vouloir supprimer <span className="font-semibold text-white">{selectedCampaignIds.size} campagne(s)</span> ? Cette action est irréversible.
+                <p className="text-zinc-600 dark:text-neutral-300 mb-6">
+                  Are you sure you want to delete <span className="font-semibold text-zinc-900 dark:text-white">{selectedCampaignIds.size} campaign(s)</span>? This action cannot be undone.
                 </p>
                 
                 <div className="flex gap-3">
                   <button
                     onClick={() => setBulkDeleteConfirm(false)}
                     disabled={deleting}
-                    className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                    className="flex-1 px-4 py-2 bg-zinc-200 dark:bg-neutral-700 hover:bg-zinc-300 dark:hover:bg-neutral-600 text-zinc-900 dark:text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                   >
-                    Annuler
+                    Cancel
                   </button>
                   <button
                     onClick={handleBulkDeleteCampaigns}
@@ -801,12 +801,12 @@ export default function CampaignsPage() {
                     {deleting ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Suppression...
+                        Deleting…
                       </>
                     ) : (
                       <>
                         <Trash2 className="w-4 h-4" />
-                        Supprimer
+                        Delete
                       </>
                     )}
                   </button>
@@ -818,17 +818,17 @@ export default function CampaignsPage() {
           {/* Schedule campaigns modal */}
           {showScheduleCampaignsModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-              <div className="bg-neutral-900 rounded-xl border border-neutral-700 shadow-2xl p-6 max-w-md w-full mx-4 max-h-[80vh] flex flex-col">
+              <div className="bg-white dark:bg-neutral-900 rounded-xl border border-zinc-200 dark:border-neutral-700 shadow-2xl p-6 max-w-md w-full mx-4 max-h-[80vh] flex flex-col">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-sky-900/20 rounded-lg">
-                    <Clock className="w-6 h-6 text-sky-400" />
+                  <div className="p-2 bg-sky-100 dark:bg-sky-900/20 rounded-lg">
+                    <Clock className="w-6 h-6 text-sky-600 dark:text-sky-400" />
                   </div>
-                  <h3 className="text-xl font-display font-bold text-white">
-                    Campagnes au lancement programmé
+                  <h3 className="text-xl font-display font-bold text-zinc-900 dark:text-white">
+                    Scheduled launch campaigns
                   </h3>
                 </div>
-                <p className="text-neutral-300 text-sm mb-3">
-                  Choisissez les campagnes qui se lanceront à l&apos;heure indiquée (max 20 crédits/jour). Elles partiront l&apos;une après l&apos;autre, même si vous n&apos;êtes pas sur le site.
+                <p className="text-zinc-600 dark:text-neutral-300 text-sm mb-3">
+                  Choose the campaigns that will launch at the set time (max 20 credits/day). They will run one after the other, even when you&apos;re not on the site.
                 </p>
                 <div className="flex-1 overflow-y-auto space-y-2 mb-4 pr-1">
                   {campaigns.map((c) => {
@@ -837,7 +837,7 @@ export default function CampaignsPage() {
                     return (
                       <label
                         key={c.id}
-                        className="flex items-center gap-3 p-2 rounded-lg bg-neutral-800/50 hover:bg-neutral-800 border border-transparent hover:border-neutral-600 cursor-pointer"
+                        className="flex items-center gap-3 p-2 rounded-lg bg-zinc-100 dark:bg-neutral-800/50 hover:bg-zinc-200 dark:hover:bg-neutral-800 border border-transparent hover:border-zinc-300 dark:hover:border-neutral-600 cursor-pointer"
                       >
                         <input
                           type="checkbox"
@@ -849,26 +849,26 @@ export default function CampaignsPage() {
                                 : [...prev, c.id]
                             );
                           }}
-                          className="rounded border-neutral-500 text-sky-500 focus:ring-sky-500"
+                          className="rounded border-zinc-400 dark:border-neutral-500 text-sky-500 focus:ring-sky-500"
                         />
-                        <span className="flex-1 text-white font-medium truncate">
+                        <span className="flex-1 text-zinc-900 dark:text-white font-medium truncate">
                           {c.name || c.businessType}
                         </span>
-                        <span className="text-xs text-neutral-400 shrink-0">{credits} cr.</span>
+                        <span className="text-xs text-zinc-500 dark:text-neutral-400 shrink-0">{credits} cr.</span>
                       </label>
                     );
                   })}
                 </div>
-                <p className="text-xs text-neutral-400 mb-4">
-                  Total : {campaigns.filter((c) => scheduleModalSelectedIds.includes(c.id)).reduce((acc, c) => acc + (c.numberCreditsUsed ?? 0), 0)} crédits / 20 max
+                <p className="text-xs text-zinc-500 dark:text-neutral-400 mb-4">
+                  Total: {campaigns.filter((c) => scheduleModalSelectedIds.includes(c.id)).reduce((acc, c) => acc + (c.numberCreditsUsed ?? 0), 0)} credits / 20 max
                 </p>
                 <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => setShowScheduleCampaignsModal(false)}
-                    className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded-xl font-semibold transition-colors"
+                    className="flex-1 px-4 py-2 bg-zinc-200 dark:bg-neutral-700 hover:bg-zinc-300 dark:hover:bg-neutral-600 text-zinc-900 dark:text-white rounded-xl font-semibold transition-colors"
                   >
-                    Annuler
+                    Cancel
                   </button>
                   <button
                     type="button"
@@ -880,7 +880,7 @@ export default function CampaignsPage() {
                     disabled={scheduleSaving}
                     className="flex-1 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
                   >
-                    {scheduleSaving ? 'Enregistrement…' : 'Enregistrer'}
+                    {scheduleSaving ? 'Saving…' : 'Save'}
                   </button>
                 </div>
               </div>
