@@ -208,7 +208,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                   title="Filter by business type"
                 >
                   <option value="">All types</option>
-                  {[...new Set(leads.map((l) => l.businessType).filter(Boolean))].sort().map((bt) => (
+                  {[...new Set(leads.map((l) => l.businessType).filter((x): x is string => Boolean(x)))].sort().map((bt) => (
                     <option key={bt} value={bt}>{bt}</option>
                   ))}
                 </select>
@@ -220,7 +220,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                   title="Filter by city"
                 >
                   <option value="">All cities</option>
-                  {[...new Set(leads.map((l) => l.city).filter(Boolean))].sort().map((c) => (
+                  {[...new Set(leads.map((l) => l.city).filter((x): x is string => Boolean(x)))].sort().map((c) => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
