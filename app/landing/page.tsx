@@ -1,6 +1,6 @@
 'use client';
 
-import { Target, Zap, Mail, BarChart3, Shield, ArrowRight } from 'lucide-react';
+import { Target, Zap, Mail, BarChart3, Shield, ArrowRight, LayoutDashboard } from 'lucide-react';
 import Link from 'next/link';
 import ViperLogo from '@/components/ViperLogo';
 
@@ -13,7 +13,7 @@ export default function LandingPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ViperLogo className="h-16 w-auto flex-shrink-0 min-w-16" />
-              <h1 className="text-2xl font-brand font-bold tracking-wide"><span className="text-white">Pipe</span><span className="text-sky-400">Shark</span></h1>
+              <h1 className="text-2xl font-brand font-bold tracking-wide text-white">PipeShark</h1>
             </div>
             <Link
               href="/dashboard"
@@ -30,21 +30,21 @@ export default function LandingPage() {
       <section className="relative overflow-hidden pt-20 pb-32 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
           <h2 className="text-5xl md:text-6xl font-display font-bold text-white mb-6">
-            Automatisez votre prospection
+            Automate your prospecting
             <br />
-            <span className="text-sky-500">sans effort</span>
+            <span className="text-sky-500">effortlessly</span>
           </h2>
           <p className="text-xl text-sky-200/90 mb-4 max-w-2xl mx-auto">
-            PipeShark prospecte pour vous les <strong className="text-white">blue collar</strong> et <strong className="text-white">grey collar</strong>, génère des leads qualifiés et personnalise vos emails pour transformer vos prospects en clients.
+            PipeShark prospects <strong className="text-white">blue collar</strong> and <strong className="text-white">grey collar</strong> for you, generates qualified leads and personalizes your emails to turn prospects into customers.
           </p>
           <p className="text-lg text-sky-300/80 mb-8">
-            Jusqu'à <strong className="text-sky-400">1000 e-mails</strong> par mois.
+            Up to <strong className="text-sky-400">1000 emails</strong> per month.
           </p>
           <Link
             href="/dashboard"
             className="inline-flex items-center gap-2 px-8 py-4 bg-sky-700 hover:bg-sky-600 text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
           >
-            Accéder à My Space
+            Go to My Space
             <ArrowRight className="w-5 h-5" />
           </Link>
         </div>
@@ -54,84 +54,78 @@ export default function LandingPage() {
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <h3 className="text-3xl font-display font-bold text-white text-center mb-12">
-            Tout ce dont vous avez besoin
+            Everything you need
           </h3>
           <div className="grid md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
             <div className="bg-black/50 rounded-xl p-6 border border-sky-900">
               <div className="w-12 h-12 bg-sky-800 rounded-lg flex items-center justify-center mb-4">
                 <Target className="w-6 h-6 text-sky-300" />
               </div>
               <h4 className="text-xl font-display font-bold text-white mb-2">
-                Génération de leads automatique
+                Automatic lead generation
               </h4>
               <p className="text-sky-200/90">
-                Trouvez automatiquement des prospects qualifiés selon votre secteur d'activité et votre zone géographique.
+                Automatically find qualified prospects based on your business sector and geographic area.
               </p>
             </div>
 
-            {/* Feature 2 */}
             <div className="bg-black/50 rounded-xl p-6 border border-sky-900">
               <div className="w-12 h-12 bg-sky-800 rounded-lg flex items-center justify-center mb-4">
                 <Mail className="w-6 h-6 text-sky-300" />
               </div>
               <h4 className="text-xl font-display font-bold text-white mb-2">
-                Emails personnalisés
+                Personalized emails
               </h4>
               <p className="text-sky-200/90">
-                Vos emails sont générés automatiquement et personnalisés selon votre entreprise et vos services.
+                Your emails are automatically generated and personalized based on your company and services.
               </p>
             </div>
 
-            {/* Feature 3 */}
             <div className="bg-black/50 rounded-xl p-6 border border-sky-900">
               <div className="w-12 h-12 bg-sky-800 rounded-lg flex items-center justify-center mb-4">
                 <BarChart3 className="w-6 h-6 text-sky-300" />
               </div>
               <h4 className="text-xl font-display font-bold text-white mb-2">
-                Suivi en temps réel
+                Real-time tracking
               </h4>
               <p className="text-sky-200/90">
-                Suivez vos campagnes, vos leads et vos performances avec des statistiques détaillées.
+                Track your campaigns, leads, and performance with detailed statistics.
               </p>
             </div>
 
-            {/* Feature 4 */}
             <div className="bg-black/50 rounded-xl p-6 border border-sky-900">
               <div className="w-12 h-12 bg-sky-800 rounded-lg flex items-center justify-center mb-4">
                 <Zap className="w-6 h-6 text-sky-300" />
               </div>
               <h4 className="text-xl font-display font-bold text-white mb-2">
-                Rapide et efficace
+                Fast and efficient
               </h4>
               <p className="text-sky-200/90">
-                Lancez vos campagnes en quelques clics et laissez PipeShark faire le travail pour vous.
+                Launch your campaigns in just a few clicks and let PipeShark do the work for you.
               </p>
             </div>
 
-            {/* Feature 5 */}
             <div className="bg-black/50 rounded-xl p-6 border border-sky-900">
               <div className="w-12 h-12 bg-sky-800 rounded-lg flex items-center justify-center mb-4">
                 <Shield className="w-6 h-6 text-sky-300" />
               </div>
               <h4 className="text-xl font-display font-bold text-white mb-2">
-                Limite quotidienne
+                Daily limit
               </h4>
               <p className="text-sky-200/90">
-                Système de crédits quotidiens pour gérer votre usage et optimiser vos campagnes.
+                Daily credit system to manage your usage and optimize your campaigns.
               </p>
             </div>
 
-            {/* Feature 6 */}
             <div className="bg-black/50 rounded-xl p-6 border border-sky-900">
               <div className="w-12 h-12 bg-sky-800 rounded-lg flex items-center justify-center mb-4">
-                <ViperLogo className="w-6 h-6 text-sky-500" />
+                <LayoutDashboard className="w-6 h-6 text-sky-300" />
               </div>
               <h4 className="text-xl font-display font-bold text-white mb-2">
-                Interface intuitive
+                Intuitive interface
               </h4>
               <p className="text-sky-200/90">
-                Une interface moderne et simple pour gérer toutes vos campagnes de prospection.
+                A modern and simple interface to manage all your prospecting campaigns.
               </p>
             </div>
           </div>
@@ -142,7 +136,7 @@ export default function LandingPage() {
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-black/40">
         <div className="max-w-7xl mx-auto">
           <h3 className="text-3xl font-display font-bold text-white text-center mb-12">
-            Comment ça marche
+            How it works
           </h3>
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
@@ -150,10 +144,10 @@ export default function LandingPage() {
                 1
               </div>
               <h4 className="text-xl font-display font-bold text-white mb-2">
-                Créez votre campagne
+                Create your campaign
               </h4>
               <p className="text-sky-200/90">
-                Définissez votre secteur d'activité, votre description d'entreprise et vos critères de ciblage.
+                Define your business sector, company description, and targeting criteria.
               </p>
             </div>
 
@@ -162,10 +156,10 @@ export default function LandingPage() {
                 2
               </div>
               <h4 className="text-xl font-display font-bold text-white mb-2">
-                PipeShark trouve vos leads
+                PipeShark finds your leads
               </h4>
               <p className="text-sky-200/90">
-                Notre système recherche automatiquement des prospects qualifiés correspondant à vos critères.
+                Our system automatically searches for qualified prospects matching your criteria.
               </p>
             </div>
 
@@ -174,10 +168,10 @@ export default function LandingPage() {
                 3
               </div>
               <h4 className="text-xl font-display font-bold text-white mb-2">
-                Emails personnalisés
+                Personalized emails
               </h4>
               <p className="text-sky-200/90">
-                Des emails sont générés automatiquement et personnalisés pour chaque prospect.
+                Emails are automatically generated and personalized for each prospect.
               </p>
             </div>
           </div>
@@ -188,16 +182,16 @@ export default function LandingPage() {
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <h3 className="text-4xl font-display font-bold text-white mb-6">
-            Prêt à transformer votre prospection ?
+            Ready to transform your prospecting?
           </h3>
           <p className="text-xl text-sky-200/90 mb-8">
-            Rejoignez PipeShark et automatisez votre génération de leads dès aujourd'hui.
+            Join PipeShark and automate your lead generation today.
           </p>
           <Link
             href="/dashboard"
             className="inline-flex items-center gap-2 px-8 py-4 bg-sky-700 hover:bg-sky-600 text-white rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
           >
-            Commencer maintenant
+            Get started now
             <ArrowRight className="w-5 h-5" />
           </Link>
         </div>
@@ -208,10 +202,10 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <ViperLogo className="h-16 w-auto flex-shrink-0 min-w-16" />
-            <h4 className="text-xl font-brand font-bold tracking-wide"><span className="text-white">Pipe</span><span className="text-sky-400">Shark</span></h4>
+            <h4 className="text-xl font-brand font-bold tracking-wide text-white">PipeShark</h4>
           </div>
           <p className="text-sky-500 text-sm">
-            Outil de prospection automatisée
+            Automated prospecting tool
           </p>
         </div>
       </footer>

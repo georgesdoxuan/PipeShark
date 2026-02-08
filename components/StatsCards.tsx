@@ -50,7 +50,7 @@ export default function StatsCards({ stats }: StatsCardsProps) {
       customDraftsIcon: true,
     },
     {
-      title: 'Responses',
+      title: 'Replies',
       value: stats.repliesCount ?? 0,
       subtitle: stats.replyRate != null ? `Reply rate: ${stats.replyRate}%` : undefined,
       extra: stats.avgTimeToReplyHours != null ? `Avg: ${stats.avgTimeToReplyHours}h` : undefined,

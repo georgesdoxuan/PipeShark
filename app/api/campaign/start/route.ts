@@ -7,7 +7,7 @@ import { addEmailTemplate } from '@/lib/supabase-email-templates';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { getValidGmailAccessToken } from '@/lib/gmail';
 
-const DAILY_LIMIT = 200;
+const DAILY_LIMIT = 20;
 const MAX_PER_CAMPAIGN = 20;
 
 export async function POST(request: Request) {

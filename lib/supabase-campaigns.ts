@@ -114,7 +114,7 @@ export async function getCampaignById(userId: string, campaignId: string): Promi
 
 /**
  * Sum of number_credits_used for all campaigns created today by the user.
- * Used for Daily Credits (X/200).
+ * Used for Daily Credits (X/20).
  */
 export async function sumTodayCreditsUsedForUser(userId: string): Promise<number> {
   const supabase = await createServerSupabaseClient();
@@ -193,6 +193,25 @@ export async function getCampaignsForUserAdmin(userId: string): Promise<Campaign
 
   if (error) throw error;
   return (data || []).map(mapRecordToCampaign);
+}
+
+/** Get campaigns by IDs for a user (for cron). Order matches ids order. */
+export async function getCampaignsByIdsAdmin(userId: string, campaignIds: string[]): Promise<Campaign[]> {
+  if (campaignIds.length === 0) return [];
+  const { createAdminClient } = await import('./supabase-server');
+  const admin = createAdminClient();
+
+  const { data, error } = await admin
+    .from('campaigns')
+    .select('*')
+    .eq('user_id', userId)
+    .in('id', campaignIds)
+    .eq('status', 'active');
+
+  if (error) throw error;
+  const campaigns = (data || []).map(mapRecordToCampaign);
+  const byId = new Map(campaigns.map((c) => [c.id, c]));
+  return campaignIds.map((id) => byId.get(id)).filter((c): c is Campaign => c != null);
 }
 
 export async function sumTodayCreditsUsedForUserAdmin(userId: string): Promise<number> {

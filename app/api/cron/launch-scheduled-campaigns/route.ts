@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server';
-import { getUsersWithScheduleMatchingNow } from '@/lib/supabase-schedule';
-import { getCampaignsForUserAdmin } from '@/lib/supabase-campaigns';
+import { getUsersWithScheduleMatchingNow, getScheduleCampaignIdsAdmin } from '@/lib/supabase-schedule';
+import { getCampaignsForUserAdmin, getCampaignsByIdsAdmin } from '@/lib/supabase-campaigns';
 import { getRandomCityFromSupabase } from '@/lib/supabase-cities';
 import { triggerN8nWorkflow } from '@/lib/n8n';
 
+const DELAY_BETWEEN_CAMPAIGNS_MS = 4000;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function GET(request: Request) {
-  // Verify cron secret (optional - set CRON_SECRET in env for production)
-  // Supports: Authorization: Bearer <secret> OR ?secret=<secret> (for Vercel Cron)
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) {
     const authHeader = request.headers.get('authorization');
@@ -28,9 +32,18 @@ export async function GET(request: Request) {
       let campaignsLaunched = 0;
 
       try {
-        const campaigns = await getCampaignsForUserAdmin(userId);
+        const scheduledIds = await getScheduleCampaignIdsAdmin(userId);
+        const campaigns =
+          scheduledIds.length > 0
+            ? await getCampaignsByIdsAdmin(userId, scheduledIds)
+            : await getCampaignsForUserAdmin(userId);
 
-        for (const campaign of campaigns) {
+        for (let i = 0; i < campaigns.length; i++) {
+          if (i > 0) {
+            await delay(DELAY_BETWEEN_CAMPAIGNS_MS);
+          }
+
+          const campaign = campaigns[i];
           const targetCount = campaign.numberCreditsUsed ?? 0;
           if (targetCount <= 0) continue;
 

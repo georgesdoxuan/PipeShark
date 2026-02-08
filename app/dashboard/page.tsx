@@ -63,7 +63,10 @@ export default function CampaignsPage() {
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [showAllCampaigns, setShowAllCampaigns] = useState(false);
   const [scheduleTime, setScheduleTime] = useState<string>('');
+  const [scheduledCampaignIds, setScheduledCampaignIds] = useState<string[]>([]);
   const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [showScheduleCampaignsModal, setShowScheduleCampaignsModal] = useState(false);
+  const [scheduleModalSelectedIds, setScheduleModalSelectedIds] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -156,22 +159,26 @@ export default function CampaignsPage() {
       if (res.ok) {
         const data = await res.json();
         setScheduleTime(data.launchTime || '');
+        setScheduledCampaignIds(Array.isArray(data.campaignIds) ? data.campaignIds : []);
       }
     } catch {
       // Ignore
     }
   }
 
-  async function saveSchedule(time: string) {
+  async function saveSchedule(time: string, campaignIds?: string[]) {
     setScheduleSaving(true);
     try {
+      const ids = campaignIds !== undefined ? campaignIds : scheduledCampaignIds;
       const res = await fetch('/api/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ launchTime: time }),
+        body: JSON.stringify({ launchTime: time, campaignIds: ids }),
       });
       if (res.ok) {
+        const data = await res.json();
         setScheduleTime(time);
+        if (data.campaignIds) setScheduledCampaignIds(data.campaignIds);
       }
     } catch {
       // Ignore
@@ -385,10 +392,10 @@ export default function CampaignsPage() {
             </div>
             <div className="flex items-center gap-4">
               {/* Schedule daily launch */}
-              <div className="flex items-center gap-2 bg-sky-50 dark:bg-sky-950/40 rounded-full px-3 py-1.5 shadow-sm">
+              <div className="flex flex-wrap items-center gap-2 bg-sky-50 dark:bg-sky-950/40 rounded-full px-3 py-1.5 shadow-sm">
                 <Clock className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400 flex-shrink-0" />
-                <label htmlFor="schedule-time" className="text-xs font-medium text-zinc-700 dark:text-neutral-200 whitespace-nowrap">
-                  Daily launch:
+                <label htmlFor="schedule-time" className="text-xs font-medium text-zinc-700 dark:text-neutral-200 whitespace-nowrap" title="Heure UTC. Sur le plan Hobby, le cron s'exécute une fois par jour à 9h00 UTC.">
+                  Daily launch (UTC):
                 </label>
                 <input
                   id="schedule-time"
@@ -397,10 +404,24 @@ export default function CampaignsPage() {
                   onChange={(e) => {
                     const t = e.target.value;
                     setScheduleTime(t);
-                    if (t) saveSchedule(t);
+                    if (t) saveSchedule(t, scheduledCampaignIds);
                   }}
                   className="bg-white dark:bg-neutral-800/80 rounded-lg px-2 py-0.5 text-zinc-800 dark:text-neutral-100 text-xs font-medium shadow-inner focus:outline-none focus:ring-2 focus:ring-sky-400/50"
                 />
+                {campaigns.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScheduleModalSelectedIds([...scheduledCampaignIds]);
+                      setShowScheduleCampaignsModal(true);
+                    }}
+                    className="text-xs font-medium text-sky-600 dark:text-sky-400 hover:underline whitespace-nowrap"
+                  >
+                    {scheduledCampaignIds.length === 0
+                      ? 'All campaigns'
+                      : `${scheduledCampaignIds.length} campaign(s) selected`}
+                  </button>
+                )}
                 {scheduleSaving && (
                   <span className="text-[10px] text-zinc-500 dark:text-neutral-400">Saving...</span>
                 )}
@@ -794,6 +815,78 @@ export default function CampaignsPage() {
             </div>
           )}
 
+          {/* Schedule campaigns modal */}
+          {showScheduleCampaignsModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+              <div className="bg-neutral-900 rounded-xl border border-neutral-700 shadow-2xl p-6 max-w-md w-full mx-4 max-h-[80vh] flex flex-col">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-sky-900/20 rounded-lg">
+                    <Clock className="w-6 h-6 text-sky-400" />
+                  </div>
+                  <h3 className="text-xl font-display font-bold text-white">
+                    Campagnes au lancement programmé
+                  </h3>
+                </div>
+                <p className="text-neutral-300 text-sm mb-3">
+                  Choisissez les campagnes qui se lanceront à l&apos;heure indiquée (max 20 crédits/jour). Elles partiront l&apos;une après l&apos;autre, même si vous n&apos;êtes pas sur le site.
+                </p>
+                <div className="flex-1 overflow-y-auto space-y-2 mb-4 pr-1">
+                  {campaigns.map((c) => {
+                    const checked = scheduleModalSelectedIds.includes(c.id);
+                    const credits = c.numberCreditsUsed ?? 0;
+                    return (
+                      <label
+                        key={c.id}
+                        className="flex items-center gap-3 p-2 rounded-lg bg-neutral-800/50 hover:bg-neutral-800 border border-transparent hover:border-neutral-600 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            setScheduleModalSelectedIds((prev) =>
+                              prev.includes(c.id)
+                                ? prev.filter((id) => id !== c.id)
+                                : [...prev, c.id]
+                            );
+                          }}
+                          className="rounded border-neutral-500 text-sky-500 focus:ring-sky-500"
+                        />
+                        <span className="flex-1 text-white font-medium truncate">
+                          {c.name || c.businessType}
+                        </span>
+                        <span className="text-xs text-neutral-400 shrink-0">{credits} cr.</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-neutral-400 mb-4">
+                  Total : {campaigns.filter((c) => scheduleModalSelectedIds.includes(c.id)).reduce((acc, c) => acc + (c.numberCreditsUsed ?? 0), 0)} crédits / 20 max
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowScheduleCampaignsModal(false)}
+                    className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded-xl font-semibold transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await saveSchedule(scheduleTime || '09:00', scheduleModalSelectedIds);
+                      setScheduledCampaignIds(scheduleModalSelectedIds);
+                      setShowScheduleCampaignsModal(false);
+                    }}
+                    disabled={scheduleSaving}
+                    className="flex-1 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {scheduleSaving ? 'Enregistrement…' : 'Enregistrer'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* All Targets Section */}
           <div className="mt-12">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -815,15 +908,15 @@ export default function CampaignsPage() {
                     }
                   }}
                   disabled={syncRepliesLoading}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-green-100 dark:bg-green-500/20 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-500/30 hover:bg-green-200 dark:hover:bg-green-500/30 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-sky-100 dark:bg-sky-500/20 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-500/30 hover:bg-sky-200 dark:hover:bg-sky-500/30 transition-colors disabled:opacity-50"
                 >
                   {syncRepliesLoading ? (
                     <>
-                      <span className="inline-block w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                      <span className="inline-block w-4 h-4 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
                       Syncing…
                     </>
                   ) : (
-                    <>✅ Sync Replies</>
+                    <>Sync Replies</>
                   )}
                 </button>
               )}

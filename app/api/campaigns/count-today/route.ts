@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { sumTodayCreditsUsedForUser } from '@/lib/supabase-campaigns';
 
-const DAILY_LIMIT = 200;
+const DAILY_LIMIT = 20;
 
 export async function GET() {
   try {

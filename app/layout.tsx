@@ -21,6 +21,10 @@ const poppins = Poppins({
 export const metadata: Metadata = {
   title: "PipeShark - Dashboard",
   description: "Outil de prospection automatisée pour plombiers",
+  icons: {
+    icon: "/viper-logo.png",
+    apple: "/viper-logo.png",
+  },
 };
 
 export default function RootLayout({
