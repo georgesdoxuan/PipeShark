@@ -1,5 +1,14 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Supabase Setup
+
+If you haven't already, run the migrations in Supabase:
+
+1. Go to your Supabase project → SQL Editor
+2. Run the SQL from `supabase-migrations/001_create_campaigns_table.sql`
+
+This creates the `campaigns` table so your campaigns persist between sessions.
+
 ## Getting Started
 
 First, run the development server:
