@@ -11,8 +11,8 @@ export default function LandingPage() {
       <header className="bg-black/90 backdrop-blur-sm border-b border-sky-900 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <ViperLogo className="w-8 h-8 text-sky-600" />
+            <div className="flex items-center gap-2">
+              <ViperLogo className="h-16 w-auto flex-shrink-0 min-w-16" />
               <h1 className="text-2xl font-brand font-bold tracking-wide"><span className="text-white">Pipe</span><span className="text-sky-400">Shark</span></h1>
             </div>
             <Link
@@ -34,8 +34,11 @@ export default function LandingPage() {
             <br />
             <span className="text-sky-500">sans effort</span>
           </h2>
-          <p className="text-xl text-sky-200/90 mb-8 max-w-2xl mx-auto">
-            PipeShark génère automatiquement des leads qualifiés et personnalise vos emails pour transformer vos prospects en clients.
+          <p className="text-xl text-sky-200/90 mb-4 max-w-2xl mx-auto">
+            PipeShark prospecte pour vous les <strong className="text-white">blue collar</strong> et <strong className="text-white">grey collar</strong>, génère des leads qualifiés et personnalise vos emails pour transformer vos prospects en clients.
+          </p>
+          <p className="text-lg text-sky-300/80 mb-8">
+            Jusqu'à <strong className="text-sky-400">1000 e-mails</strong> par mois.
           </p>
           <Link
             href="/dashboard"
@@ -203,8 +206,8 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="bg-black border-t border-sky-900 py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <ViperLogo className="w-6 h-6 text-sky-600" />
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <ViperLogo className="h-16 w-auto flex-shrink-0 min-w-16" />
             <h4 className="text-xl font-brand font-bold tracking-wide"><span className="text-white">Pipe</span><span className="text-sky-400">Shark</span></h4>
           </div>
           <p className="text-sky-500 text-sm">
