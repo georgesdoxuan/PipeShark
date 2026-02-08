@@ -24,6 +24,7 @@ interface Campaign {
 
 interface Lead {
   id: string;
+  campaignId?: string | null;
   businessType: string | null;
   city: string | null;
   country?: string | null;
@@ -107,11 +108,13 @@ export default function CampaignsPage() {
     return () => clearInterval(interval);
   }, [isPaused]);
 
-  async function fetchGmailStatus() {
+  const GMAIL_STATUS_TIMEOUT_MS = 8000;
+
+  async function fetchGmailStatus(signal?: AbortSignal) {
     setGmailLoading(true);
     setGmailError(null);
     try {
-      const res = await fetch('/api/auth/gmail/status', { credentials: 'include' });
+      const res = await fetch('/api/auth/gmail/status', { credentials: 'include', signal });
       if (res.ok) {
         const data = await res.json();
         setGmailConnected(data.gmailConnected || false);
@@ -136,19 +139,23 @@ export default function CampaignsPage() {
     const connected = searchParams.get('gmail_connected');
     const error = searchParams.get('gmail_error');
     if (connected === '1') {
-      fetchGmailStatus();
+      const ac = new AbortController();
+      const t = setTimeout(() => ac.abort(), GMAIL_STATUS_TIMEOUT_MS);
+      fetchGmailStatus(ac.signal).finally(() => clearTimeout(t));
       window.history.replaceState({}, '', '/dashboard');
     }
     if (error) {
       const messages: Record<string, string> = {
-        save_failed: 'Impossible de sauvegarder les tokens Gmail. La table user_profiles existe-t-elle ? Exécutez la migration Supabase (010_create_user_profiles_gmail.sql).',
-        unauthorized: 'Session expirée pendant la connexion. Réessayez en vous connectant à PipeShark.',
-        token_exchange: 'Échec de l\'échange du code OAuth. Vérifiez GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET et NEXT_PUBLIC_REDIRECT_URI.',
-        config: 'Configuration OAuth manquante.',
-        invalid_state: 'État OAuth invalide.',
-        missing_params: 'Paramètres OAuth manquants.',
+        save_failed: 'Could not save Gmail tokens. Does the user_profiles table exist? Run the Supabase migration (010_create_user_profiles_gmail.sql).',
+        unauthorized: 'Session expired during sign-in. Try again: sign in to PipeShark, then connect Gmail.',
+        token_exchange: 'OAuth code exchange failed. Check GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and NEXT_PUBLIC_REDIRECT_URI.',
+        config: 'Missing OAuth configuration.',
+        invalid_state: 'Invalid OAuth state.',
+        missing_params: 'Missing OAuth parameters.',
+        timeout: 'Gmail connection timed out. Please try connecting Gmail again.',
+        unknown: 'Something went wrong while connecting Gmail. Please try again.',
       };
-      setGmailError(messages[error] || `Erreur Gmail: ${error}`);
+      setGmailError(messages[error] || `Gmail error: ${error}`);
       window.history.replaceState({}, '', '/dashboard');
     }
   }, [searchParams]);
@@ -292,9 +299,11 @@ export default function CampaignsPage() {
         throw new Error(data.error || 'Failed to delete campaign');
       }
 
-      // Refresh campaigns list
-      await fetchCampaigns();
+      setCampaigns((prev) => prev.filter((c) => c.id !== campaignId));
+      setLeads((prev) => prev.filter((l: Lead) => l.campaignId !== campaignId));
       setDeleteConfirm(null);
+      await fetchCampaigns();
+      await fetchLeads();
     } catch (error: any) {
       console.error('Error deleting campaign:', error);
       alert(`Error deleting campaign: ${error.message}`);
@@ -354,7 +363,7 @@ export default function CampaignsPage() {
                 onClick={() => setGmailError(null)}
                 className="text-red-400 hover:text-red-300 text-sm shrink-0"
               >
-                Fermer
+                Dismiss
               </button>
             </div>
           )}
@@ -366,9 +375,9 @@ export default function CampaignsPage() {
                 <div className="flex items-center gap-3">
                   <MailX className="w-5 h-5 text-amber-400" />
                   <div>
-                    <p className="font-semibold text-amber-200">Compte Gmail non connecté</p>
+                    <p className="font-semibold text-amber-200">Gmail not connected</p>
                     <p className="text-sm text-amber-200/80">
-                      Connectez votre Gmail pour recevoir les drafts d&apos;emails générés dans votre boîte mail
+                      Connect your Gmail to receive generated email drafts in your inbox
                     </p>
                   </div>
                 </div>
@@ -377,7 +386,7 @@ export default function CampaignsPage() {
                   className="flex items-center gap-2 bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl font-semibold transition-colors"
                 >
                   <MailCheck className="w-4 h-4" />
-                  Connecter Gmail
+                  Connect Gmail
                 </Link>
               </div>
             </div>
@@ -512,9 +521,14 @@ export default function CampaignsPage() {
                   return `Any City ${sizeMap[effectiveCitySize] || effectiveCitySize}`;
                 };
 
-                // Calculate targets with email for this campaign
+                // Leads that belong to this campaign (inserted with this campaign_id)
+                const campaignLeads = leads.filter(
+                  (lead: Lead) => lead.campaignId === campaign.id
+                );
+                // Fallback: leads without campaign_id matched by businessType + cities + createdAfter
                 const campaignCreatedAt = new Date(campaign.createdAt).getTime();
-                const campaignLeads = leads.filter((lead: Lead) => {
+                const fallbackLeads = leads.filter((lead: Lead) => {
+                  if (lead.campaignId != null) return false;
                   const matchesBusinessType =
                     lead.businessType?.toLowerCase() === campaign.businessType.toLowerCase();
                   const matchesCity =
@@ -528,21 +542,9 @@ export default function CampaignsPage() {
                   const createdAfterCampaign = leadCreatedAt >= campaignCreatedAt;
                   return matchesBusinessType && matchesCity && createdAfterCampaign;
                 });
-                
-                // Count targets with email (valid email, not "No email found)
-                const targetsWithEmail = campaignLeads.filter(
-                  (lead: Lead) =>
-                    lead.email &&
-                    lead.email.trim() !== '' &&
-                    lead.email.toLowerCase() !== 'no email found'
-                ).length;
-                
-                // Campaign targets count = same as "Campaign Targets" on detail page (limited to numberCreditsUsed)
-                const targetLimit = campaign.numberCreditsUsed ?? 20;
-                const campaignTargetsCount = Math.min(targetsWithEmail, targetLimit);
-                
-                // Count drafts created for this campaign
-                const draftsCount = campaignLeads.filter(
+                const allCampaignLeads = campaignLeads.length > 0 ? campaignLeads : fallbackLeads;
+                const leadsCount = allCampaignLeads.length;
+                const draftsCount = allCampaignLeads.filter(
                   (lead: Lead) => lead.emailDraftCreated
                 ).length;
 
@@ -698,7 +700,7 @@ export default function CampaignsPage() {
                       <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-white/10">
                         <div className="flex items-center gap-2">
                           <Image src="/Icône de groupe de personnes.png" alt="" width={16} height={16} className="w-4 h-4 object-contain [filter:brightness(0)_saturate(100%)_invert(68%)_sepia(60%)_saturate(1200%)_hue-rotate(180deg)] dark:[filter:brightness(0)_invert(1)] opacity-90" />
-                          <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{campaign.numberCreditsUsed ?? '-'} targets</span>
+                          <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{leadsCount} lead{leadsCount !== 1 ? 's' : ''}</span>
                         </div>
                       </div>
                     </Link>
@@ -828,7 +830,7 @@ export default function CampaignsPage() {
                   </h3>
                 </div>
                 <p className="text-zinc-600 dark:text-neutral-300 text-sm mb-3">
-                  Choose the campaigns that will launch at the set time (max 20 credits/day). They will run one after the other, even when you&apos;re not on the site.
+                  Choose the campaigns that will launch at the set time (max 300 credits/day). They will run one after the other, even when you&apos;re not on the site.
                 </p>
                 <div className="flex-1 overflow-y-auto space-y-2 mb-4 pr-1">
                   {campaigns.map((c) => {
@@ -860,7 +862,7 @@ export default function CampaignsPage() {
                   })}
                 </div>
                 <p className="text-xs text-zinc-500 dark:text-neutral-400 mb-4">
-                  Total: {campaigns.filter((c) => scheduleModalSelectedIds.includes(c.id)).reduce((acc, c) => acc + (c.numberCreditsUsed ?? 0), 0)} credits / 20 max
+                  Total: {campaigns.filter((c) => scheduleModalSelectedIds.includes(c.id)).reduce((acc, c) => acc + (c.numberCreditsUsed ?? 0), 0)} credits / 300 max
                 </p>
                 <div className="flex gap-3">
                   <button

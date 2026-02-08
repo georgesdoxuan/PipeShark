@@ -2,7 +2,26 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-server';
 
+const CALLBACK_TIMEOUT_MS = 15000;
+
+function redirect(url: string, status = 302) {
+  return NextResponse.redirect(url, { status, headers: { 'Cache-Control': 'no-store' } });
+}
+
+/** Must match the redirect_uri used in the auth request (Google requires it). */
+function getRedirectUri(request: Request): string {
+  try {
+    const url = new URL(request.url);
+    return `${url.origin}/api/auth/gmail/callback`;
+  } catch {
+    return process.env.NEXT_PUBLIC_REDIRECT_URI || '';
+  }
+}
+
 export async function GET(request: Request) {
+  // Debug: confirm callback is hit (check terminal after clicking Allow)
+  console.log('[Gmail callback] GET', new URL(request.url).pathname);
+
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const state = searchParams.get('state');
@@ -10,24 +29,23 @@ export async function GET(request: Request) {
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const basePath = baseUrl.replace(/\/$/, '');
-
   const returnUrl = `${basePath}/dashboard`;
 
   if (errorParam) {
     console.error('Google OAuth error:', errorParam, searchParams.get('error_description'));
-    return NextResponse.redirect(`${returnUrl}?gmail_error=${encodeURIComponent(errorParam)}`);
+    return redirect(`${returnUrl}?gmail_error=${encodeURIComponent(errorParam)}`);
   }
 
   if (!code || !state) {
-    return NextResponse.redirect(`${returnUrl}?gmail_error=missing_params`);
+    return redirect(`${returnUrl}?gmail_error=missing_params`);
   }
 
-  try {
+  const run = async () => {
     let statePayload: { userId: string; nonce: string; returnTo?: string };
     try {
       statePayload = JSON.parse(Buffer.from(state, 'base64url').toString());
     } catch {
-      return NextResponse.redirect(`${basePath}/dashboard?gmail_error=invalid_state`);
+      return redirect(`${basePath}/dashboard?gmail_error=invalid_state`);
     }
 
     const returnPath = statePayload.returnTo || '/dashboard';
@@ -39,15 +57,15 @@ export async function GET(request: Request) {
     } = await supabase.auth.getUser();
 
     if (!user || user.id !== statePayload.userId) {
-      return NextResponse.redirect(`${finalReturnUrl}?gmail_error=unauthorized`);
+      return redirect(`${finalReturnUrl}?gmail_error=unauthorized`);
     }
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.NEXT_PUBLIC_REDIRECT_URI;
+    const redirectUri = getRedirectUri(request);
 
     if (!clientId || !clientSecret || !redirectUri) {
-      return NextResponse.redirect(`${finalReturnUrl}?gmail_error=config`);
+      return redirect(`${finalReturnUrl}?gmail_error=config`);
     }
 
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -66,7 +84,7 @@ export async function GET(request: Request) {
 
     if (!tokenResponse.ok) {
       console.error('Token exchange failed:', tokenData);
-      return NextResponse.redirect(`${finalReturnUrl}?gmail_error=token_exchange`);
+      return redirect(`${finalReturnUrl}?gmail_error=token_exchange`);
     }
 
     const accessToken = tokenData.access_token;
@@ -80,7 +98,6 @@ export async function GET(request: Request) {
     const userInfo = await userInfoResponse.json();
     const gmailEmail = userInfo.email || userInfo.id || '';
 
-    // user_profiles has an "email" column (NOT NULL) - use auth user email or Gmail
     const profileEmail = user.email || gmailEmail || `${user.id}@pipeshark.local`;
 
     const admin = createAdminClient();
@@ -100,16 +117,27 @@ export async function GET(request: Request) {
         { onConflict: 'id' }
       );
 
-
     if (error) {
       console.error('Failed to save Gmail tokens:', error);
-      return NextResponse.redirect(`${finalReturnUrl}?gmail_error=save_failed`);
+      return redirect(`${finalReturnUrl}?gmail_error=save_failed`);
     }
 
-    return NextResponse.redirect(`${finalReturnUrl}?gmail_connected=1`);
+    return redirect(`${finalReturnUrl}?gmail_connected=1`);
+  };
+
+  try {
+    const timeoutPromise = new Promise<NextResponse>((_, reject) =>
+      setTimeout(() => reject(new Error('callback_timeout')), CALLBACK_TIMEOUT_MS)
+    );
+    const result = await Promise.race([run(), timeoutPromise]);
+    return result;
   } catch (err) {
-    console.error('Gmail callback error:', err);
     const basePath = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
-    return NextResponse.redirect(`${basePath}/dashboard?gmail_error=unknown`);
+    if (err instanceof Error && err.message === 'callback_timeout') {
+      console.error('Gmail callback timeout');
+      return redirect(`${basePath}/dashboard?gmail_error=timeout`);
+    }
+    console.error('Gmail callback error:', err);
+    return redirect(`${basePath}/dashboard?gmail_error=unknown`);
   }
 }

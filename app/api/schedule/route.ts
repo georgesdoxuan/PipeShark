@@ -3,7 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { getSchedule, setSchedule } from '@/lib/supabase-schedule';
 import { getCampaignsForUser } from '@/lib/supabase-campaigns';
 
-const DAILY_LIMIT = 20;
+const DAILY_LIMIT = 300;
 
 export async function GET() {
   try {

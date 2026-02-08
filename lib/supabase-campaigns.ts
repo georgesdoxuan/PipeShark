@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from './supabase-server';
+import { createServerSupabaseClient, createAdminClient } from './supabase-server';
 
 export type CampaignMode = 'standard' | 'local_businesses';
 
@@ -234,13 +234,13 @@ export async function sumTodayCreditsUsedForUserAdmin(userId: string): Promise<n
 }
 
 export async function deleteCampaign(userId: string, campaignId: string): Promise<boolean> {
-  const supabase = await createServerSupabaseClient();
-
-  const { error } = await supabase
+  const admin = createAdminClient();
+  // Unlink leads first so FK doesn't block (or use ON DELETE SET NULL; we clear anyway for consistency)
+  await admin.from('leads').update({ campaign_id: null }).eq('campaign_id', campaignId).eq('user_id', userId);
+  const { error } = await admin
     .from('campaigns')
     .delete()
     .eq('id', campaignId)
     .eq('user_id', userId);
-
   return !error;
 }

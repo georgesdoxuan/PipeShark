@@ -7,8 +7,8 @@ import { addEmailTemplate } from '@/lib/supabase-email-templates';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { getValidGmailAccessToken } from '@/lib/gmail';
 
-const DAILY_LIMIT = 20;
-const MAX_PER_CAMPAIGN = 20;
+const DAILY_LIMIT = 300;
+const MAX_PER_CAMPAIGN = 300;
 
 export async function POST(request: Request) {
   console.log('\n=== CAMPAIGN START API CALLED ===');
@@ -36,8 +36,8 @@ export async function POST(request: Request) {
     if (profileError || !userProfile?.gmail_connected || !userProfile.gmail_access_token) {
       return NextResponse.json(
         {
-          error: 'Veuillez connecter votre compte Gmail avant de lancer une campagne',
-          hint: 'Allez sur le dashboard et cliquez sur "Connecter Gmail"',
+          error: 'Please connect your Gmail account before starting a campaign',
+          hint: 'Go to the dashboard and click "Connect Gmail"',
         },
         { status: 400 }
       );
@@ -46,8 +46,8 @@ export async function POST(request: Request) {
     if (!userProfile.gmail_refresh_token) {
       return NextResponse.json(
         {
-          error: 'Token Gmail expiré. Veuillez vous reconnecter à Gmail.',
-          hint: 'Déconnectez puis reconnectez Gmail dans le dashboard',
+          error: 'Gmail token expired. Please reconnect Gmail.',
+          hint: 'Disconnect then reconnect Gmail from the dashboard',
         },
         { status: 400 }
       );
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       console.error('Gmail token refresh failed:', tokenError);
       return NextResponse.json(
         {
-          error: 'Impossible de rafraîchir le token Gmail. Veuillez vous reconnecter à Gmail.',
+          error: 'Could not refresh Gmail token. Please reconnect Gmail from the dashboard.',
         },
         { status: 400 }
       );
@@ -84,16 +84,22 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get existing campaign if campaignId is provided (for "Run" button)
+    // Re-run: when campaignId is provided, use that campaign so new leads go into the SAME campaign (no new row)
     let existingCampaign = null;
     if (campaignId) {
       existingCampaign = await getCampaignById(user.id, campaignId);
+      if (!existingCampaign) {
+        return NextResponse.json(
+          { error: 'Campaign not found' },
+          { status: 404 }
+        );
+      }
     }
 
     // Use existing campaign description if not provided in body (for "Run" button)
     const finalCompanyDescription = companyDescription?.trim() || existingCampaign?.companyDescription || '';
 
-    // Validate company description (required for new campaigns)
+    // Validate company description (required for new campaigns only)
     if (!campaignId) {
       if (!companyDescription || typeof companyDescription !== 'string' || !companyDescription.trim()) {
         return NextResponse.json(
@@ -121,8 +127,9 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-    } else {
-      // For existing campaigns, validate only if description is provided
+    }
+    if (campaignId) {
+      // Re-run: optional description override
       if (companyDescription && companyDescription.trim()) {
         if (companyDescription.trim().length < 50) {
           return NextResponse.json(
@@ -190,7 +197,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // For new campaigns: targetCount is required (1-20 max per campaign) for Daily Credits
+    // For new campaigns: targetCount is required (1-300 max per campaign) for Daily Credits. Re-run does not consume new credits.
     const creditsToUse = !campaignId && typeof targetCount === 'number'
       ? Math.min(MAX_PER_CAMPAIGN, Math.max(1, Math.round(targetCount)))
       : 0;
@@ -213,18 +220,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // Create campaign record only if campaignId is not provided (new campaign)
+    // Re-run: use existing campaign so new leads go into the SAME campaign. New campaign: create one row.
     let campaign;
-    if (campaignId) {
-      // Existing campaign - get it from store
-      if (!existingCampaign) {
-        return NextResponse.json(
-          { error: 'Campaign not found' },
-          { status: 404 }
-        );
-      }
+    if (campaignId && existingCampaign) {
       campaign = existingCampaign;
-      console.log('📝 Using existing campaign:', campaign.id, campaign.businessType);
+      console.log('📝 Re-run: using existing campaign', campaign.id, '- new leads will be attached to this campaign');
     } else {
       // New campaign - create it in Supabase with number_credits_used
       campaign = await createCampaign(user.id, {

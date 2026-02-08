@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-const DEFAULT_DAILY_LIMIT = 20;
+const DEFAULT_DAILY_LIMIT = 300;
 
 interface CreditsGaugeProps {
   campaignId?: string;

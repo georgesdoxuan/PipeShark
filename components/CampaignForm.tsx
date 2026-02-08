@@ -43,7 +43,7 @@ interface CampaignFormProps {
   onSaveDraft?: (state: CampaignFormState) => void;
 }
 
-const MAX_PER_CAMPAIGN = 20; // Max leads per campaign launch
+const MAX_PER_CAMPAIGN = 300; // Max leads per campaign launch (testing)
 
 export default function CampaignForm({
   onSuccess,

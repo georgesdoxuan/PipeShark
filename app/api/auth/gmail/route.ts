@@ -7,6 +7,16 @@ const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.modify',
 ].join(' ');
 
+/** Build redirect URI from request so it always matches the port/host the user actually uses. */
+function getRedirectUri(request: Request): string {
+  try {
+    const url = new URL(request.url);
+    return `${url.origin}/api/auth/gmail/callback`;
+  } catch {
+    return process.env.NEXT_PUBLIC_REDIRECT_URI || '';
+  }
+}
+
 export async function GET(request: Request) {
   try {
     const supabase = await createServerSupabaseClient();
@@ -19,10 +29,10 @@ export async function GET(request: Request) {
     }
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = process.env.NEXT_PUBLIC_REDIRECT_URI;
+    const redirectUri = getRedirectUri(request);
 
     if (!clientId || !redirectUri) {
-      console.error('GOOGLE_CLIENT_ID or NEXT_PUBLIC_REDIRECT_URI not configured');
+      console.error('GOOGLE_CLIENT_ID or redirect URI not configured');
       return NextResponse.json(
         { error: 'OAuth not configured' },
         { status: 500 }

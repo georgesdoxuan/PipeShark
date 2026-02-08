@@ -21,6 +21,7 @@ export interface Lead {
 function mapLeadRecord(record: any) {
   return {
     id: record.id,
+    campaignId: record.campaign_id ?? null,
     businessType: record.business_type,
     city: record.city,
     country: record.country ?? null,
@@ -147,19 +148,41 @@ export async function countTodayLeadsForUser(userId: string): Promise<number> {
   return withEmail.length;
 }
 
+const SELECT_LEADS_WITH_REPLIES = 'email, draft, replied, replied_at, date, created_at';
+const SELECT_LEADS_BASIC = 'email, draft, date, created_at';
+
 export async function getCampaignStatsForUser(userId: string) {
   const supabase = await createServerSupabaseClient();
 
-  const { data, error } = await supabase
+  let selectColumns = SELECT_LEADS_WITH_REPLIES;
+  let { data, error } = await supabase
     .from('leads')
-    .select('email, draft, replied, replied_at, date, created_at')
+    .select(selectColumns)
     .eq('user_id', userId);
+
+  // If replied/replied_at columns don't exist (migration 016 not applied), retry without them
+  if (error && /replied|does not exist/i.test(error.message)) {
+    selectColumns = SELECT_LEADS_BASIC;
+    const fallback = await supabase
+      .from('leads')
+      .select(selectColumns)
+      .eq('user_id', userId);
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     throw error;
   }
 
-  const leads = data || [];
+  const leads = (data || []) as Array<{
+    email?: string | null;
+    draft?: string | null;
+    replied?: boolean;
+    replied_at?: string | null;
+    date?: string | null;
+    created_at?: string;
+  }>;
   const total = leads.length;
   const withEmail = leads.filter(
     (l) =>
@@ -168,17 +191,20 @@ export async function getCampaignStatsForUser(userId: string) {
       l.email.toLowerCase() !== 'no email found'
   ).length;
   const draftsSent = leads.filter((l) => l.draft && l.draft.trim() !== '').length;
-  const repliedCount = leads.filter((l) => !!l.replied).length;
-  const repliedLeadsWithDates = leads.filter(
-    (l) => !!l.replied && l.replied_at && (l.date || (l as any).created_at)
-  );
+  const hasRepliedColumn = selectColumns.includes('replied');
+  const repliedCount = hasRepliedColumn ? leads.filter((l) => !!l.replied).length : 0;
+  const repliedLeadsWithDates = hasRepliedColumn
+    ? leads.filter(
+        (l) => !!l.replied && l.replied_at && (l.date || l.created_at)
+      )
+    : [];
   const avgTimeToReplyMs =
     repliedLeadsWithDates.length > 0
       ? repliedLeadsWithDates.reduce((acc, l) => {
           const sentAt = l.date
             ? new Date(l.date).getTime()
-            : (l as any).created_at
-              ? new Date((l as any).created_at).getTime()
+            : l.created_at
+              ? new Date(l.created_at).getTime()
               : 0;
           const repliedAt = l.replied_at ? new Date(l.replied_at).getTime() : 0;
           return acc + (repliedAt - sentAt);

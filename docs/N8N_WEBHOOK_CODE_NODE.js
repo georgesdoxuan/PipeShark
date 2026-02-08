@@ -8,10 +8,18 @@
  * Le webhook reçoit : businessType, cities (array depuis Supabase), companyDescription,
  * country (optionnel, tirage au sort côté app), toneOfVoice, campaignGoal, magicLink,
  * searchMode, targetCount.
+ *
+ * IMPORTANT – Re-run (relance) : quand l'utilisateur relance une campagne, l'app envoie
+ * campaignId (id de la campagne existante). Tu DOIS passer ce campaignId à chaque lead
+ * inséré dans Supabase (colonne campaign_id). Sinon les nouveaux leads n'apparaîtront pas
+ * dans la même campagne et une "nouvelle" campagne semblera apparaître.
  */
 
 // Récupère les paramètres du webhook
 const webhookData = $('Webhook').item.json.body || {};
+
+// Re-run : id de la campagne existante – à utiliser pour campaign_id sur chaque lead inséré en base
+const campaignId = webhookData.campaignId || null;
 
 const businessType = webhookData.businessType || "plumber";
 const companyDescription = webhookData.companyDescription || "";
@@ -35,7 +43,7 @@ const city = cities.length > 0
   ? cities[Math.floor(Math.random() * cities.length)]
   : "New York";
 
-// Objet de sortie : champs de base + targetCount
+// Objet de sortie : champs de base + targetCount + campaignId (pour que le node Supabase insère avec campaign_id)
 const output = {
   business: businessType,
   city: city,
@@ -49,6 +57,9 @@ const output = {
 
 if (country && typeof country === 'string' && country.trim()) {
   output.country = country.trim();
+}
+if (campaignId) {
+  output.campaignId = campaignId;  // À mapper sur la colonne campaign_id dans le node Supabase (Insert)
 }
 
 return [{ json: output }];

@@ -73,6 +73,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Skip OAuth callback so it never blocks on session refresh (avoids freeze after "Allow")
+    '/((?!_next/static|_next/image|favicon.ico|api/auth/gmail/callback|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
