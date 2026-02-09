@@ -54,7 +54,6 @@ export default function CampaignsPage() {
   });
   const [loading, setLoading] = useState(true);
   const [loadingLeads, setLoadingLeads] = useState(false);
-  const [syncRepliesLoading, setSyncRepliesLoading] = useState(false);
   const [filterBusinessType, setFilterBusinessType] = useState('');
   const [filterCity, setFilterCity] = useState('');
   const [filterReplied, setFilterReplied] = useState<'all' | 'replied' | 'pending'>('all');
@@ -63,7 +62,7 @@ export default function CampaignsPage() {
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<Set<string>>(new Set());
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
   const [showAllCampaigns, setShowAllCampaigns] = useState(false);
-  const [scheduleTime, setScheduleTime] = useState<string>('');
+  const [scheduleTime, setScheduleTime] = useState<string>('09:00');
   const [scheduledCampaignIds, setScheduledCampaignIds] = useState<string[]>([]);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [showScheduleCampaignsModal, setShowScheduleCampaignsModal] = useState(false);
@@ -96,14 +95,14 @@ export default function CampaignsPage() {
       fetchSchedule();
     }
     
-    // Refresh every 60s (only if not paused and draft modal is closed)
+    // Refresh every 2 min (only if not paused and draft modal is closed)
     const interval = setInterval(() => {
       if (!isPaused && !draftModalOpenRef.current) {
         fetchCampaigns();
         fetchLeads();
         fetchSchedule();
       }
-    }, 60000);
+    }, 120000);
     
     return () => clearInterval(interval);
   }, [isPaused]);
@@ -160,12 +159,21 @@ export default function CampaignsPage() {
     }
   }, [searchParams]);
 
+  /** Normalize to full hour HH:00 (cron only runs at :00). */
+  function normalizeToCronHour(time: string | null): string {
+    if (!time || !/^\d{1,2}:\d{2}$/.test(time)) return '';
+    const [h, m] = time.split(':').map(Number);
+    const hour = Math.min(23, Math.max(0, h));
+    return `${String(hour).padStart(2, '0')}:00`;
+  }
+
   async function fetchSchedule() {
     try {
       const res = await fetch('/api/schedule');
       if (res.ok) {
         const data = await res.json();
-        setScheduleTime(data.launchTime || '');
+        const raw = data.launchTime || '';
+        setScheduleTime(normalizeToCronHour(raw) || '09:00');
         setScheduledCampaignIds(Array.isArray(data.campaignIds) ? data.campaignIds : []);
       }
     } catch {
@@ -400,23 +408,33 @@ export default function CampaignsPage() {
               </h1>
             </div>
             <div className="flex items-center gap-4">
-              {/* Schedule daily launch */}
-              <div className="flex flex-wrap items-center gap-2 bg-sky-50 dark:bg-sky-950/40 rounded-full px-3 py-1.5 shadow-sm">
-                <Clock className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400 flex-shrink-0" />
-                <label htmlFor="schedule-time" className="text-xs font-medium text-zinc-700 dark:text-neutral-200 whitespace-nowrap" title="UTC time. On Hobby plan, cron runs once per day at 9:00 UTC.">
-                  Daily launch (UTC):
-                </label>
-                <input
+              {/* Schedule daily launch - compact card, same style as campaign cards, only full hours */}
+              <div className="rounded-xl shadow-lg p-3.5 hover:shadow-xl transition-all duration-200 bg-sky-50 dark:bg-[#051a28] flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-sky-500 dark:text-sky-400 flex-shrink-0" />
+                  <label htmlFor="schedule-time" className="text-xs font-medium text-zinc-700 dark:text-neutral-200 whitespace-nowrap" title="UTC. Cron runs every hour at :00.">
+                    Daily launch (UTC):
+                  </label>
+                </div>
+                <select
                   id="schedule-time"
-                  type="time"
                   value={scheduleTime}
                   onChange={(e) => {
                     const t = e.target.value;
                     setScheduleTime(t);
-                    if (t) saveSchedule(t, scheduledCampaignIds);
+                    saveSchedule(t, scheduledCampaignIds);
                   }}
-                  className="bg-white dark:bg-neutral-800/80 rounded-lg px-2 py-0.5 text-zinc-800 dark:text-neutral-100 text-xs font-medium shadow-inner focus:outline-none focus:ring-2 focus:ring-sky-400/50"
-                />
+                  className="bg-white dark:bg-neutral-800/80 border border-zinc-200 dark:border-sky-800/50 rounded-lg px-2.5 py-1.5 text-xs text-zinc-800 dark:text-neutral-100 font-medium focus:outline-none focus:ring-2 focus:ring-sky-400/50"
+                >
+                  {Array.from({ length: 24 }, (_, i) => {
+                    const h = String(i).padStart(2, '0');
+                    return (
+                      <option key={h} value={`${h}:00`}>
+                        {h}:00
+                      </option>
+                    );
+                  })}
+                </select>
                 {campaigns.length > 0 && (
                   <button
                     type="button"
@@ -889,40 +907,11 @@ export default function CampaignsPage() {
             </div>
           )}
 
-          {/* All Targets Section */}
+          {/* All Leads Section */}
           <div className="mt-12">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-2xl font-display font-bold text-zinc-900 dark:text-white">
-                All Targets ({leads.length})
-              </h2>
-              {gmailConnected && (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setSyncRepliesLoading(true);
-                    try {
-                      const res = await fetch('/api/gmail/check-replies', { method: 'POST' });
-                      if (res.ok) {
-                        await Promise.all([fetchLeads(), fetchCampaigns()]);
-                      }
-                    } finally {
-                      setSyncRepliesLoading(false);
-                    }
-                  }}
-                  disabled={syncRepliesLoading}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-sky-100 dark:bg-sky-500/20 text-sky-800 dark:text-sky-300 border border-sky-200 dark:border-sky-500/30 hover:bg-sky-200 dark:hover:bg-sky-500/30 transition-colors disabled:opacity-50"
-                >
-                  {syncRepliesLoading ? (
-                    <>
-                      <span className="inline-block w-4 h-4 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-                      Syncing…
-                    </>
-                  ) : (
-                    <>Sync Replies</>
-                  )}
-                </button>
-              )}
-            </div>
+            <h2 className="text-2xl font-display font-bold text-zinc-900 dark:text-white mb-4">
+              All Leads ({leads.length})
+            </h2>
             <StatsCards stats={stats} />
             <LeadsTable
               leads={leads}

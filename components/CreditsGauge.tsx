@@ -32,7 +32,7 @@ export default function CreditsGauge({ campaignId, leadsWithEmail, compact = fal
 
   useEffect(() => {
     fetchQuota();
-    const interval = setInterval(fetchQuota, 10000); // Update every 10 seconds
+    const interval = setInterval(fetchQuota, 20000); // Update every 20 seconds
     return () => clearInterval(interval);
   }, []);
 

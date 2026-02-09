@@ -191,10 +191,10 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h2 className="text-xl font-display font-bold text-zinc-900 dark:text-white">
-              Targets ({filteredAndSortedLeads.length})
+              Leads ({filteredAndSortedLeads.length})
             </h2>
             <p className="text-sm text-zinc-600 dark:text-sky-200 mt-1 font-medium">
-              List of all your prospecting targets
+              List of all your leads
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -405,9 +405,8 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                       ✅ Replied
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-500/30">
+                    <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-500/30" title="Pending">
                       <PendingHourglassIcon />
-                      Pending
                     </span>
                   )}
                 </td>
