@@ -7,7 +7,7 @@ import StatsCards from '@/components/StatsCards';
 import CreditsGauge from '@/components/CreditsGauge';
 import { useApiPause } from '@/contexts/ApiPauseContext';
 import Image from 'next/image';
-import { Plus, Calendar, MapPin, Trash2, X, AlertTriangle, Send, Mail, Clock, Pencil, MailCheck, MailX, ListTodo, CheckSquare, Square, MoreVertical } from 'lucide-react';
+import { Plus, Calendar, MapPin, Trash2, X, AlertTriangle, Send, Mail, Clock, Pencil, MailCheck, MailX, CheckSquare, Square, MoreVertical } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -20,6 +20,9 @@ interface Campaign {
   numberCreditsUsed?: number;
   createdAt: string;
   status: 'active' | 'completed';
+  toneOfVoice?: string;
+  /** city name -> country (from list API) for display "City, Country" */
+  countryByCity?: Record<string, string>;
 }
 
 interface Lead {
@@ -442,11 +445,20 @@ export default function CampaignsPage() {
                       setScheduleModalSelectedIds([...scheduledCampaignIds]);
                       setShowScheduleCampaignsModal(true);
                     }}
-                    className="text-xs font-medium text-sky-600 dark:text-sky-400 hover:underline whitespace-nowrap"
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all ${
+                      scheduledCampaignIds.length === 0
+                        ? 'bg-white dark:bg-neutral-800/80 border border-sky-300 dark:border-sky-600 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-400 dark:hover:border-sky-500'
+                        : 'bg-sky-100 dark:bg-sky-900/50 text-sky-700 dark:text-sky-200 border border-sky-300 dark:border-sky-600 shadow-sm hover:bg-sky-200 dark:hover:bg-sky-800/50'
+                    }`}
                   >
-                    {scheduledCampaignIds.length === 0
-                      ? 'Choose campaigns'
-                      : `${scheduledCampaignIds.length} campaign(s) selected`}
+                    {scheduledCampaignIds.length === 0 ? (
+                      'Choose campaigns'
+                    ) : (
+                      <>
+                        <CheckSquare className="w-3.5 h-3.5 shrink-0" />
+                        {scheduledCampaignIds.length} campaign{scheduledCampaignIds.length !== 1 ? 's' : ''} selected
+                      </>
+                    )}
                   </button>
                 )}
                 {scheduleSaving && (
@@ -505,17 +517,10 @@ export default function CampaignsPage() {
                 )}
                 <Link
                   href="/campaigns/new"
-                  className="flex items-center gap-2 bg-sky-400 hover:bg-sky-300 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap"
+                  className="flex items-center gap-2 bg-sky-400 hover:bg-sky-300 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap ml-auto"
                 >
                   <Plus className="w-4 h-4" />
                   New Campaign
-                </Link>
-                <Link
-                  href="/todo"
-                  className="flex items-center gap-2 px-4 py-2 bg-sky-100 dark:bg-[#051a28] text-zinc-800 dark:text-white rounded-xl hover:opacity-90 transition-opacity text-sm font-medium whitespace-nowrap ml-auto"
-                >
-                  <ListTodo className="w-4 h-4 text-sky-400 flex-shrink-0" />
-                  To-Do
                 </Link>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -630,9 +635,16 @@ export default function CampaignsPage() {
                               />
                             ) : (
                               <>
-                                <h3 className="text-lg font-display font-bold text-zinc-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-300 transition-colors flex-1 min-w-0">
-                                  {campaign.name?.trim() || campaign.businessType.charAt(0).toUpperCase() + campaign.businessType.slice(1)}
-                                </h3>
+                                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                                  <h3 className="text-lg font-display font-bold text-zinc-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-300 transition-colors">
+                                    {campaign.name?.trim() || campaign.businessType.charAt(0).toUpperCase() + campaign.businessType.slice(1)}
+                                  </h3>
+                                  {scheduledCampaignIds.includes(campaign.id) && (
+                                    <span className="inline-flex items-center gap-1 w-fit text-[10px] font-medium text-sky-600 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/50 border border-sky-200 dark:border-sky-700/50 rounded px-1.5 py-0.5">
+                                      Ready for Daily Schedule
+                                    </span>
+                                  )}
+                                </div>
                                 {!selectMode && (
                                   <div className="relative shrink-0">
                                     <button
@@ -700,7 +712,9 @@ export default function CampaignsPage() {
                           {campaign.cities && campaign.cities.length > 0 ? (
                             <div className="flex items-center gap-1 text-sm min-w-0">
                               <MapPin className="w-4 h-4 flex-shrink-0 text-sky-400 dark:text-sky-300" />
-                              <span className="truncate text-zinc-500 dark:text-zinc-400" title={campaign.cities.join(', ')}>{campaign.cities.join(', ')}</span>
+                              <span className="truncate text-zinc-500 dark:text-zinc-400" title={campaign.cities.map((c) => (campaign.countryByCity?.[c] ? `${c}, ${campaign.countryByCity[c]}` : c)).join(', ')}>
+                                {campaign.cities.map((c) => (campaign.countryByCity?.[c] ? `${c}, ${campaign.countryByCity[c]}` : c)).join(', ')}
+                              </span>
                             </div>
                           ) : (
                             <p className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -919,6 +933,7 @@ export default function CampaignsPage() {
               filterBusinessType={filterBusinessType}
               filterCity={filterCity}
               filterReplied={filterReplied}
+              campaignIdToTone={Object.fromEntries(campaigns.map((c) => [c.id, c.toneOfVoice || 'professional']))}
               onDraftModalOpenChange={(open) => { draftModalOpenRef.current = open; }}
               onFilterBusinessTypeChange={setFilterBusinessType}
               onFilterCityChange={setFilterCity}

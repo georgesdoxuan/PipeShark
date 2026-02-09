@@ -38,6 +38,33 @@ export async function getCitiesFromSupabase(citySize: string): Promise<{ name: s
 }
 
 /**
+ * Returns a map of city name -> country for the given city names (from the cities table).
+ * Used to display "City, Country" on campaign cards.
+ */
+export async function getCountriesForCityNames(
+  cityNames: string[]
+): Promise<Record<string, string>> {
+  if (cityNames.length === 0) return {};
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('cities')
+    .select('name, country')
+    .in('name', cityNames);
+
+  if (error) {
+    console.error('getCountriesForCityNames error:', error);
+    return {};
+  }
+
+  const map: Record<string, string> = {};
+  for (const row of data || []) {
+    const r = row as { name: string; country: string };
+    if (r.name && r.country && !map[r.name]) map[r.name] = r.country;
+  }
+  return map;
+}
+
+/**
  * Returns one random city (and country) from the given citySize category.
  * Used when re-running a campaign so each run targets a different city in the same size bucket.
  */

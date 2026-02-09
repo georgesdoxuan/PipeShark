@@ -5,6 +5,7 @@ import { Search, Mail, X, Briefcase, MapPin, MessageCircle } from 'lucide-react'
 
 interface Lead {
   id: string;
+  campaignId?: string | null;
   businessType: string | null;
   city: string | null;
   country?: string | null;
@@ -58,13 +59,14 @@ interface LeadsTableProps {
   filterByEmail?: boolean;
   filterReplied?: 'all' | 'replied' | 'pending';
   toneOfVoice?: string;
+  campaignIdToTone?: Record<string, string>;
   onDraftModalOpenChange?: (open: boolean) => void;
   onFilterBusinessTypeChange?: (value: string) => void;
   onFilterCityChange?: (value: string) => void;
   onFilterRepliedChange?: (value: 'all' | 'replied' | 'pending') => void;
 }
 
-export default function LeadsTable({ leads, loading = false, filterBusinessType = '', filterCity = '', filterByEmail = true, filterReplied = 'all', toneOfVoice, onDraftModalOpenChange, onFilterBusinessTypeChange, onFilterCityChange, onFilterRepliedChange }: LeadsTableProps) {
+export default function LeadsTable({ leads, loading = false, filterBusinessType = '', filterCity = '', filterByEmail = true, filterReplied = 'all', toneOfVoice, campaignIdToTone, onDraftModalOpenChange, onFilterBusinessTypeChange, onFilterCityChange, onFilterRepliedChange }: LeadsTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [currentPage, setCurrentPage] = useState(1);
@@ -392,6 +394,15 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                       >
                         Draft
                       </button>
+                      {(() => {
+                        const tone = (lead.campaignId && campaignIdToTone?.[lead.campaignId]) || toneOfVoice;
+                        const toneLabel = tone ? TONE_LABELS[tone] || tone : null;
+                        return toneLabel ? (
+                          <span className="text-[10px] text-zinc-500 dark:text-sky-400/90" title="Tone of the email">
+                            {toneLabel}
+                          </span>
+                        ) : null;
+                      })()}
                     </div>
                   ) : (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-yellow-500/20 text-amber-700 dark:text-yellow-300 border border-amber-200 dark:border-yellow-500/30">
@@ -427,7 +438,8 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
         const { subject, body } = parseDraftSubjectAndBody(draftModal.content);
         const { lead } = draftModal;
         const cityLabel = lead.city && lead.country ? `${lead.city}, ${lead.country}` : lead.city || null;
-        const toneLabel = toneOfVoice ? TONE_LABELS[toneOfVoice] || toneOfVoice : null;
+        const toneForLead = (lead.campaignId && campaignIdToTone?.[lead.campaignId]) || toneOfVoice;
+        const toneLabel = toneForLead ? TONE_LABELS[toneForLead] || toneForLead : null;
         const pillItems: { key: string; icon: React.ReactNode; label: string }[] = [];
         if (lead.businessType) pillItems.push({ key: 'type', icon: <Briefcase className="w-3 h-3 shrink-0" />, label: lead.businessType });
         if (cityLabel) pillItems.push({ key: 'city', icon: <MapPin className="w-3 h-3 shrink-0" />, label: cityLabel });
