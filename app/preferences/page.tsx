@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
-import { Settings, ArrowLeft, MailCheck, MailX } from 'lucide-react';
+import { Settings, ArrowLeft, MailCheck, MailX, Scale, Lock } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -48,14 +48,16 @@ export default function PreferencesPage() {
     }
     if (error) {
       const messages: Record<string, string> = {
-        save_failed: 'Impossible de sauvegarder les tokens Gmail. La table user_profiles existe-t-elle ? Exécutez la migration Supabase.',
-        unauthorized: 'Session expirée pendant la connexion. Réessayez.',
-        token_exchange: 'Échec de l\'échange du code OAuth. Vérifiez la configuration.',
-        config: 'Configuration OAuth manquante.',
-        invalid_state: 'État OAuth invalide.',
-        missing_params: 'Paramètres OAuth manquants.',
+        save_failed: 'Could not save Gmail tokens. Run the Supabase migration if needed.',
+        unauthorized: 'Session expired during sign-in. Try again.',
+        token_exchange: 'OAuth code exchange failed. Check configuration.',
+        config: 'Missing OAuth configuration.',
+        invalid_state: 'Invalid OAuth state.',
+        missing_params: 'Missing OAuth parameters.',
+        timeout: 'Gmail connection timed out. Please try again.',
+        unknown: 'Something went wrong. Please try again.',
       };
-      setGmailError(messages[error] || `Erreur Gmail: ${error}`);
+      setGmailError(messages[error] || `Gmail error: ${error}`);
       window.history.replaceState({}, '', '/preferences');
     }
   }, [searchParams]);
@@ -80,48 +82,48 @@ export default function PreferencesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black relative">
+    <div className="min-h-screen bg-white dark:bg-black relative">
       <div className="relative z-10">
         <Header />
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 text-neutral-400 hover:text-white mb-6 transition-colors"
+            className="inline-flex items-center gap-2 text-zinc-500 dark:text-neutral-400 hover:text-zinc-900 dark:hover:text-white mb-6 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Dashboard
           </Link>
 
-          <div className="bg-neutral-900 rounded-xl border border-neutral-800 p-6 mb-6">
-            <h1 className="text-2xl font-display font-bold text-white mb-6 flex items-center gap-2">
+          <div className="bg-zinc-50 dark:bg-neutral-900 rounded-xl border border-zinc-200 dark:border-neutral-800 p-6 mb-6">
+            <h1 className="text-2xl font-display font-bold text-zinc-900 dark:text-white mb-6 flex items-center gap-2">
               <Settings className="w-6 h-6" />
               Preferences
             </h1>
 
-            {/* Gmail Connection Section - always visible in preferences */}
+            {/* Gmail Connection Section */}
             <div className="mb-6">
-              <h2 className="text-lg font-semibold text-white mb-3">Connexion Gmail</h2>
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-3">Gmail connection</h2>
               {gmailError && (
-                <div className="mb-4 bg-red-900/20 border border-red-700/50 rounded-xl p-4 flex items-start justify-between gap-4">
-                  <p className="text-sm text-red-200">{gmailError}</p>
+                <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/50 rounded-xl p-4 flex items-start justify-between gap-4">
+                  <p className="text-sm text-red-700 dark:text-red-200">{gmailError}</p>
                   <button
                     onClick={() => setGmailError(null)}
-                    className="text-red-400 hover:text-red-300 text-sm shrink-0"
+                    className="text-red-600 dark:text-red-400 hover:text-red-500 text-sm shrink-0"
                   >
-                    Fermer
+                    Dismiss
                   </button>
                 </div>
               )}
               {!gmailLoading && (
                 <>
                   {!gmailConnected ? (
-                    <div className="bg-amber-900/20 border border-amber-700/50 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+                    <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/50 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <MailX className="w-5 h-5 text-amber-400" />
+                        <MailX className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                         <div>
-                          <p className="font-semibold text-amber-200">Compte Gmail non connecté</p>
-                          <p className="text-sm text-amber-200/80">
-                            Connectez votre Gmail pour recevoir les drafts d&apos;emails générés dans votre boîte mail
+                          <p className="font-semibold text-amber-800 dark:text-amber-200">Gmail not connected</p>
+                          <p className="text-sm text-amber-700/90 dark:text-amber-200/80">
+                            Connect your Gmail to receive generated email drafts in your inbox.
                           </p>
                         </div>
                       </div>
@@ -130,36 +132,61 @@ export default function PreferencesPage() {
                         className="flex items-center gap-2 bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl font-semibold transition-colors"
                       >
                         <MailCheck className="w-4 h-4" />
-                        Connecter Gmail
+                        Connect Gmail
                       </button>
                     </div>
                   ) : (
-                    <div className="bg-sky-900/20 border border-sky-700/50 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+                    <div className="bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-700/50 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <MailCheck className="w-5 h-5 text-sky-400" />
+                        <MailCheck className="w-5 h-5 text-sky-600 dark:text-sky-400" />
                         <div>
-                          <p className="font-semibold text-sky-200">Gmail connecté</p>
-                          <p className="text-sm text-sky-200/80">
-                            Compte : {gmailEmail || '—'}
+                          <p className="font-semibold text-sky-800 dark:text-sky-200">Gmail connected</p>
+                          <p className="text-sm text-sky-700/90 dark:text-sky-200/80">
+                            Account: {gmailEmail || '—'}
                           </p>
                         </div>
                       </div>
                       <button
                         onClick={handleDisconnectGmail}
                         disabled={gmailDisconnecting}
-                        className="text-red-400 hover:text-red-300 text-sm underline disabled:opacity-50"
+                        className="text-red-600 dark:text-red-400 hover:text-red-500 text-sm underline disabled:opacity-50"
                       >
-                        {gmailDisconnecting ? 'Déconnexion...' : 'Déconnecter'}
+                        {gmailDisconnecting ? 'Disconnecting...' : 'Disconnect'}
                       </button>
                     </div>
                   )}
                 </>
               )}
               {gmailLoading && (
-                <p className="text-neutral-400 text-sm">Chargement...</p>
+                <p className="text-zinc-500 dark:text-neutral-400 text-sm">Loading...</p>
               )}
             </div>
           </div>
+
+          {/* LEGAL & COMPLIANCE */}
+          <section className="mt-12 pt-8 border-t border-zinc-200 dark:border-neutral-800">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+              <Scale className="w-5 h-5 text-zinc-500 dark:text-neutral-400" />
+              LEGAL & COMPLIANCE ⚖️
+            </h2>
+            <footer className="space-y-4 text-sm">
+              <div className="flex flex-wrap gap-x-6 gap-y-1">
+                <Link href="/legal/terms" className="text-sky-600 dark:text-sky-400 hover:underline">
+                  Terms of Service
+                </Link>
+                <Link href="/legal/privacy" className="text-sky-600 dark:text-sky-400 hover:underline">
+                  Privacy Policy
+                </Link>
+                <Link href="/legal/gdpr" className="text-sky-600 dark:text-sky-400 hover:underline">
+                  GDPR compliance notice
+                </Link>
+              </div>
+              <p className="flex items-center gap-2 text-zinc-600 dark:text-neutral-500">
+                <Lock className="w-4 h-4 shrink-0" />
+                Your data is encrypted and secure 🔒
+              </p>
+            </footer>
+          </section>
         </div>
       </div>
     </div>
