@@ -202,8 +202,8 @@ export default function LandingPage() {
       {/* Article previews – click to read full article */}
       <section id="article" className="py-16 px-4 sm:px-6 lg:px-8 border-t border-sky-900/50">
         <div className="max-w-4xl mx-auto">
-          <p className="text-center text-sky-400 text-sm font-medium mb-8">Read our articles</p>
-          <div className="grid sm:grid-cols-2 gap-6">
+          <p className="text-center text-sky-400 text-sm font-medium mb-8">Read our article</p>
+          <div className="max-w-xl mx-auto">
             <Link
               href="/article"
               className="block group rounded-2xl overflow-hidden border border-sky-800/50 bg-black/40 hover:bg-sky-900/30 transition-all duration-300 hover:border-sky-600/50 hover:shadow-xl hover:shadow-sky-900/20"
@@ -226,35 +226,6 @@ export default function LandingPage() {
                 </h2>
                 <p className="mt-2 text-sky-300/90 text-sm">
                   How AI is reshaping the skilled trades – and why it matters for PipeShark.
-                </p>
-                <span className="inline-flex items-center gap-2 mt-3 text-sky-400 group-hover:text-sky-300 text-sm font-medium">
-                  Read full article
-                  <ArrowRight className="w-4 h-4" />
-                </span>
-              </div>
-            </Link>
-            <Link
-              href="/article/silicon-trades"
-              className="block group rounded-2xl overflow-hidden border border-sky-800/50 bg-black/40 hover:bg-sky-900/30 transition-all duration-300 hover:border-sky-600/50 hover:shadow-xl hover:shadow-sky-900/20"
-            >
-              <div className="aspect-video bg-zinc-800 overflow-hidden relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={process.env.NEXT_PUBLIC_ARTICLE_SILICON_TRADES_IMAGE_URL || '/shutterstock_146630252-scaled-1.jpg'}
-                  alt="The Silicon Trades – Independent AI Automation Consultants"
-                  className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-                  width={640}
-                  height={360}
-                  loading="lazy"
-                  decoding="async"
-                />
-              </div>
-              <div className="p-5">
-                <h2 className="text-lg md:text-xl font-display font-bold text-white group-hover:text-sky-200 transition-colors">
-                  The Silicon Trades: Independent AI Automation Consultants
-                </h2>
-                <p className="mt-2 text-sky-300/90 text-sm">
-                  Gen Z, n8n, and the Blue Collar Revolution in the skilled labor economy.
                 </p>
                 <span className="inline-flex items-center gap-2 mt-3 text-sky-400 group-hover:text-sky-300 text-sm font-medium">
                   Read full article
