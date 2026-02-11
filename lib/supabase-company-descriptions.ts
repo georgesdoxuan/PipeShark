@@ -24,6 +24,10 @@ export async function getCompanyDescriptions(userId: string): Promise<CompanyDes
   }));
 }
 
+function normalizeContent(content: string): string {
+  return content.trim().replace(/\s+/g, ' ');
+}
+
 export async function addCompanyDescription(
   userId: string,
   content: string,
@@ -33,16 +37,18 @@ export async function addCompanyDescription(
   if (!trimmed || trimmed.length < 50) return null;
 
   const supabase = await createServerSupabaseClient();
+  const normalizedNew = normalizeContent(trimmed);
 
-  // Check if exact same content already exists
-  const { data: existing } = await supabase
+  // Fetch all user descriptions and check for duplicate (same normalized content)
+  const { data: existingList } = await supabase
     .from('company_descriptions')
-    .select('id, content, created_at')
-    .eq('user_id', userId)
-    .eq('content', trimmed)
-    .maybeSingle();
+    .select('id, content')
+    .eq('user_id', userId);
 
-  if (existing) return null; // Already saved
+  const isDuplicate = (existingList || []).some(
+    (row) => normalizeContent(row.content) === normalizedNew
+  );
+  if (isDuplicate) return null;
 
   const { data, error } = await supabase
     .from('company_descriptions')
@@ -51,6 +57,50 @@ export async function addCompanyDescription(
     .single();
 
   if (error) throw error;
+  return {
+    id: data.id,
+    content: data.content,
+    campaignName: data.campaign_name ?? undefined,
+    createdAt: data.created_at,
+  };
+}
+
+export async function updateCompanyDescription(
+  userId: string,
+  id: string,
+  updates: { content?: string; campaignName?: string }
+): Promise<CompanyDescription | null> {
+  const supabase = await createServerSupabaseClient();
+  const payload: Record<string, unknown> = {};
+  if (updates.content !== undefined) {
+    const trimmed = updates.content.trim();
+    if (trimmed.length < 50) return null;
+    const normalizedNew = normalizeContent(trimmed);
+    const { data: others } = await supabase
+      .from('company_descriptions')
+      .select('id, content')
+      .eq('user_id', userId)
+      .neq('id', id);
+    const isDuplicate = (others || []).some(
+      (row) => normalizeContent(row.content) === normalizedNew
+    );
+    if (isDuplicate) return null;
+    payload.content = trimmed;
+  }
+  if (updates.campaignName !== undefined) {
+    payload.campaign_name = updates.campaignName.trim() || null;
+  }
+  if (Object.keys(payload).length === 0) return null;
+
+  const { data, error } = await supabase
+    .from('company_descriptions')
+    .update(payload)
+    .eq('id', id)
+    .eq('user_id', userId)
+    .select('id, content, campaign_name, created_at')
+    .single();
+
+  if (error || !data) return null;
   return {
     id: data.id,
     content: data.content,

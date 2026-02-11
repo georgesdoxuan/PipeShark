@@ -50,9 +50,10 @@ export async function POST(request: Request) {
 
     const added = await addCompanyDescription(user.id, content.trim());
     if (!added) {
+      const descriptions = await getCompanyDescriptions(user.id);
       return NextResponse.json(
-        { message: 'Description already saved', descriptions: await getCompanyDescriptions(user.id) },
-        { status: 200 }
+        { error: 'Cette description existe déjà (doublon).', descriptions },
+        { status: 409 }
       );
     }
 

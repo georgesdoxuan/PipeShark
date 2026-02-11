@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Mail, X, Briefcase, MapPin, MessageCircle } from 'lucide-react';
+import { Search, Mail, X, Briefcase, MapPin, MessageCircle, Globe, FileEdit } from 'lucide-react';
 
 interface Lead {
   id: string;
@@ -90,7 +90,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
     if (!dateString) return '-';
     try {
       const date = new Date(dateString);
-      return new Intl.DateTimeFormat('fr-FR', {
+      return new Intl.DateTimeFormat('en-GB', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
@@ -267,33 +267,33 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
       {/* Table */}
       <div className="overflow-x-auto rounded-xl overflow-hidden border border-zinc-200 dark:border-sky-700/40">
         <table className="w-full table-fixed">
-          <thead className="bg-sky-400 dark:bg-sky-500 border-b border-sky-400 dark:border-sky-500">
+          <thead className="bg-sky-500/90 dark:bg-sky-600/90 border-b border-sky-500/80 dark:border-sky-600/80">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider" style={{ width: '12%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '10%' }}>
                 Business Type
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider" style={{ width: '10%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '8%' }}>
                 City
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider" style={{ width: '18%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '24%' }}>
                 Email
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider" style={{ width: '18%' }}>
-                URL
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider" style={{ width: '14%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '12%' }}>
                 Phone
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider" style={{ width: '14%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '10%' }}>
+                URL
+              </th>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '14%' }}>
                 LinkedIn
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider" style={{ width: '12%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '12%' }}>
                 Draft
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider" style={{ width: '10%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '10%' }}>
                 Reply
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider" style={{ width: '10%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '10%' }}>
                 Date
               </th>
             </tr>
@@ -338,21 +338,6 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                   )}
                 </td>
                 <td className="px-4 py-4">
-                  {lead.url ? (
-                    <a
-                      href={lead.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:underline transition-colors block"
-                      title={lead.url}
-                    >
-                      <span className="truncate block">{lead.url}</span>
-                    </a>
-                  ) : (
-                    <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
-                  )}
-                </td>
-                <td className="px-4 py-4">
                   {lead.phone ? (
                     <a
                       href={`tel:${lead.phone}`}
@@ -360,6 +345,22 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                       title={lead.phone}
                     >
                       {lead.phone}
+                    </a>
+                  ) : (
+                    <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
+                  )}
+                </td>
+                <td className="px-4 py-4">
+                  {lead.url ? (
+                    <a
+                      href={lead.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center p-2 text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 transition-colors rounded-lg hover:bg-sky-50 dark:hover:bg-sky-500/10"
+                      title={lead.url}
+                      aria-label="Open URL"
+                    >
+                      <Globe className="w-4 h-4" />
                     </a>
                   ) : (
                     <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
@@ -390,19 +391,11 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                           setDraftModal({ content: text, lead });
                           onDraftModalOpenChange?.(true);
                         }}
-                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-100 dark:bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-500/30 w-fit cursor-pointer hover:bg-sky-200 dark:hover:bg-sky-500/30 transition-colors text-left"
+                        className="inline-flex items-center justify-center p-2 rounded-lg bg-sky-100 dark:bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-500/30 w-fit cursor-pointer hover:bg-sky-200 dark:hover:bg-sky-500/30 transition-colors shadow-sm"
+                        title="Draft"
                       >
-                        Draft
+                        <FileEdit className="w-4 h-4" />
                       </button>
-                      {(() => {
-                        const tone = (lead.campaignId && campaignIdToTone?.[lead.campaignId]) || toneOfVoice;
-                        const toneLabel = tone ? TONE_LABELS[tone] || tone : null;
-                        return toneLabel ? (
-                          <span className="text-[10px] text-zinc-500 dark:text-sky-400/90" title="Tone of the email">
-                            {toneLabel}
-                          </span>
-                        ) : null;
-                      })()}
                     </div>
                   ) : (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-yellow-500/20 text-amber-700 dark:text-yellow-300 border border-amber-200 dark:border-yellow-500/30">

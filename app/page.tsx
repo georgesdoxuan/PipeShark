@@ -307,6 +307,38 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Article preview – click to read full article */}
+      <section id="article" className="py-16 px-4 sm:px-6 lg:px-8 bg-black/40">
+        <div className="max-w-2xl mx-auto">
+          <p className="text-center text-sky-400 text-sm font-medium mb-6">Read our article</p>
+          <Link
+            href="/article"
+            className="block group rounded-2xl overflow-hidden border border-sky-800/50 bg-black/40 hover:bg-sky-900/30 transition-all duration-300 hover:border-sky-600/50 hover:shadow-xl hover:shadow-sky-900/20"
+          >
+            <div className="aspect-video bg-zinc-800 overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={process.env.NEXT_PUBLIC_ARTICLE_IMAGE_URL || 'https://syjzqkweivjswszwrvye.supabase.co/storage/v1/object/public/Articles/Article1/plumber-automation-process.jpg'}
+                alt="AI Automation in Blue-Collar Trades"
+                className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+              />
+            </div>
+            <div className="p-6">
+              <h2 className="text-xl md:text-2xl font-display font-bold text-white group-hover:text-sky-200 transition-colors">
+                AI Automation in Blue-Collar Trades: Hype or Essential Next Step?
+              </h2>
+              <p className="mt-2 text-sky-300/90 text-sm">
+                How AI is reshaping the skilled trades – and why it matters for PipeShark.
+              </p>
+              <span className="inline-flex items-center gap-2 mt-4 text-sky-400 group-hover:text-sky-300 text-sm font-medium">
+                Read full article
+                <ArrowRight className="w-4 h-4" />
+              </span>
+            </div>
+          </Link>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">

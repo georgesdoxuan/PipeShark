@@ -7,7 +7,7 @@ import StatsCards from '@/components/StatsCards';
 import CreditsGauge from '@/components/CreditsGauge';
 import { useApiPause } from '@/contexts/ApiPauseContext';
 import Image from 'next/image';
-import { Plus, Calendar, MapPin, Trash2, X, AlertTriangle, Send, Mail, Clock, Pencil, MailCheck, MailX, CheckSquare, Square, MoreVertical } from 'lucide-react';
+import { Plus, Calendar, MapPin, Trash2, X, AlertTriangle, Send, Mail, Clock, Pencil, MailCheck, MailX, CheckSquare, Square, MoreVertical, LayoutGrid } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -87,7 +87,7 @@ export default function CampaignsPage() {
     const sorted = [...campaigns].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
-    return showAllCampaigns ? sorted : sorted.slice(0, 4);
+    return showAllCampaigns ? sorted : sorted.slice(0, 3);
   }, [campaigns, showAllCampaigns]);
 
   useEffect(() => {
@@ -365,7 +365,7 @@ export default function CampaignsPage() {
     <div className="min-h-screen bg-white dark:bg-black relative">
       <div>
         <Header />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
           {/* Gmail Error Banner */}
           {gmailError && (
             <div className="mb-6 bg-red-900/20 border border-red-700/50 rounded-xl p-4 flex items-start justify-between gap-4">
@@ -405,10 +405,20 @@ export default function CampaignsPage() {
 
           {/* Header Section */}
           <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-3xl font-display font-bold text-zinc-900 dark:text-white">
-                My Campaigns
-              </h1>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <LayoutGrid className="w-8 h-8 text-sky-500 dark:text-sky-400 flex-shrink-0" />
+                <h1 className="text-3xl font-display font-bold text-zinc-900 dark:text-white">
+                  My Campaigns
+                </h1>
+              </div>
+              <Link
+                href="/campaigns/new"
+                className="inline-flex items-center gap-2 bg-sky-400 hover:bg-sky-300 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 w-fit mt-1"
+              >
+                <Plus className="w-4 h-4" />
+                New Campaign
+              </Link>
             </div>
             <div className="flex items-center gap-4">
               {/* Schedule daily launch - compact card, same style as campaign cards, only full hours */}
@@ -448,7 +458,7 @@ export default function CampaignsPage() {
                     className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all ${
                       scheduledCampaignIds.length === 0
                         ? 'bg-white dark:bg-neutral-800/80 border border-sky-300 dark:border-sky-600 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-400 dark:hover:border-sky-500'
-                        : 'bg-sky-100 dark:bg-sky-900/50 text-sky-700 dark:text-sky-200 border border-sky-300 dark:border-sky-600 shadow-sm hover:bg-sky-200 dark:hover:bg-sky-800/50'
+                        : 'bg-sky-500 dark:bg-sky-600/90 text-white border border-sky-600 dark:border-sky-500 shadow-sm hover:bg-sky-600 dark:hover:bg-sky-500'
                     }`}
                   >
                     {scheduledCampaignIds.length === 0 ? (
@@ -473,12 +483,12 @@ export default function CampaignsPage() {
 
           {/* Campaigns List */}
           {loading ? (
-            <div className="bg-neutral-800/80 rounded-xl border border-neutral-700 shadow-xl p-12 text-center mb-8">
-              <p className="text-neutral-400">Loading campaigns...</p>
+            <div className="bg-zinc-100 dark:bg-neutral-800/80 rounded-xl border border-zinc-200 dark:border-neutral-700 shadow-xl p-12 text-center mb-8">
+              <p className="text-zinc-500 dark:text-neutral-400">Loading campaigns...</p>
             </div>
           ) : campaigns.length === 0 ? (
-            <div className="bg-neutral-800/80 rounded-xl border border-neutral-700 shadow-xl p-12 text-center mb-8">
-              <p className="text-neutral-400 mb-4">No campaigns yet</p>
+            <div className="bg-zinc-100 dark:bg-neutral-800/80 rounded-xl border border-zinc-200 dark:border-neutral-700 shadow-xl p-12 text-center mb-8">
+              <p className="text-zinc-500 dark:text-neutral-400 mb-4">No campaigns yet</p>
               <Link
                 href="/campaigns/new"
                 className="inline-flex items-center gap-2 bg-sky-400 hover:bg-sky-300 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200"
@@ -515,17 +525,10 @@ export default function CampaignsPage() {
                     </button>
                   </>
                 )}
-                <Link
-                  href="/campaigns/new"
-                  className="flex items-center gap-2 bg-sky-400 hover:bg-sky-300 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 whitespace-nowrap ml-auto"
-                >
-                  <Plus className="w-4 h-4" />
-                  New Campaign
-                </Link>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {displayedCampaigns.map((campaign) => {
-                const cardClass = 'bg-sky-50 dark:bg-[#051a28]';
+                const cardClass = 'bg-slate-50 dark:bg-slate-900/50';
                 // Helper function to format city size display
                 const formatCitySize = (citySize?: string): string => {
                   // Default to '1M+' if no citySize is set (for old campaigns)
@@ -635,13 +638,14 @@ export default function CampaignsPage() {
                               />
                             ) : (
                               <>
-                                <div className="flex-1 min-w-0 flex flex-col gap-1">
-                                  <h3 className="text-lg font-display font-bold text-zinc-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-300 transition-colors">
+                                <div className="flex-1 min-w-0 flex items-center gap-2">
+                                  <h3 className="text-lg font-display font-bold text-zinc-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-300 transition-colors truncate min-w-0">
                                     {campaign.name?.trim() || campaign.businessType.charAt(0).toUpperCase() + campaign.businessType.slice(1)}
                                   </h3>
                                   {scheduledCampaignIds.includes(campaign.id) && (
-                                    <span className="inline-flex items-center gap-1 w-fit text-[10px] font-medium text-sky-600 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/50 border border-sky-200 dark:border-sky-700/50 rounded px-1.5 py-0.5">
-                                      Ready for Daily Schedule
+                                    <span className="inline-flex items-center gap-1.5 shrink-0 text-xs font-bold text-white bg-sky-500 dark:bg-sky-600/90 border border-sky-600 dark:border-sky-500 rounded-lg px-2 py-1 shadow-sm ml-auto">
+                                      <Clock className="w-3.5 h-3.5 shrink-0" />
+                                      Daily Launch
                                     </span>
                                   )}
                                 </div>
@@ -732,7 +736,7 @@ export default function CampaignsPage() {
                       <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-white/10">
                         <div className="flex items-center gap-2">
                           <Image src="/Icône de groupe de personnes.png" alt="" width={16} height={16} className="w-4 h-4 object-contain [filter:brightness(0)_saturate(100%)_invert(68%)_sepia(60%)_saturate(1200%)_hue-rotate(180deg)] dark:[filter:brightness(0)_invert(1)] opacity-90" />
-                          <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{leadsCount} lead{leadsCount !== 1 ? 's' : ''}</span>
+                          <span className="text-sm font-medium text-zinc-900 dark:text-white">{leadsCount} lead{leadsCount !== 1 ? 's' : ''}</span>
                         </div>
                       </div>
                     </Link>
@@ -740,7 +744,7 @@ export default function CampaignsPage() {
                 );
               })}
               </div>
-              {campaigns.length > 4 && (
+              {campaigns.length > 3 && (
                 <div className="mt-4 text-center">
                   <button
                     onClick={() => setShowAllCampaigns((prev) => !prev)}
@@ -748,7 +752,7 @@ export default function CampaignsPage() {
                   >
                     {showAllCampaigns
                       ? 'Show less'
-                      : `Show all campaigns (${campaigns.length - 4} more)`}
+                      : `Show all campaigns (${campaigns.length - 3} more)`}
                   </button>
                 </div>
               )}
@@ -921,10 +925,10 @@ export default function CampaignsPage() {
             </div>
           )}
 
-          {/* All Leads Section */}
+          {/* My Leads Section */}
           <div className="mt-12">
             <h2 className="text-2xl font-display font-bold text-zinc-900 dark:text-white mb-4">
-              All Leads ({leads.length})
+              My Leads
             </h2>
             <StatsCards stats={stats} />
             <LeadsTable
