@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { CircleDollarSign } from 'lucide-react';
 
 const DEFAULT_DAILY_LIMIT = 300;
 
@@ -76,7 +77,10 @@ export default function CreditsGauge({ campaignId, leadsWithEmail, compact = fal
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <span className="text-sm text-zinc-700 dark:text-sky-200 font-medium">Daily Credits</span>
+        <span className="text-sm text-zinc-700 dark:text-sky-200 font-medium inline-flex items-center gap-1.5">
+          <CircleDollarSign className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
+          Daily Credits
+        </span>
         <span className="text-sm text-sky-600 dark:text-sky-300 font-semibold">
           {currentCredits}/{dailyLimit} used
         </span>

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { sumTodayCreditsUsedForUser } from '@/lib/supabase-campaigns';
+import { countTodayLeadsForUser } from '@/lib/supabase-leads';
 
 const DAILY_LIMIT = 300;
 
@@ -15,7 +15,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const count = await sumTodayCreditsUsedForUser(user.id);
+    const count = await countTodayLeadsForUser(user.id);
     const remaining = Math.max(0, DAILY_LIMIT - count);
 
     return NextResponse.json({

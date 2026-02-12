@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCampaignsForUser } from '@/lib/supabase-campaigns';
 import { getCountriesForCityNames } from '@/lib/supabase-cities';
+import { getLastLeadAtByCampaign } from '@/lib/supabase-leads';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 export async function GET() {
@@ -14,12 +15,16 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const campaigns = await getCampaignsForUser(user.id);
+    const [campaigns, lastLeadAtByCampaign] = await Promise.all([
+      getCampaignsForUser(user.id),
+      getLastLeadAtByCampaign(user.id),
+    ]);
     const allCityNames = [...new Set(campaigns.flatMap((c) => c.cities || []))];
     const countryByCity = await getCountriesForCityNames(allCityNames);
 
     const campaignsWithCountry = campaigns.map((c) => ({
       ...c,
+      lastLeadAt: lastLeadAtByCampaign[c.id] ?? undefined,
       countryByCity: c.cities?.length
         ? Object.fromEntries(
             c.cities.filter((name) => countryByCity[name]).map((name) => [name, countryByCity[name]])

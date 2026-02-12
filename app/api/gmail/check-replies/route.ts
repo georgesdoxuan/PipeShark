@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { getLeadsForUser, markLeadReplied } from '@/lib/supabase-leads';
+import { getLeadsForUser, markLeadReplied, markLeadEmailSent, setLeadEmailSent } from '@/lib/supabase-leads';
 import { getValidGmailAccessToken } from '@/lib/gmail';
-import { getGmailThread, threadHasReplyFromRecipient } from '@/lib/gmail-api';
+import { getGmailThread, threadHasReplyFromRecipient, threadHasMessageFromUser, getGmailUserEmail } from '@/lib/gmail-api';
 
 /**
  * POST /api/gmail/check-replies
@@ -33,6 +33,12 @@ export async function POST() {
       !profile.gmail_access_token ||
       !profile.gmail_refresh_token
     ) {
+      console.error('[check-replies] 400: Gmail not connected or missing tokens', {
+        hasProfile: !!profile,
+        gmail_connected: profile?.gmail_connected,
+        hasAccessToken: !!profile?.gmail_access_token,
+        hasRefreshToken: !!profile?.gmail_refresh_token,
+      });
       return NextResponse.json(
         { error: 'Gmail not connected', hint: 'Connect Gmail in dashboard' },
         { status: 400 }
@@ -55,8 +61,19 @@ export async function POST() {
       );
     }
 
-    const userEmail = (profile.gmail_email || '').trim().toLowerCase();
+    let userEmail = (profile.gmail_email || '').trim().toLowerCase();
     if (!userEmail) {
+      const fromApi = await getGmailUserEmail(accessToken);
+      if (fromApi) {
+        userEmail = fromApi;
+        await supabase
+          .from('user_profiles')
+          .update({ gmail_email: userEmail, updated_at: new Date().toISOString() })
+          .eq('id', user.id);
+      }
+    }
+    if (!userEmail) {
+      console.error('[check-replies] 400: Gmail email not found for user', user.id);
       return NextResponse.json(
         { error: 'Gmail email not found for user' },
         { status: 400 }
@@ -64,36 +81,47 @@ export async function POST() {
     }
 
     const leads = await getLeadsForUser(user.id);
-    const pending = leads.filter(
-      (l: any) =>
-        !l.replied &&
-        l.gmailThreadId &&
-        String(l.gmailThreadId).trim() !== ''
+    const withThreadId = leads.filter(
+      (l: any) => l.gmailThreadId && String(l.gmailThreadId).trim() !== ''
     );
+    const pendingReplies = withThreadId.filter((l: any) => !l.replied);
 
-    let updated = 0;
+    let updatedReplies = 0;
+    let updatedSent = 0;
     const errors: string[] = [];
 
-    for (const lead of pending) {
+    // 1) Leads with Gmail thread: check thread for sent + reply
+    for (const lead of withThreadId) {
       const threadId = (lead as any).gmailThreadId as string;
       try {
         const thread = await getGmailThread(accessToken, threadId);
         if (!thread) {
           continue;
         }
-        if (threadHasReplyFromRecipient(thread, userEmail)) {
+        const hasSentInThread = threadHasMessageFromUser(thread, userEmail);
+        if ((lead as any).emailSent && !hasSentInThread) {
+          await setLeadEmailSent(lead.id, user.id, false);
+        } else if (!(lead as any).emailSent && hasSentInThread) {
+          const ok = await markLeadEmailSent(lead.id, user.id);
+          if (ok) updatedSent++;
+        }
+        if (!lead.replied && threadHasReplyFromRecipient(thread, userEmail)) {
           const ok = await markLeadReplied(lead.id, user.id);
-          if (ok) updated++;
+          if (ok) updatedReplies++;
         }
       } catch (e: any) {
         errors.push(`Lead ${lead.id}: ${e.message || 'Error'}`);
       }
     }
 
+    // 2) "Sent" is only set from thread check above (lead has gmail_thread_id and we see user's message in that thread).
+    // We do NOT search in:sent by address, to avoid marking drafts/automated sends as "sent" when the user only sent one manually.
+
     return NextResponse.json({
       success: true,
-      checked: pending.length,
-      updated,
+      checked: pendingReplies.length,
+      updated: updatedReplies,
+      updatedSent,
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error: any) {

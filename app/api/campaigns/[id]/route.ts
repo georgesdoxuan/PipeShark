@@ -61,6 +61,7 @@ export async function PATCH(
     if (body.magicLink !== undefined) updates.magicLink = body.magicLink;
     if (body.cities !== undefined) updates.cities = body.cities;
     if (body.citySize !== undefined) updates.citySize = body.citySize;
+    if (body.numberCreditsUsed !== undefined) updates.numberCreditsUsed = body.numberCreditsUsed;
 
     const campaign = await updateCampaign(user.id, params.id, updates);
     if (!campaign) {

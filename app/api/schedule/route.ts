@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { getSchedule, setSchedule } from '@/lib/supabase-schedule';
 import { getCampaignsForUser } from '@/lib/supabase-campaigns';
+import { countTodayLeadsForUser } from '@/lib/supabase-leads';
 
 const DAILY_LIMIT = 300;
 
@@ -20,6 +21,7 @@ export async function GET() {
     return NextResponse.json({
       launchTime: schedule.launchTime,
       campaignIds: schedule.campaignIds,
+      timezone: schedule.timezone,
     });
   } catch (error: any) {
     console.error('Error fetching schedule:', error.message);
@@ -42,7 +44,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { launchTime, campaignIds } = body;
+    const { launchTime, campaignIds, timezone: tzParam } = body;
 
     if (!launchTime || typeof launchTime !== 'string') {
       return NextResponse.json(
@@ -57,6 +59,24 @@ export async function POST(request: Request) {
         { error: 'launchTime must be in HH:MM format (e.g. 17:43)' },
         { status: 400 }
       );
+    }
+    // Store always as HH:MM (e.g. 09:00) so cron matching works
+    const hour = match[1].padStart(2, '0');
+    const minute = match[2];
+    const normalizedLaunchTime = `${hour}:${minute}`;
+
+    // Validate IANA timezone if provided (e.g. Europe/Paris)
+    let timezone: string | null = null;
+    if (tzParam != null && typeof tzParam === 'string' && tzParam.trim()) {
+      try {
+        Intl.DateTimeFormat(undefined, { timeZone: tzParam.trim() });
+        timezone = tzParam.trim();
+      } catch {
+        return NextResponse.json(
+          { error: 'Invalid timezone (use IANA name, e.g. Europe/Paris)' },
+          { status: 400 }
+        );
+      }
     }
 
     let ids: string[] = [];
@@ -79,21 +99,23 @@ export async function POST(request: Request) {
       }
       const campaignsToSum = userCampaigns.filter((c) => ids.includes(c.id));
       const totalCredits = campaignsToSum.reduce((acc, c) => acc + (c.numberCreditsUsed ?? 0), 0);
-      if (totalCredits > DAILY_LIMIT) {
+      const usedToday = await countTodayLeadsForUser(user.id);
+      if (usedToday + totalCredits > DAILY_LIMIT) {
         return NextResponse.json(
           {
-            error: `Total credits (${totalCredits}) exceeds daily limit (${DAILY_LIMIT}). Reduce the number of campaigns or their target count.`,
+            error: `You have ${DAILY_LIMIT - usedToday} credits left today. Selected campaigns total ${totalCredits} credits. Reduce the selection or target counts.`,
           },
           { status: 400 }
         );
       }
     }
 
-    await setSchedule(user.id, launchTime, ids);
+    await setSchedule(user.id, normalizedLaunchTime, ids, timezone);
     return NextResponse.json({
       success: true,
-      launchTime,
+      launchTime: normalizedLaunchTime,
       campaignIds: ids,
+      timezone,
     });
   } catch (error: any) {
     console.error('Error setting schedule:', error.message);

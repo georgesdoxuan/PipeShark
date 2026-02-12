@@ -3,33 +3,42 @@ import { createServerSupabaseClient, createAdminClient } from './supabase-server
 export interface ScheduleData {
   launchTime: string | null;
   campaignIds: string[];
+  timezone: string | null;
 }
 
 export async function getSchedule(userId: string): Promise<ScheduleData> {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from('user_schedule')
-    .select('launch_time, campaign_ids')
+    .select('launch_time, campaign_ids, timezone')
     .eq('user_id', userId)
     .single();
 
   if (error || !data) {
-    return { launchTime: null, campaignIds: [] };
+    return { launchTime: null, campaignIds: [], timezone: null };
   }
   const ids = data.campaign_ids;
   return {
     launchTime: data.launch_time ?? null,
     campaignIds: Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [],
+    timezone: typeof data.timezone === 'string' ? data.timezone : null,
   };
 }
 
 export async function setSchedule(
   userId: string,
   launchTime: string,
-  campaignIds?: string[]
+  campaignIds?: string[],
+  timezone?: string | null
 ): Promise<void> {
   const supabase = await createServerSupabaseClient();
-  const payload: { user_id: string; launch_time: string; updated_at: string; campaign_ids?: string[] } = {
+  const payload: {
+    user_id: string;
+    launch_time: string;
+    updated_at: string;
+    campaign_ids?: string[];
+    timezone?: string | null;
+  } = {
     user_id: userId,
     launch_time: launchTime,
     updated_at: new Date().toISOString(),
@@ -37,24 +46,68 @@ export async function setSchedule(
   if (campaignIds !== undefined) {
     payload.campaign_ids = campaignIds;
   }
+  if (timezone !== undefined) {
+    payload.timezone = timezone || null;
+  }
   await supabase.from('user_schedule').upsert(payload, { onConflict: 'user_id' });
 }
 
-/** Get all user_ids whose schedule matches current HH:MM (for cron) */
-export async function getUsersWithScheduleMatchingNow(): Promise<string[]> {
+/** Current HH:MM in a given IANA timezone (e.g. "Europe/Paris") */
+function getCurrentTimeInTimezone(tz: string): string {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
+  return formatter.format(new Date());
+}
+
+/** Get all user_ids whose schedule matches current time in their timezone (for cron). Optional simulateTime (HH:MM) for testing. */
+export async function getUsersWithScheduleMatchingNow(simulateTime?: string | null): Promise<{ userIds: string[]; currentTimeUtc: string }> {
   const admin = createAdminClient();
   const now = new Date();
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mm = String(now.getMinutes()).padStart(2, '0');
-  const currentTime = `${hh}:${mm}`;
+  const hh = String(now.getUTCHours()).padStart(2, '0');
+  const mm = String(now.getUTCMinutes()).padStart(2, '0');
+  const realTimeUtc = `${hh}:${mm}`;
 
-  const { data, error } = await admin
+  const simMatch = simulateTime && simulateTime.match(/^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/);
+  const useSimulated = Boolean(simMatch);
+  const matchTime = useSimulated ? `${simMatch![1].padStart(2, '0')}:${simMatch![2]}` : realTimeUtc;
+
+  const { data: rows, error } = await admin
     .from('user_schedule')
-    .select('user_id')
-    .eq('launch_time', currentTime);
+    .select('user_id, launch_time, timezone');
 
-  if (error || !data) return [];
-  return data.map((r: { user_id: string }) => r.user_id);
+  if (error) {
+    console.error('[cron] getUsersWithScheduleMatchingNow error:', error.message);
+    return { userIds: [], currentTimeUtc: matchTime };
+  }
+
+  const userIds: string[] = [];
+  for (const row of rows || []) {
+    const launchTime = row.launch_time;
+    if (!launchTime) continue;
+    const currentLocal = useSimulated
+      ? matchTime
+      : (() => {
+          const tz = row.timezone && typeof row.timezone === 'string' ? row.timezone : 'UTC';
+          try {
+            return getCurrentTimeInTimezone(tz);
+          } catch {
+            return realTimeUtc;
+          }
+        })();
+    const possibleLaunch = [launchTime];
+    if (/^[0-9]:[0-5]\d$/.test(launchTime)) {
+      possibleLaunch.push('0' + launchTime);
+    }
+    if (possibleLaunch.includes(currentLocal)) {
+      userIds.push(row.user_id);
+    }
+  }
+
+  return { userIds, currentTimeUtc: matchTime };
 }
 
 /** Get scheduled campaign IDs for a user (for cron). Returns empty array if none set = launch all. */

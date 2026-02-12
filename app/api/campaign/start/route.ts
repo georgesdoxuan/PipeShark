@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { triggerN8nWorkflow } from '@/lib/n8n';
-import { createCampaign, getCampaignById, sumTodayCreditsUsedForUser } from '@/lib/supabase-campaigns';
+import { createCampaign, getCampaignById } from '@/lib/supabase-campaigns';
+import { countTodayLeadsForUser } from '@/lib/supabase-leads';
 import { getCitiesFromSupabase, getRandomCityFromSupabase } from '@/lib/supabase-cities';
 import { addCompanyDescription } from '@/lib/supabase-company-descriptions';
 import { addEmailTemplate } from '@/lib/supabase-email-templates';
@@ -208,7 +209,7 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      const usedToday = await sumTodayCreditsUsedForUser(user.id);
+      const usedToday = await countTodayLeadsForUser(user.id);
       if (usedToday + creditsToUse > DAILY_LIMIT) {
         return NextResponse.json(
           {

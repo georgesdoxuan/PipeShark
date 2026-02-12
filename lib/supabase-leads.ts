@@ -36,6 +36,7 @@ function mapLeadRecord(record: any) {
     replied: !!record.replied,
     repliedAt: record.replied_at ?? null,
     gmailThreadId: record.gmail_thread_id ?? null,
+    emailSent: !!record.email_sent,
   };
 }
 
@@ -59,6 +60,29 @@ export async function getLeadsForUser(userId: string, campaignId?: string) {
   }
 
   return (data || []).map(mapLeadRecord);
+}
+
+/** Get the most recent lead date per campaign (for dashboard cards). Returns campaign_id -> ISO date string. */
+export async function getLastLeadAtByCampaign(
+  userId: string
+): Promise<Record<string, string>> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('leads')
+    .select('campaign_id, created_at')
+    .eq('user_id', userId)
+    .not('campaign_id', 'is', null)
+    .order('created_at', { ascending: false });
+
+  if (error) return {};
+  const out: Record<string, string> = {};
+  for (const row of data || []) {
+    const cid = row.campaign_id;
+    if (cid && out[cid] === undefined && row.created_at) {
+      out[cid] = row.created_at;
+    }
+  }
+  return out;
 }
 
 /** Campaign info needed for fallback when leads don't have campaign_id (n8n not updated yet) */
@@ -148,7 +172,7 @@ export async function countTodayLeadsForUser(userId: string): Promise<number> {
   return withEmail.length;
 }
 
-const SELECT_LEADS_WITH_REPLIES = 'email, draft, replied, replied_at, date, created_at';
+const SELECT_LEADS_WITH_REPLIES = 'email, draft, replied, replied_at, date, created_at, email_sent';
 const SELECT_LEADS_BASIC = 'email, draft, date, created_at';
 
 export async function getCampaignStatsForUser(userId: string) {
@@ -170,6 +194,16 @@ export async function getCampaignStatsForUser(userId: string) {
     data = fallback.data;
     error = fallback.error;
   }
+  // If email_sent column doesn't exist (migration 019 not applied), retry without it
+  if (error && /email_sent|does not exist/i.test(error.message)) {
+    selectColumns = 'email, draft, replied, replied_at, date, created_at';
+    const fallback = await supabase
+      .from('leads')
+      .select(selectColumns)
+      .eq('user_id', userId);
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     throw error;
@@ -182,6 +216,7 @@ export async function getCampaignStatsForUser(userId: string) {
     replied_at?: string | null;
     date?: string | null;
     created_at?: string;
+    email_sent?: boolean;
   }>;
   const total = leads.length;
   const withEmail = leads.filter(
@@ -192,6 +227,8 @@ export async function getCampaignStatsForUser(userId: string) {
   ).length;
   const draftsSent = leads.filter((l) => l.draft && l.draft.trim() !== '').length;
   const hasRepliedColumn = selectColumns.includes('replied');
+  const hasEmailSentColumn = selectColumns.includes('email_sent');
+  const emailsSentCount = hasEmailSentColumn ? leads.filter((l) => !!l.email_sent).length : draftsSent;
   const repliedCount = hasRepliedColumn ? leads.filter((l) => !!l.replied).length : 0;
   const repliedLeadsWithDates = hasRepliedColumn
     ? leads.filter(
@@ -216,12 +253,27 @@ export async function getCampaignStatsForUser(userId: string) {
   return {
     totalLeads: total,
     leadsWithEmail: withEmail,
-    emailsSent: draftsSent,
+    emailsSent: emailsSentCount,
     conversionRate: total > 0 ? ((withEmail / total) * 100).toFixed(1) : '0',
     repliesCount: repliedCount,
     replyRate,
     avgTimeToReplyHours: avgTimeToReplyMs != null ? (avgTimeToReplyMs / (1000 * 60 * 60)).toFixed(1) : null,
   };
+}
+
+/** Count leads for a campaign (admin, for cron). */
+export async function countLeadsForCampaignAdmin(
+  userId: string,
+  campaignId: string
+): Promise<number> {
+  const supabase = await createAdminClient();
+  const { count, error } = await supabase
+    .from('leads')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('campaign_id', campaignId);
+  if (error) return 0;
+  return count ?? 0;
 }
 
 /** Mark a lead as replied (used by check-replies API). */
@@ -239,4 +291,113 @@ export async function markLeadReplied(
     .eq('id', leadId)
     .eq('user_id', userId);
   return !error;
+}
+
+/** Mark a lead as email sent (user sent the email from their mailbox). */
+export async function markLeadEmailSent(
+  leadId: string,
+  userId: string
+): Promise<boolean> {
+  const supabase = await createAdminClient();
+  const { error } = await supabase
+    .from('leads')
+    .update({ email_sent: true })
+    .eq('id', leadId)
+    .eq('user_id', userId);
+  return !error;
+}
+
+/** Set email_sent to a given value (e.g. false when thread has no SENT message from user). */
+export async function setLeadEmailSent(
+  leadId: string,
+  userId: string,
+  value: boolean
+): Promise<boolean> {
+  const supabase = await createAdminClient();
+  const { error } = await supabase
+    .from('leads')
+    .update({ email_sent: value })
+    .eq('id', leadId)
+    .eq('user_id', userId);
+  return !error;
+}
+
+export interface NotificationReply {
+  id: string;
+  email: string | null;
+  replied_at: string;
+  campaign_id: string | null;
+}
+
+export interface TodayLeadNotification {
+  id: string;
+  created_at: string;
+  campaign_id: string | null;
+  business_type: string | null;
+}
+
+export interface NotificationsForUser {
+  todayLeadsCount: number;
+  todayLeads: TodayLeadNotification[];
+  recentReplies: NotificationReply[];
+}
+
+/** For header notifications: today's leads (with time), and recent replies. */
+export async function getNotificationsForUser(userId: string): Promise<NotificationsForUser> {
+  const supabase = await createServerSupabaseClient();
+
+  const today = new Date().toISOString().split('T')[0];
+  const startOfDay = `${today}T00:00:00.000Z`;
+  const endOfDay = `${today}T23:59:59.999Z`;
+
+  const { data: todayLeadsData, error: todayError } = await supabase
+    .from('leads')
+    .select('id, created_at, email, campaign_id, business_type')
+    .eq('user_id', userId)
+    .gte('created_at', startOfDay)
+    .lte('created_at', endOfDay)
+    .order('created_at', { ascending: false });
+
+  const todayLeads: TodayLeadNotification[] = [];
+  if (!todayError && todayLeadsData) {
+    for (const row of todayLeadsData) {
+      if (!row.created_at) continue;
+      const email = row.email && String(row.email).trim() !== '' && String(row.email).toLowerCase() !== 'no email found';
+      if (email) {
+        todayLeads.push({
+          id: row.id,
+          created_at: row.created_at,
+          campaign_id: row.campaign_id ?? null,
+          business_type: row.business_type ?? null,
+        });
+      }
+    }
+  }
+
+  const todayCount = todayLeads.length;
+
+  let recentReplies: NotificationReply[] = [];
+  const { data: repliesData, error: repliesError } = await supabase
+    .from('leads')
+    .select('id, email, replied_at, campaign_id')
+    .eq('user_id', userId)
+    .eq('replied', true)
+    .not('replied_at', 'is', null)
+    .order('replied_at', { ascending: false })
+    .limit(15);
+
+  if (!repliesError && repliesData) {
+    recentReplies = repliesData.map((r: any) => ({
+      id: r.id,
+      email: r.email ?? null,
+      replied_at: r.replied_at,
+      campaign_id: r.campaign_id ?? null,
+    }));
+  }
+
+  return {
+    todayLeadsCount: todayCount,
+    todayLeads,
+    recentReplies,
+  };
 }

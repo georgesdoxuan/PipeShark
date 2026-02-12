@@ -22,8 +22,8 @@ export const metadata: Metadata = {
   title: "PipeShark - Dashboard",
   description: "Outil de prospection automatisée pour plombiers",
   icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-    apple: "/viper-logo.png",
+    icon: [{ url: "/favicon.png", type: "image/png" }],
+    apple: "/favicon.png",
   },
 };
 

@@ -150,6 +150,7 @@ export async function updateCampaign(
     cities: string[];
     citySize: string;
     mode: CampaignMode;
+    numberCreditsUsed: number;
   }>
 ): Promise<Campaign | null> {
   const supabase = await createServerSupabaseClient();
@@ -163,6 +164,7 @@ export async function updateCampaign(
   if (updates.cities !== undefined) payload.cities = updates.cities;
   if (updates.citySize !== undefined) payload.city_size = updates.citySize;
   if (updates.mode !== undefined) payload.mode = updates.mode;
+  if (updates.numberCreditsUsed !== undefined) payload.number_credits_used = Math.max(0, Math.min(300, updates.numberCreditsUsed));
 
   if (Object.keys(payload).length === 0) {
     return getCampaignById(userId, campaignId);

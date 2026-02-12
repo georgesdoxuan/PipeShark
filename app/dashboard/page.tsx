@@ -23,6 +23,8 @@ interface Campaign {
   toneOfVoice?: string;
   /** city name -> country (from list API) for display "City, Country" */
   countryByCity?: Record<string, string>;
+  /** date of the most recent lead for this campaign (from list API) */
+  lastLeadAt?: string;
 }
 
 interface Lead {
@@ -59,7 +61,7 @@ export default function CampaignsPage() {
   const [loadingLeads, setLoadingLeads] = useState(false);
   const [filterBusinessType, setFilterBusinessType] = useState('');
   const [filterCity, setFilterCity] = useState('');
-  const [filterReplied, setFilterReplied] = useState<'all' | 'replied' | 'pending'>('all');
+  const [filterView, setFilterView] = useState<'all' | 'sent' | 'replied'>('all');
   const [deleteConfirm, setDeleteConfirm] = useState<{ campaignId: string; campaignName: string } | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedCampaignIds, setSelectedCampaignIds] = useState<Set<string>>(new Set());
@@ -80,13 +82,24 @@ export default function CampaignsPage() {
   const [gmailError, setGmailError] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const draftModalOpenRef = useRef(false);
+  const leadsSectionRef = useRef<HTMLDivElement>(null);
 
   const { isPaused } = useApiPause();
 
+  const displayedLeads = leads;
+
+  useEffect(() => {
+    if (searchParams.get('leads') === 'today' && !loadingLeads && leadsSectionRef.current) {
+      leadsSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [searchParams, loadingLeads]);
+
   const displayedCampaigns = useMemo(() => {
-    const sorted = [...campaigns].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+    const sorted = [...campaigns].sort((a, b) => {
+      const aDate = a.lastLeadAt ?? a.createdAt;
+      const bDate = b.lastLeadAt ?? b.createdAt;
+      return new Date(bDate).getTime() - new Date(aDate).getTime();
+    });
     return showAllCampaigns ? sorted : sorted.slice(0, 3);
   }, [campaigns, showAllCampaigns]);
 
@@ -191,7 +204,11 @@ export default function CampaignsPage() {
       const res = await fetch('/api/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ launchTime: time, campaignIds: ids }),
+        body: JSON.stringify({
+          launchTime: time,
+          campaignIds: ids,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -238,6 +255,7 @@ export default function CampaignsPage() {
     
     setLoadingLeads(true);
     try {
+      await fetch('/api/gmail/check-replies', { method: 'POST', credentials: 'include' });
       const [statsRes, leadsRes] = await Promise.all([
         fetch('/api/campaigns'),
         fetch('/api/leads'),
@@ -362,10 +380,10 @@ export default function CampaignsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black relative">
+    <div className="min-h-screen bg-zinc-100 dark:bg-black relative">
       <div>
         <Header />
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
           {/* Gmail Error Banner */}
           {gmailError && (
             <div className="mb-6 bg-red-900/20 border border-red-700/50 rounded-xl p-4 flex items-start justify-between gap-4">
@@ -403,9 +421,10 @@ export default function CampaignsPage() {
             </div>
           )}
 
-          {/* Header Section */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex flex-col gap-3">
+          {/* Header Section: My Campaigns | Leads & Replies | Credits */}
+          <div className="flex flex-wrap items-start gap-4 mb-4">
+            {/* My Campaigns */}
+            <div className="flex flex-col gap-5 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <LayoutGrid className="w-8 h-8 text-sky-500 dark:text-sky-400 flex-shrink-0" />
                 <h1 className="text-3xl font-display font-bold text-zinc-900 dark:text-white">
@@ -414,70 +433,68 @@ export default function CampaignsPage() {
               </div>
               <Link
                 href="/campaigns/new"
-                className="inline-flex items-center gap-2 bg-sky-400 hover:bg-sky-300 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 w-fit mt-1"
+                className="inline-flex items-center gap-2 bg-sky-400 hover:bg-sky-300 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 w-fit"
               >
                 <Plus className="w-4 h-4" />
                 New Campaign
               </Link>
             </div>
-            <div className="flex items-center gap-4">
-              {/* Schedule daily launch - compact card, same style as campaign cards, only full hours */}
-              <div className="rounded-xl shadow-lg p-3.5 hover:shadow-xl transition-all duration-200 bg-sky-50 dark:bg-[#051a28] flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-sky-500 dark:text-sky-400 flex-shrink-0" />
-                  <label htmlFor="schedule-time" className="text-xs font-medium text-zinc-700 dark:text-neutral-200 whitespace-nowrap" title="UTC. Cron runs every hour at :00.">
-                    Daily launch (UTC):
-                  </label>
-                </div>
-                <select
-                  id="schedule-time"
-                  value={scheduleTime}
-                  onChange={(e) => {
-                    const t = e.target.value;
-                    setScheduleTime(t);
-                    saveSchedule(t, scheduledCampaignIds);
+            {/* Leads & Replies - centered between My Campaigns and Credits */}
+            <div className="flex-1 min-w-0 flex justify-center">
+              <StatsCards stats={stats} compact />
+            </div>
+            {/* Daily Credits */}
+            <div className="w-64 flex-shrink-0">
+              <CreditsGauge />
+            </div>
+          </div>
+
+          {/* Daily launch - just above campaign cards */}
+          <div className="mb-2">
+            <div className="rounded-xl border border-zinc-200 dark:border-sky-800/50 bg-white dark:bg-neutral-800/50 shadow-sm p-3 inline-flex flex-wrap items-center gap-2">
+              <Clock className="w-4 h-4 text-sky-500 dark:text-sky-400 flex-shrink-0" />
+              <span className="text-sm font-medium text-zinc-700 dark:text-neutral-200">Daily launch</span>
+              <select
+                id="schedule-time"
+                value={scheduleTime}
+                onChange={(e) => {
+                  const t = e.target.value;
+                  setScheduleTime(t);
+                  saveSchedule(t, scheduledCampaignIds);
+                }}
+                className="rounded-md border border-zinc-200 dark:border-sky-700/50 bg-zinc-50 dark:bg-neutral-800 text-sm text-zinc-800 dark:text-neutral-100 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+                title="Lancement à l'heure choisie (ton fuseau)."
+              >
+                {Array.from({ length: 24 }, (_, i) => {
+                  const h = String(i).padStart(2, '0');
+                  return (
+                    <option key={h} value={`${h}:00`}>
+                      {h}:00
+                    </option>
+                  );
+                })}
+              </select>
+              <span className="text-sm text-zinc-500 dark:text-neutral-400">everyday</span>
+              {campaigns.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScheduleModalSelectedIds([...scheduledCampaignIds]);
+                    setShowScheduleCampaignsModal(true);
                   }}
-                  className="bg-white dark:bg-neutral-800/80 border border-zinc-200 dark:border-sky-800/50 rounded-lg px-2.5 py-1.5 text-xs text-zinc-800 dark:text-neutral-100 font-medium focus:outline-none focus:ring-2 focus:ring-sky-400/50"
+                  className={`ml-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap ${
+                    scheduledCampaignIds.length === 0
+                      ? 'bg-zinc-100 dark:bg-neutral-700/50 text-zinc-600 dark:text-sky-300 border border-zinc-200 dark:border-sky-700/50 hover:bg-zinc-200 dark:hover:bg-neutral-700'
+                      : 'bg-sky-500 text-white hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-500'
+                  }`}
                 >
-                  {Array.from({ length: 24 }, (_, i) => {
-                    const h = String(i).padStart(2, '0');
-                    return (
-                      <option key={h} value={`${h}:00`}>
-                        {h}:00
-                      </option>
-                    );
-                  })}
-                </select>
-                {campaigns.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setScheduleModalSelectedIds([...scheduledCampaignIds]);
-                      setShowScheduleCampaignsModal(true);
-                    }}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all ${
-                      scheduledCampaignIds.length === 0
-                        ? 'bg-white dark:bg-neutral-800/80 border border-sky-300 dark:border-sky-600 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30 hover:border-sky-400 dark:hover:border-sky-500'
-                        : 'bg-sky-500 dark:bg-sky-600/90 text-white border border-sky-600 dark:border-sky-500 shadow-sm hover:bg-sky-600 dark:hover:bg-sky-500'
-                    }`}
-                  >
-                    {scheduledCampaignIds.length === 0 ? (
-                      'Choose campaigns'
-                    ) : (
-                      <>
-                        <CheckSquare className="w-3.5 h-3.5 shrink-0" />
-                        {scheduledCampaignIds.length} campaign{scheduledCampaignIds.length !== 1 ? 's' : ''} selected
-                      </>
-                    )}
-                  </button>
-                )}
-                {scheduleSaving && (
-                  <span className="text-[10px] text-zinc-500 dark:text-neutral-400">Saving...</span>
-                )}
-              </div>
-              <div className="w-64">
-                <CreditsGauge />
-              </div>
+                  <CheckSquare className="w-4 h-4 shrink-0" />
+                  {scheduledCampaignIds.length === 0 ? 'Choose campaigns' : `${scheduledCampaignIds.length} selected`}
+                </button>
+              )}
+              {scheduleSaving && (
+                <span className="text-xs text-zinc-400 dark:text-neutral-500">Saving…</span>
+              )}
             </div>
           </div>
 
@@ -498,8 +515,8 @@ export default function CampaignsPage() {
               </Link>
             </div>
           ) : (
-            <div className="mb-8">
-              <div className="flex items-center gap-2 mb-4">
+            <div className="mb-1">
+              <div className="flex items-center justify-end gap-2 mb-2">
                 {!selectMode ? (
                   <button
                     onClick={() => setSelectMode(true)}
@@ -526,9 +543,9 @@ export default function CampaignsPage() {
                   </>
                 )}
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {displayedCampaigns.map((campaign) => {
-                const cardClass = 'bg-slate-50 dark:bg-slate-900/50';
+                const cardClass = 'bg-white dark:bg-slate-900/50';
                 // Helper function to format city size display
                 const formatCitySize = (citySize?: string): string => {
                   // Default to '1M+' if no citySize is set (for old campaigns)
@@ -638,16 +655,21 @@ export default function CampaignsPage() {
                               />
                             ) : (
                               <>
-                                <div className="flex-1 min-w-0 flex items-center gap-2">
-                                  <h3 className="text-lg font-display font-bold text-zinc-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-300 transition-colors truncate min-w-0">
-                                    {campaign.name?.trim() || campaign.businessType.charAt(0).toUpperCase() + campaign.businessType.slice(1)}
-                                  </h3>
-                                  {scheduledCampaignIds.includes(campaign.id) && (
-                                    <span className="inline-flex items-center gap-1.5 shrink-0 text-xs font-bold text-white bg-sky-500 dark:bg-sky-600/90 border border-sky-600 dark:border-sky-500 rounded-lg px-2 py-1 shadow-sm ml-auto">
-                                      <Clock className="w-3.5 h-3.5 shrink-0" />
-                                      Daily Launch
-                                    </span>
-                                  )}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="text-lg font-display font-bold text-zinc-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-300 transition-colors truncate min-w-0">
+                                      {campaign.name?.trim() || campaign.businessType.charAt(0).toUpperCase() + campaign.businessType.slice(1)}
+                                    </h3>
+                                    {scheduledCampaignIds.includes(campaign.id) && (
+                                      <span className="inline-flex items-center gap-1.5 shrink-0 text-xs font-bold text-white bg-sky-500 dark:bg-sky-600/90 border border-sky-600 dark:border-sky-500 rounded-lg px-2 py-1 shadow-sm ml-auto">
+                                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                                        Daily Launch
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-zinc-500 dark:text-sky-400/90 capitalize mt-0.5">
+                                    {campaign.businessType}
+                                  </p>
                                 </div>
                                 {!selectMode && (
                                   <div className="relative shrink-0">
@@ -730,7 +752,9 @@ export default function CampaignsPage() {
                       
                       <div className="flex items-center gap-2 text-sm">
                         <Calendar className="w-4 h-4 text-sky-400 dark:text-sky-300" />
-                        <span className="text-zinc-500 dark:text-zinc-400">{formatDate(campaign.createdAt)}</span>
+                        <span className="text-zinc-500 dark:text-zinc-400" title={campaign.lastLeadAt ? 'Last leads update' : 'Created'}>
+                          {formatDate(campaign.lastLeadAt ?? campaign.createdAt)}
+                        </span>
                       </div>
                       
                       <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-white/10">
@@ -745,7 +769,7 @@ export default function CampaignsPage() {
               })}
               </div>
               {campaigns.length > 3 && (
-                <div className="mt-4 text-center">
+                <div className="mt-3 text-center">
                   <button
                     onClick={() => setShowAllCampaigns((prev) => !prev)}
                     className="text-sm text-sky-500 hover:text-sky-400 font-medium transition-colors"
@@ -925,23 +949,31 @@ export default function CampaignsPage() {
             </div>
           )}
 
-          {/* My Leads Section */}
-          <div className="mt-12">
-            <h2 className="text-2xl font-display font-bold text-zinc-900 dark:text-white mb-4">
-              My Leads
+          {/* All my leads Section - table only, refresh is in LeadsTable header */}
+          <div ref={leadsSectionRef} className="mt-4">
+            <h2 className="text-2xl font-display font-bold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
+              <Image
+                src="/Icône de groupe de personnes.png"
+                alt=""
+                width={28}
+                height={28}
+                className="w-7 h-7 object-contain flex-shrink-0 [filter:brightness(0)_saturate(100%)_invert(68%)_sepia(60%)_saturate(1200%)_hue-rotate(180deg)] dark:[filter:brightness(0)_invert(1)]"
+              />
+              All my leads
             </h2>
-            <StatsCards stats={stats} />
             <LeadsTable
-              leads={leads}
+              leads={displayedLeads}
               loading={loadingLeads}
               filterBusinessType={filterBusinessType}
               filterCity={filterCity}
-              filterReplied={filterReplied}
+              filterView={filterView}
               campaignIdToTone={Object.fromEntries(campaigns.map((c) => [c.id, c.toneOfVoice || 'professional']))}
+              campaignIdToName={Object.fromEntries(campaigns.map((c) => [c.id, c.name || c.businessType || 'Campaign']))}
               onDraftModalOpenChange={(open) => { draftModalOpenRef.current = open; }}
               onFilterBusinessTypeChange={setFilterBusinessType}
               onFilterCityChange={setFilterCity}
-              onFilterRepliedChange={setFilterReplied}
+              onFilterViewChange={setFilterView}
+              onRefresh={fetchLeads}
             />
           </div>
         </div>

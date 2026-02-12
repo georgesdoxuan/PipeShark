@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Mail, X, Briefcase, MapPin, MessageCircle, Globe, FileEdit } from 'lucide-react';
+import Link from 'next/link';
+import { Search, Mail, X, Briefcase, MapPin, MessageCircle, Globe, FileEdit, FolderOpen, RefreshCw, CheckSquare, Square } from 'lucide-react';
 
 interface Lead {
   id: string;
@@ -20,6 +21,7 @@ interface Lead {
   replied?: boolean;
   repliedAt?: string | null;
   gmailThreadId?: string | null;
+  emailSent?: boolean;
 }
 
 const selectClass = "text-sm font-medium text-zinc-700 dark:text-sky-200 bg-white dark:bg-neutral-800/80 border border-zinc-200 dark:border-sky-700/50 rounded-xl px-4 py-2.5 shadow-sm hover:border-sky-300 dark:hover:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-400 transition-colors cursor-pointer appearance-none bg-[length:14px] bg-[right_0.75rem_center] bg-no-repeat pr-9";
@@ -57,16 +59,23 @@ interface LeadsTableProps {
   filterBusinessType?: string;
   filterCity?: string;
   filterByEmail?: boolean;
-  filterReplied?: 'all' | 'replied' | 'pending';
+  /** 'all' | 'sent' (email sent only) | 'replied' (replies only) */
+  filterView?: 'all' | 'sent' | 'replied';
   toneOfVoice?: string;
   campaignIdToTone?: Record<string, string>;
+  campaignIdToName?: Record<string, string>;
   onDraftModalOpenChange?: (open: boolean) => void;
   onFilterBusinessTypeChange?: (value: string) => void;
   onFilterCityChange?: (value: string) => void;
-  onFilterRepliedChange?: (value: 'all' | 'replied' | 'pending') => void;
+  onFilterViewChange?: (value: 'all' | 'sent' | 'replied') => void;
+  onRefresh?: () => void;
 }
 
-export default function LeadsTable({ leads, loading = false, filterBusinessType = '', filterCity = '', filterByEmail = true, filterReplied = 'all', toneOfVoice, campaignIdToTone, onDraftModalOpenChange, onFilterBusinessTypeChange, onFilterCityChange, onFilterRepliedChange }: LeadsTableProps) {
+const filterBtnBase = "inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-colors disabled:opacity-50";
+const filterBtnActive = "border-sky-500 bg-sky-500/15 text-sky-700 dark:text-sky-200 dark:bg-sky-500/20";
+const filterBtnInactive = "border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-700 dark:text-sky-200 hover:bg-zinc-50 dark:hover:bg-neutral-800 hover:border-zinc-300 dark:hover:border-sky-600";
+
+export default function LeadsTable({ leads, loading = false, filterBusinessType = '', filterCity = '', filterByEmail = true, filterView = 'all', toneOfVoice, campaignIdToTone, campaignIdToName, onDraftModalOpenChange, onFilterBusinessTypeChange, onFilterCityChange, onFilterViewChange, onRefresh }: LeadsTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [currentPage, setCurrentPage] = useState(1);
@@ -129,11 +138,11 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
       );
     }
 
-    // Apply reply status filter
-    if (filterReplied === 'replied') {
+    // Apply view filter: all | email sent only | replies only
+    if (filterView === 'sent') {
+      filtered = filtered.filter(lead => !!lead.emailSent);
+    } else if (filterView === 'replied') {
       filtered = filtered.filter(lead => !!lead.replied);
-    } else if (filterReplied === 'pending') {
-      filtered = filtered.filter(lead => !lead.replied);
     }
 
     // Apply search filter
@@ -155,17 +164,36 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
     });
 
     return filtered;
-  }, [leads, searchQuery, sortOrder, filterBusinessType, filterCity, filterByEmail, filterReplied]);
+  }, [leads, searchQuery, sortOrder, filterBusinessType, filterCity, filterByEmail, filterView]);
 
   // Pagination
   const totalPages = Math.ceil(filteredAndSortedLeads.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedLeads = filteredAndSortedLeads.slice(startIndex, startIndex + itemsPerPage);
 
+  // Counts for filter labels (same base as table: after email + business type + city, before reply/emailSent)
+  const filterCounts = useMemo(() => {
+    let base = Array.isArray(leads) ? [...leads] : [];
+    if (filterByEmail) {
+      base = base.filter(lead =>
+        lead.email && lead.email.trim() !== '' && lead.email.toLowerCase() !== 'no email found'
+      );
+    }
+    if (filterBusinessType.trim()) {
+      base = base.filter(lead => lead.businessType?.toLowerCase() === filterBusinessType.toLowerCase());
+    }
+    if (filterCity.trim()) {
+      base = base.filter(lead => lead.city?.toLowerCase() === filterCity.toLowerCase());
+    }
+    const emailSentCount = base.filter(lead => !!lead.emailSent).length;
+    const repliedCount = base.filter(lead => !!lead.replied).length;
+    return { emailSentCount, repliedCount };
+  }, [leads, filterByEmail, filterBusinessType, filterCity]);
+
   // Reset to page 1 when search or filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filterBusinessType, filterCity, filterReplied, sortOrder]);
+  }, [searchQuery, filterBusinessType, filterCity, filterView, sortOrder]);
 
   if (loading) {
     return (
@@ -189,15 +217,26 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
   return (
     <div className="overflow-hidden">
       {/* Header with Search and Sort Order */}
-      <div className="p-6 pb-4 border-b border-zinc-200 dark:border-sky-800/30">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="p-4 pb-3 border-b border-zinc-200 dark:border-sky-800/30">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h2 className="text-xl font-display font-bold text-zinc-900 dark:text-white">
-              Leads ({filteredAndSortedLeads.length})
-            </h2>
-            <p className="text-sm text-zinc-600 dark:text-sky-200 mt-1 font-medium">
-              List of all your leads
-            </p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-display font-bold text-zinc-900 dark:text-white">
+                Leads ({filteredAndSortedLeads.length})
+              </h2>
+              {onRefresh && (
+                <button
+                  type="button"
+                  onClick={onRefresh}
+                  disabled={loading}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-700 dark:text-sky-200 hover:bg-zinc-50 dark:hover:bg-neutral-800 hover:border-zinc-300 dark:hover:border-sky-600 transition-colors disabled:opacity-50 shadow-sm"
+                  title="Refresh leads"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  <span className="text-sm font-medium">Refresh</span>
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {onFilterBusinessTypeChange && (
@@ -226,18 +265,33 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
-                {onFilterRepliedChange && (
-                  <select
-                    value={filterReplied}
-                    onChange={(e) => onFilterRepliedChange(e.target.value as 'all' | 'replied' | 'pending')}
-                    className={selectClass}
-                    style={{ backgroundImage: selectChevron }}
-                    title="Filter by reply status"
-                  >
-                    <option value="all">All replies</option>
-                    <option value="replied">✅ Replied</option>
-                    <option value="pending">Pending</option>
-                  </select>
+                {onFilterViewChange && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onFilterViewChange('all')}
+                      className={`${filterBtnBase} ${filterView === 'all' ? filterBtnActive : filterBtnInactive}`}
+                      title="Show all leads"
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onFilterViewChange('sent')}
+                      className={`${filterBtnBase} ${filterView === 'sent' ? filterBtnActive : filterBtnInactive}`}
+                      title="Show only leads with email sent"
+                    >
+                      Email sent ({filterCounts.emailSentCount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onFilterViewChange('replied')}
+                      className={`${filterBtnBase} ${filterView === 'replied' ? filterBtnActive : filterBtnInactive}`}
+                      title="Show only leads who replied"
+                    >
+                      Replies ({filterCounts.repliedCount})
+                    </button>
+                  </>
                 )}
               </>
             )}
@@ -264,44 +318,50 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto rounded-xl overflow-hidden border border-zinc-200 dark:border-sky-700/40">
-        <table className="w-full table-fixed">
+      {/* Table - min-width + auto layout so columns don't overlap and horizontal scroll works */}
+      <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-sky-700/40">
+        <table className="w-full min-w-[1100px]" style={{ tableLayout: 'auto' }}>
           <thead className="bg-sky-500/90 dark:bg-sky-600/90 border-b border-sky-500/80 dark:border-sky-600/80">
             <tr>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '10%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
                 Business Type
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '8%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
                 City
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '24%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap">
                 Email
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '12%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
                 Phone
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '10%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
                 URL
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '14%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ maxWidth: 100, width: 100 }}>
                 LinkedIn
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '12%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
                 Draft
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '10%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
+                Sent
+              </th>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
                 Reply
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ width: '10%' }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ minWidth: 145 }}>
                 Date
+              </th>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ minWidth: 100 }}>
+                Campaign
               </th>
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-neutral-900/95 divide-y divide-zinc-200 dark:divide-sky-800/30">
             {paginatedLeads.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-6 py-12 text-center">
+                <td colSpan={11} className="px-6 py-12 text-center">
                   <p className="text-zinc-600 dark:text-sky-200">
                     {searchQuery.trim() 
                       ? `No results for "${searchQuery}"` 
@@ -366,16 +426,16 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
                   )}
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-4 py-4 max-w-[100px] w-[100px]" style={{ maxWidth: 100 }}>
                   {lead.linkedin && lead.linkedin.trim() !== '' && lead.linkedin.toLowerCase() !== 'no linkedin found' ? (
                     <a
                       href={lead.linkedin}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:underline transition-colors block"
+                      className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:underline transition-colors block truncate"
                       title={lead.linkedin}
                     >
-                      <span className="truncate block">{lead.linkedin}</span>
+                      <span className="truncate block font-semibold text-sky-600 dark:text-sky-400">LK</span>
                     </a>
                   ) : (
                     <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
@@ -403,6 +463,15 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     </span>
                   )}
                 </td>
+                <td className="px-4 py-4 w-0">
+                  <span className="inline-flex items-center justify-center" title={lead.emailSent ? 'Email sent' : 'Not sent yet'}>
+                    {lead.emailSent ? (
+                      <CheckSquare className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" aria-hidden />
+                    ) : (
+                      <Square className="w-5 h-5 text-zinc-300 dark:text-zinc-500 shrink-0" aria-hidden />
+                    )}
+                  </span>
+                </td>
                 <td className="px-4 py-4">
                   {lead.replied ? (
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-500/20 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-500/30">
@@ -414,10 +483,24 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-4">
-                  <div className="text-sm text-zinc-600 dark:text-sky-200 whitespace-nowrap">
+                <td className="px-4 py-4 whitespace-nowrap" style={{ minWidth: 145 }}>
+                  <div className="text-sm text-zinc-600 dark:text-sky-200">
                     {formatDate(lead.date)}
                   </div>
+                </td>
+                <td className="px-4 py-4 whitespace-nowrap" style={{ minWidth: 100 }}>
+                  {lead.campaignId && (campaignIdToName?.[lead.campaignId] != null) ? (
+                    <Link
+                      href={`/campaigns/${lead.campaignId}`}
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 hover:underline truncate"
+                      title={campaignIdToName[lead.campaignId]}
+                    >
+                      <FolderOpen className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{campaignIdToName[lead.campaignId]}</span>
+                    </Link>
+                  ) : (
+                    <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
+                  )}
                 </td>
               </tr>
               ))

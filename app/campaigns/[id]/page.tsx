@@ -7,12 +7,13 @@ import LeadsTable from '@/components/LeadsTable';
 import CreditsGauge from '@/components/CreditsGauge';
 import { useApiPause } from '@/contexts/ApiPauseContext';
 import { useCampaignLoading } from '@/contexts/CampaignLoadingContext';
-import { ArrowLeft, RefreshCw, Play, Loader2, FileText, X, ChevronDown, ChevronUp, MailX, MessageCircle, Target } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Play, Loader2, FileText, X, ChevronDown, ChevronUp, MailX, MessageCircle, Target, CircleDollarSign, Briefcase } from 'lucide-react';
 import Link from 'next/link';
 import EditCampaignModal from '@/components/EditCampaignModal';
 
 interface Lead {
   id: string;
+  campaignId?: string | null;
   businessType: string | null;
   city: string | null;
   country?: string | null;
@@ -302,6 +303,11 @@ export default function CampaignDetailPage() {
             </Link>
           </div>
 
+          {/* Daily Credits - same width as dashboard */}
+          <div className="mb-6 w-64">
+            <CreditsGauge campaignId={campaignId} leadsWithEmail={todayLeadsWithEmail} />
+          </div>
+
           {/* Campaign Info */}
           <div className="bg-white dark:bg-neutral-900/80 rounded-xl border border-zinc-200 dark:border-sky-800/30 shadow-lg p-6 mb-8">
             {runMessage && (
@@ -317,10 +323,13 @@ export default function CampaignDetailPage() {
             )}
             <div className="flex items-start justify-between gap-6">
               <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
+                <div className="flex items-center gap-3 mb-2 flex-wrap">
                   <h1 className="text-3xl font-display font-bold text-zinc-900 dark:text-white">
                     {campaign.name?.trim() || campaign.businessType.charAt(0).toUpperCase() + campaign.businessType.slice(1)}
                   </h1>
+                  <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-700/50">
+                    {campaign.businessType}
+                  </span>
                   {campaign.companyDescription && (
                     <button
                       onClick={() => setShowDescription(true)}
@@ -362,17 +371,19 @@ export default function CampaignDetailPage() {
                 )}
                 <p className="text-zinc-500 dark:text-sky-400/90 text-sm mt-2">
                   Created on {new Date(campaign.createdAt).toLocaleDateString('en-US')}
-                  {campaign.numberCreditsUsed != null && (
-                    <span className="ml-3 font-medium text-zinc-700 dark:text-sky-300">
-                      • {campaign.numberCreditsUsed} targets
-                    </span>
-                  )}
                 </p>
                 
                 {/* Campaign Parameters */}
                 <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-sky-800/40">
                   <h3 className="text-sm font-semibold text-zinc-800 dark:text-sky-300 mb-3">Campaign Settings</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div className="flex items-start gap-2">
+                      <Briefcase className="w-4 h-4 shrink-0 mt-0.5 text-zinc-500 dark:text-sky-400/90" />
+                      <div>
+                        <span className="text-zinc-600 dark:text-sky-400">Business type: </span>
+                        <span className="text-zinc-800 dark:text-sky-200 capitalize">{campaign.businessType}</span>
+                      </div>
+                    </div>
                     <div className="flex items-start gap-2">
                       <MessageCircle className="w-4 h-4 shrink-0 mt-0.5 text-zinc-500 dark:text-sky-400/90" />
                       <div>
@@ -416,10 +427,16 @@ export default function CampaignDetailPage() {
               </div>
               <div className="flex flex-col items-end gap-4">
                 <div className="flex items-center gap-3">
+                  {campaign.numberCreditsUsed != null && (
+                    <span className="text-sm font-medium text-zinc-700 dark:text-sky-300 inline-flex items-center gap-1.5">
+                      <CircleDollarSign className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
+                      {campaign.numberCreditsUsed} credit{campaign.numberCreditsUsed !== 1 ? 's' : ''}
+                    </span>
+                  )}
                   <button
                     onClick={runCampaign}
                     disabled={running || loading}
-                    className="flex items-center gap-2 bg-gradient-to-r bg-sky-700 hover:bg-sky-600 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-sky-900/30 hover:shadow-sky-800/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-105"
+                    className="flex items-center gap-2 bg-sky-500 hover:bg-sky-400 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-sky-500/30 hover:shadow-sky-500/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
                   >
                     {running ? (
                       <>
@@ -442,9 +459,6 @@ export default function CampaignDetailPage() {
                     <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                   </button>
                 </div>
-                <div className="w-64">
-                  <CreditsGauge campaignId={campaignId} leadsWithEmail={todayLeadsWithEmail} />
-                </div>
               </div>
             </div>
           </div>
@@ -458,6 +472,7 @@ export default function CampaignDetailPage() {
               leads={mainLeads}
               loading={loading}
               toneOfVoice={campaign.toneOfVoice}
+              campaignIdToName={campaign ? { [campaign.id]: campaign.name || campaign.businessType || 'Campaign' } : undefined}
               onDraftModalOpenChange={(open) => { draftModalOpenRef.current = open; }}
             />
 
@@ -485,6 +500,7 @@ export default function CampaignDetailPage() {
                       loading={false}
                       filterByEmail={false}
                       toneOfVoice={campaign.toneOfVoice}
+                      campaignIdToName={campaign ? { [campaign.id]: campaign.name || campaign.businessType || 'Campaign' } : undefined}
                       onDraftModalOpenChange={(open) => { draftModalOpenRef.current = open; }}
                     />
                   </div>

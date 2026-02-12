@@ -29,6 +29,7 @@ interface EditCampaignModalProps {
     magicLink?: string;
     cities?: string[];
     citySize?: string;
+    numberCreditsUsed?: number;
   }) => Promise<void>;
   saving: boolean;
 }
@@ -59,6 +60,7 @@ export default function EditCampaignModal({
     campaign.cities?.join(', ') || ''
   );
   const [citySize, setCitySize] = useState(campaign.citySize || '1M+');
+  const [numberCreditsUsed, setNumberCreditsUsed] = useState(campaign.numberCreditsUsed ?? 20);
   const [errors, setErrors] = useState<{
     companyDescription?: string;
     magicLink?: string;
@@ -72,6 +74,7 @@ export default function EditCampaignModal({
     setMagicLink(campaign.magicLink || '');
     setCitiesInput(campaign.cities?.join(', ') || '');
     setCitySize(campaign.citySize || '1M+');
+    setNumberCreditsUsed(campaign.numberCreditsUsed ?? 20);
   }, [campaign]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -107,6 +110,8 @@ export default function EditCampaignModal({
     } else {
       updates.cities = [];
     }
+    const credits = Math.max(1, Math.min(300, Number(numberCreditsUsed) || 20));
+    updates.numberCreditsUsed = credits;
 
     await onSave(updates);
   }
@@ -282,6 +287,26 @@ export default function EditCampaignModal({
               <option value="50K-100K">Between 50k and 100k</option>
               <option value="all">All cities</option>
             </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="edit-numberCreditsUsed"
+              className="block text-sm font-semibold text-sky-200 mb-2"
+            >
+              Number of leads for next run
+            </label>
+            <input
+              id="edit-numberCreditsUsed"
+              type="number"
+              min={1}
+              max={300}
+              value={numberCreditsUsed}
+              onChange={(e) => setNumberCreditsUsed(Math.max(1, Math.min(300, parseInt(e.target.value, 10) || 1)))}
+              className="w-full px-4 py-3 border border-sky-700/40 rounded-xl bg-neutral-800/80 text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+              disabled={saving}
+            />
+            <p className="text-xs text-sky-400/90 mt-1">Credits consumed per launch (1–300)</p>
           </div>
 
           <div className="pt-6 border-t border-sky-800/40 flex gap-3 justify-end">
