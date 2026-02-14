@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getUsersWithScheduleMatchingNow, getScheduleCampaignIdsAdmin } from '@/lib/supabase-schedule';
-import { getCampaignsForUserAdmin, getCampaignsByIdsAdmin } from '@/lib/supabase-campaigns';
+import { getScheduledCampaignRunsNow } from '@/lib/supabase-schedule';
+import { getCampaignsByIdsAdmin } from '@/lib/supabase-campaigns';
 import { getRandomCityFromSupabase } from '@/lib/supabase-cities';
 import { countLeadsForCampaignAdmin } from '@/lib/supabase-leads';
 import { createAdminClient } from '@/lib/supabase-server';
@@ -49,16 +49,27 @@ export async function GET(request: Request) {
   const simulateTime = searchParams.get('simulateTime') || undefined;
 
   try {
-    const { userIds, currentTimeUtc } = await getUsersWithScheduleMatchingNow(simulateTime);
-    const results: { userId: string; campaignsLaunched: number; errors: string[] }[] = [];
-
+    const { runs, currentTimeUtc } = await getScheduledCampaignRunsNow(simulateTime);
+    const results: { userId: string; campaignId: string; slotIndex: number; launched: boolean; error?: string }[] = [];
     const admin = createAdminClient();
 
-    for (const userId of userIds) {
-      const errors: string[] = [];
-      let campaignsLaunched = 0;
+    for (const run of runs) {
+      const { userId, campaignId, slotIndex } = run;
 
       try {
+        const campaigns = await getCampaignsByIdsAdmin(userId, [campaignId]);
+        const campaign = campaigns[0];
+        if (!campaign || campaign.status !== 'active') {
+          results.push({ userId, campaignId, slotIndex, launched: false, error: 'Campaign not found or inactive' });
+          continue;
+        }
+
+        const targetCount = campaign.numberCreditsUsed ?? 0;
+        if (targetCount <= 0) {
+          results.push({ userId, campaignId, slotIndex, launched: false, error: 'targetCount 0' });
+          continue;
+        }
+
         const { data: userProfile } = await admin
           .from('user_profiles')
           .select('gmail_access_token, gmail_refresh_token, gmail_email, gmail_token_expiry, gmail_connected')
@@ -66,8 +77,7 @@ export async function GET(request: Request) {
           .single();
 
         if (!userProfile?.gmail_connected || !userProfile.gmail_access_token || !userProfile.gmail_refresh_token) {
-          errors.push('Gmail not connected - connect Gmail in the dashboard');
-          results.push({ userId, campaignsLaunched: 0, errors });
+          results.push({ userId, campaignId, slotIndex, launched: false, error: 'Gmail not connected' });
           continue;
         }
 
@@ -80,77 +90,53 @@ export async function GET(request: Request) {
             userId
           );
         } catch (tokenErr: any) {
-          errors.push(`Gmail token: ${tokenErr.message}`);
-          results.push({ userId, campaignsLaunched: 0, errors });
+          results.push({ userId, campaignId, slotIndex, launched: false, error: `Gmail: ${tokenErr.message}` });
           continue;
         }
 
-        const scheduledIds = await getScheduleCampaignIdsAdmin(userId);
-        const campaigns =
-          scheduledIds.length > 0
-            ? await getCampaignsByIdsAdmin(userId, scheduledIds)
-            : await getCampaignsForUserAdmin(userId);
-
-        console.log(`[cron] User ${userId}: ${campaigns.length} campaign(s) to launch (scheduled: ${scheduledIds.length})`);
-
-        for (let i = 0; i < campaigns.length; i++) {
-          const campaign = campaigns[i];
-          const targetCount = campaign.numberCreditsUsed ?? 0;
-          if (targetCount <= 0) {
-            console.log(`[cron] Skipping campaign ${campaign.id} (${campaign.businessType}): targetCount ${targetCount}`);
-            continue;
-          }
-
-          try {
-            const payload: Parameters<typeof triggerN8nWorkflow>[0] = {
-              userId,
-              campaignId: campaign.id,
-              businessType: campaign.businessType,
-              companyDescription: campaign.companyDescription,
-              toneOfVoice: campaign.toneOfVoice || 'professional',
-              campaignGoal: campaign.campaignGoal || 'book_call',
-              magicLink: campaign.magicLink || '',
-              targetCount,
-              mode: campaign.mode ?? 'local_businesses',
-              gmailAccessToken,
-              gmailRefreshToken: userProfile.gmail_refresh_token,
-              gmailEmail: userProfile.gmail_email || undefined,
-            };
-            if (campaign.cities && campaign.cities.length > 0) {
-              payload.cities = campaign.cities;
-              if (campaign.cities.length === 1) payload.city = campaign.cities[0];
-            } else {
-              const size = campaign.citySize || '1M+';
-              const picked = await getRandomCityFromSupabase(size);
-              if (picked) {
-                payload.cities = [picked.name];
-                payload.country = picked.country;
-                payload.city = picked.name;
-              } else {
-                payload.citySize = size;
-              }
-            }
-
-            console.log(`[cron] Launching campaign ${i + 1}/${campaigns.length}: ${campaign.businessType} (${payload.cities?.[0] ?? payload.citySize})`);
-            await triggerN8nWorkflow(payload);
-            campaignsLaunched++;
-            await waitForCampaignLeads(userId, campaign.id, targetCount);
-          } catch (err: any) {
-            errors.push(`Campaign ${campaign.businessType}: ${err.message}`);
-            console.error(`[cron] Campaign ${campaign.id} failed:`, err.message);
+        const payload: Parameters<typeof triggerN8nWorkflow>[0] = {
+          userId,
+          campaignId: campaign.id,
+          businessType: campaign.businessType,
+          companyDescription: campaign.companyDescription,
+          toneOfVoice: campaign.toneOfVoice || 'professional',
+          campaignGoal: campaign.campaignGoal || 'book_call',
+          magicLink: campaign.magicLink || '',
+          targetCount,
+          mode: campaign.mode ?? 'local_businesses',
+          gmailAccessToken,
+          gmailRefreshToken: userProfile.gmail_refresh_token,
+          gmailEmail: userProfile.gmail_email || undefined,
+        };
+        if (campaign.cities && campaign.cities.length > 0) {
+          payload.cities = campaign.cities;
+          if (campaign.cities.length === 1) payload.city = campaign.cities[0];
+        } else {
+          const size = campaign.citySize || '1M+';
+          const picked = await getRandomCityFromSupabase(size);
+          if (picked) {
+            payload.cities = [picked.name];
+            payload.country = picked.country;
+            payload.city = picked.name;
+          } else {
+            payload.citySize = size;
           }
         }
-      } catch (err: any) {
-        errors.push(`User ${userId}: ${err.message}`);
-      }
 
-      results.push({ userId, campaignsLaunched, errors });
+        console.log(`[cron] Launching campaign slot ${slotIndex + 1}: ${campaign.businessType} (${payload.cities?.[0] ?? payload.citySize}) for user ${userId}`);
+        await triggerN8nWorkflow(payload);
+        await waitForCampaignLeads(userId, campaign.id, targetCount);
+        results.push({ userId, campaignId, slotIndex, launched: true });
+      } catch (err: any) {
+        console.error(`[cron] Run failed:`, err.message);
+        results.push({ userId, campaignId, slotIndex, launched: false, error: err.message });
+      }
     }
 
     return NextResponse.json({
       success: true,
       currentTimeUtc,
-      usersProcessed: userIds.length,
+      runsProcessed: runs.length,
       results,
     });
   } catch (error: any) {

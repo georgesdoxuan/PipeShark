@@ -123,3 +123,69 @@ export async function getScheduleCampaignIdsAdmin(userId: string): Promise<strin
   const ids = data.campaign_ids;
   return Array.isArray(ids) ? ids.filter((id: unknown): id is string => typeof id === 'string') : [];
 }
+
+export interface ScheduledCampaignRun {
+  userId: string;
+  campaignId: string;
+  slotIndex: number;
+}
+
+/**
+ * Returns which single campaign should run NOW for each user.
+ * Campaigns are spread by hour: 1st at launch_time (e.g. 15:00), 2nd at 16:00, 3rd at 17:00, etc.
+ * Optional simulateTime (HH:MM) for testing.
+ */
+export async function getScheduledCampaignRunsNow(
+  simulateTime?: string | null
+): Promise<{ runs: ScheduledCampaignRun[]; currentTimeUtc: string }> {
+  const admin = createAdminClient();
+  const now = new Date();
+  const hh = String(now.getUTCHours()).padStart(2, '0');
+  const mm = String(now.getUTCMinutes()).padStart(2, '0');
+  const realTimeUtc = `${hh}:${mm}`;
+
+  const simMatch = simulateTime && simulateTime.match(/^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$/);
+  const useSimulated = Boolean(simMatch);
+  const matchTime = useSimulated ? `${simMatch![1].padStart(2, '0')}:${simMatch![2]}` : realTimeUtc;
+
+  const { data: rows, error } = await admin
+    .from('user_schedule')
+    .select('user_id, launch_time, timezone, campaign_ids');
+
+  if (error || !rows?.length) {
+    return { runs: [], currentTimeUtc: matchTime };
+  }
+
+  const runs: ScheduledCampaignRun[] = [];
+  for (const row of rows) {
+    const launchTime = row.launch_time;
+    const ids = row.campaign_ids;
+    const campaignIds = Array.isArray(ids) ? ids.filter((id: unknown): id is string => typeof id === 'string') : [];
+    if (!launchTime || campaignIds.length === 0) continue;
+
+    const currentLocal = useSimulated
+      ? matchTime
+      : (() => {
+          const tz = row.timezone && typeof row.timezone === 'string' ? row.timezone : 'UTC';
+          try {
+            return getCurrentTimeInTimezone(tz);
+          } catch {
+            return realTimeUtc;
+          }
+        })();
+
+    const launchHour = parseInt(launchTime.slice(0, 2), 10) || 0;
+    const currentHour = parseInt(currentLocal.slice(0, 2), 10) || 0;
+    const slotIndex = (currentHour - launchHour + 24) % 24;
+
+    if (slotIndex < campaignIds.length) {
+      runs.push({
+        userId: row.user_id,
+        campaignId: campaignIds[slotIndex],
+        slotIndex,
+      });
+    }
+  }
+
+  return { runs, currentTimeUtc: matchTime };
+}
