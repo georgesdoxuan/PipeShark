@@ -7,8 +7,8 @@ import { createAdminClient } from '@/lib/supabase-server';
 import { getValidGmailAccessToken } from '@/lib/gmail';
 import { triggerN8nWorkflow } from '@/lib/n8n';
 
-const POLL_LEADS_INTERVAL_MS = 15_000;
-const WAIT_FOR_LEADS_TIMEOUT_MS = 15 * 60 * 1000;
+const POLL_LEADS_INTERVAL_MS = 15_000; // poll every 15s
+const WAIT_FOR_LEADS_TIMEOUT_MS = 2 * 60 * 1000; // max 2 min per campaign so cron can launch several within serverless timeout
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -91,10 +91,15 @@ export async function GET(request: Request) {
             ? await getCampaignsByIdsAdmin(userId, scheduledIds)
             : await getCampaignsForUserAdmin(userId);
 
+        console.log(`[cron] User ${userId}: ${campaigns.length} campaign(s) to launch (scheduled: ${scheduledIds.length})`);
+
         for (let i = 0; i < campaigns.length; i++) {
           const campaign = campaigns[i];
           const targetCount = campaign.numberCreditsUsed ?? 0;
-          if (targetCount <= 0) continue;
+          if (targetCount <= 0) {
+            console.log(`[cron] Skipping campaign ${campaign.id} (${campaign.businessType}): targetCount ${targetCount}`);
+            continue;
+          }
 
           try {
             const payload: Parameters<typeof triggerN8nWorkflow>[0] = {
@@ -113,22 +118,26 @@ export async function GET(request: Request) {
             };
             if (campaign.cities && campaign.cities.length > 0) {
               payload.cities = campaign.cities;
+              if (campaign.cities.length === 1) payload.city = campaign.cities[0];
             } else {
               const size = campaign.citySize || '1M+';
               const picked = await getRandomCityFromSupabase(size);
               if (picked) {
                 payload.cities = [picked.name];
                 payload.country = picked.country;
+                payload.city = picked.name;
               } else {
                 payload.citySize = size;
               }
             }
 
+            console.log(`[cron] Launching campaign ${i + 1}/${campaigns.length}: ${campaign.businessType} (${payload.cities?.[0] ?? payload.citySize})`);
             await triggerN8nWorkflow(payload);
             campaignsLaunched++;
             await waitForCampaignLeads(userId, campaign.id, targetCount);
           } catch (err: any) {
             errors.push(`Campaign ${campaign.businessType}: ${err.message}`);
+            console.error(`[cron] Campaign ${campaign.id} failed:`, err.message);
           }
         }
       } catch (err: any) {

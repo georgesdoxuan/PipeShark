@@ -60,6 +60,7 @@ export default function CampaignDetailPage() {
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isPausedRef = useRef(false);
   const draftModalOpenRef = useRef(false);
+  const runInProgressRef = useRef(false);
   const { isPaused } = useApiPause();
   const { startLoading, stopLoading } = useCampaignLoading();
   
@@ -162,23 +163,23 @@ export default function CampaignDetailPage() {
 
   async function runCampaign() {
     if (!campaign) return;
-
-    // Run on existing campaign doesn't consume new credits (credits are used when creating campaigns)
+    if (runInProgressRef.current) return; // Prevent double click / double submit
+    runInProgressRef.current = true;
 
     setRunning(true);
     setRunMessage(null);
-    
+
     // Start global loading animation in header immediately for 20 seconds
     startLoading();
     setTimeout(() => {
       stopLoading();
     }, 20000);
-    
+
     // Store initial lead count
     const initialLeadCount = campaignLeads.length;
     let checkCount = 0;
     const maxChecks = 60; // Maximum 5 minutes (60 checks * 5 seconds)
-    
+
     try {
       const response = await fetch('/api/campaign/start', {
         method: 'POST',
@@ -198,6 +199,13 @@ export default function CampaignDetailPage() {
       const data = await response.json();
 
       if (!response.ok) {
+        if (response.status === 429) {
+          setRunMessage({ type: 'error', text: [data.error, data.hint].filter(Boolean).join(' ') || data.error || data.details || 'Please wait before running again.' });
+          setTimeout(() => setRunMessage(null), 8000);
+          setRunning(false);
+          runInProgressRef.current = false;
+          return;
+        }
         throw new Error(data.error || data.details || 'Error running campaign');
       }
 
@@ -247,6 +255,7 @@ export default function CampaignDetailPage() {
                   setRunMessage({ type: 'success', text: `✅ ${leadsData.length - initialLeadCount} new target(s) found!` });
                   setTimeout(() => setRunMessage(null), 5000);
                   setRunning(false);
+                  runInProgressRef.current = false;
                 } else if (checkCount >= maxChecks) {
               // Timeout after max checks
               if (pollingIntervalRef.current) {
@@ -256,6 +265,7 @@ export default function CampaignDetailPage() {
               setRunMessage({ type: 'error', text: '⏱️ Timeout: No new targets found after 5 minutes. Please check again later.' });
               setTimeout(() => setRunMessage(null), 5000);
               setRunning(false);
+              runInProgressRef.current = false;
             } else {
               // Still waiting, update message
               setRunMessage({ type: 'success', text: `🔄 Waiting for new targets... (${checkCount * 10}s)` });
@@ -267,10 +277,11 @@ export default function CampaignDetailPage() {
       }, 20000); // Check every 20 seconds
     } catch (error: any) {
       console.error('Error running campaign:', error);
-      stopLoading(); // Stop global loading animation on error
+      stopLoading();
       setRunMessage({ type: 'error', text: `❌ ${error.message || 'Error running campaign'}` });
       setTimeout(() => setRunMessage(null), 5000);
       setRunning(false);
+      runInProgressRef.current = false;
     }
   }
 

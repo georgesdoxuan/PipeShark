@@ -442,12 +442,19 @@ export default function CampaignForm({
         body: JSON.stringify(payload),
       });
 
-      const createData = await createResponse.json();
+      let createData: { campaignId?: string; campaign?: { createdAt?: string }; error?: string; details?: string; hint?: string } = {};
+      try {
+        const text = await createResponse.text();
+        if (text) createData = JSON.parse(text);
+      } catch {
+        createData = { error: createResponse.statusText || 'Request failed' };
+      }
       console.log('📥 Response from /api/campaign/start:', createData);
 
       if (!createResponse.ok) {
-        console.error('❌ API error:', createData);
-        throw new Error(createData.error || createData.details || 'Error launching campaign');
+        const message = [createData.error, createData.hint].filter(Boolean).join(' ') || createData.details || createResponse.statusText || 'Error launching campaign';
+        console.error('❌ API error:', message, createData);
+        throw new Error(message);
       }
       
       const campaignId = createData.campaignId;
@@ -521,18 +528,25 @@ export default function CampaignForm({
             body: JSON.stringify(runPayload),
           });
 
-          const data = await response.json();
+          let data: { error?: string; details?: string; hint?: string } = {};
+          try {
+            const text = await response.text();
+            if (text) data = JSON.parse(text);
+          } catch {
+            data = { error: response.statusText || 'Request failed' };
+          }
           console.log('📥 Response from /api/campaign/start (run):', data);
 
           if (!response.ok) {
-            console.error('❌ API error:', data);
-            throw new Error(data.error || data.details || 'Error launching campaign');
+            const message = [data.error, data.hint].filter(Boolean).join(' ') || data.details || response.statusText || 'Error launching campaign';
+            console.error('❌ API error:', message, data);
+            throw new Error(message);
           }
-          
+
           console.log('✅ Workflow launched successfully');
         } catch (error: any) {
           console.error('❌ Failed to launch workflow:', error);
-          throw new Error(`Failed to launch workflow: ${error.message}`);
+          throw new Error(error.message || 'Failed to launch workflow');
         }
         
         // Wait for new leads to appear in campaign (polling)

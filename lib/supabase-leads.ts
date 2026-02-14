@@ -140,7 +140,18 @@ export async function getLeadsForCampaign(
     return false;
   });
 
-  return matched.map(mapLeadRecord);
+  // When campaign has specific cities (e.g. Toronto only), show only leads from those cities.
+  // n8n sometimes returns leads from other cities; filtering here ensures the campaign shows only the requested city.
+  let toReturn = matched;
+  if (campaign.cities && campaign.cities.length > 0) {
+    const citySet = new Set(campaign.cities.map((c: string) => c.trim().toLowerCase()));
+    toReturn = matched.filter((record: any) => {
+      const leadCity = record.city?.trim().toLowerCase();
+      return leadCity && citySet.has(leadCity);
+    });
+  }
+
+  return toReturn.map(mapLeadRecord);
 }
 
 export async function countTodayLeadsForUser(userId: string): Promise<number> {

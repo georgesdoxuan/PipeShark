@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { triggerN8nWorkflow } from '@/lib/n8n';
-import { createCampaign, getCampaignById } from '@/lib/supabase-campaigns';
+import { createCampaign, getCampaignById, updateCampaign, unlinkLeadsFromCampaign } from '@/lib/supabase-campaigns';
 import { countTodayLeadsForUser } from '@/lib/supabase-leads';
 import { getCitiesFromSupabase, getRandomCityFromSupabase } from '@/lib/supabase-cities';
 import { addCompanyDescription } from '@/lib/supabase-company-descriptions';
@@ -276,18 +276,41 @@ export async function POST(request: Request) {
 
     const effectiveCitySize = citySize || existingCampaign?.citySize || '1M+';
 
+    // Re-run: use the campaign's current city if it's already a single city (what the user sees). Otherwise draw one.
+    const singleCityFromRequest = Array.isArray(cities) && cities.length === 1 ? cities[0] : undefined;
+    const singleCityFromCampaign = existingCampaign?.cities?.length === 1 ? existingCampaign.cities[0] : undefined;
+    const cityToUse = singleCityFromRequest ?? singleCityFromCampaign;
+
     if (campaignId && effectiveCitySize) {
-      // Re-run on same campaign: draw a random city from the same population category
-      const picked = await getRandomCityFromSupabase(effectiveCitySize);
-      if (picked) {
-        payload.cities = [picked.name];
-        payload.country = picked.country;
-        console.log('   - Re-run: random city from', effectiveCitySize, '->', picked.name, picked.country);
+      if (cityToUse && typeof cityToUse === 'string' && cityToUse.trim()) {
+        // Use the city already shown (from request or campaign) – do not re-draw
+        const cityName = cityToUse.trim();
+        payload.cities = [cityName];
+        payload.city = cityName;
+        if (country && typeof country === 'string' && country.trim()) {
+          payload.country = country.trim();
+        } else {
+          const cityRow = (await getCitiesFromSupabase(effectiveCitySize)).find(
+            (c) => c.name.trim().toLowerCase() === cityName.toLowerCase()
+          );
+          if (cityRow) payload.country = cityRow.country;
+        }
+        console.log('   - Re-run: using existing city (no re-draw):', cityName, payload.country || '');
       } else {
-        const citiesFromDb = await getCitiesFromSupabase(effectiveCitySize);
-        payload.cities = citiesFromDb.map((c) => c.name);
-        if (citiesFromDb.length === 0) {
-          console.warn('No cities in Supabase for citySize:', effectiveCitySize, '- n8n may use fallback');
+        // No single city yet: draw one random city
+        const picked = await getRandomCityFromSupabase(effectiveCitySize);
+        if (picked) {
+          payload.cities = [picked.name];
+          payload.country = picked.country;
+          payload.city = picked.name;
+          console.log('   - Re-run: random city from', effectiveCitySize, '->', picked.name, picked.country);
+          await updateCampaign(user.id, campaign.id, { cities: [picked.name] });
+        } else {
+          const citiesFromDb = await getCitiesFromSupabase(effectiveCitySize);
+          payload.cities = citiesFromDb.map((c) => c.name);
+          if (citiesFromDb.length === 0) {
+            console.warn('No cities in Supabase for citySize:', effectiveCitySize, '- n8n may use fallback');
+          }
         }
       }
     } else if (cities && cities.length > 0) {
@@ -303,6 +326,30 @@ export async function POST(request: Request) {
       if (citiesFromDb.length === 0) {
         console.warn('No cities in Supabase for citySize:', size, '- n8n may use fallback');
       }
+    }
+
+    // Re-run: block double launch (double-click = duplicate leads). Short cooldown so CampaignForm retries (after polling) still work.
+    const COOLDOWN_MS = 15 * 1000; // 15 seconds
+    if (campaignId && existingCampaign?.lastStartedAt) {
+      const elapsed = Date.now() - new Date(existingCampaign.lastStartedAt).getTime();
+      if (elapsed < COOLDOWN_MS) {
+        return NextResponse.json(
+          {
+            error: 'Campaign was just started',
+            hint: 'Please wait a few seconds before running again.',
+          },
+          { status: 429 }
+        );
+      }
+    }
+    if (campaignId && existingCampaign) {
+      await updateCampaign(user.id, campaign.id, { lastStartedAt: new Date().toISOString() });
+    }
+
+    // Re-run: unlink previous leads from this campaign so it only shows leads from this run (e.g. Sydney only, not Sydney + New York)
+    if (campaignId && existingCampaign) {
+      await unlinkLeadsFromCampaign(user.id, campaign.id);
+      console.log('   - Unlinked previous leads from campaign so only this run’s leads will show');
     }
 
     // Trigger n8n workflow with parameters

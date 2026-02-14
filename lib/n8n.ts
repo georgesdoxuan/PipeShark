@@ -60,6 +60,13 @@ export async function triggerN8nWorkflow(params?: CampaignParams) {
         if (params.country && params.country.trim()) {
           requestBody.country = params.country.trim();
         }
+        // Single city: send explicit city + country so workflow must use this location (no fallback to other cities)
+        if (params.cities.length === 1) {
+          requestBody.city = params.cities[0];
+          if (params.country && params.country.trim()) {
+            requestBody.country = params.country.trim();
+          }
+        }
         // Don't send citySize if cities are specified
       } else if (params.citySize) {
         requestBody.citySize = params.citySize;

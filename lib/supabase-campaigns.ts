@@ -16,6 +16,7 @@ export interface Campaign {
   numberCreditsUsed?: number;
   createdAt: string;
   status: 'active' | 'completed';
+  lastStartedAt?: string | null;
 }
 
 interface CreateCampaignInput {
@@ -47,6 +48,7 @@ function mapRecordToCampaign(record: any): Campaign {
     numberCreditsUsed: record.number_credits_used ?? 0,
     createdAt: record.created_at,
     status: record.status || 'active',
+    lastStartedAt: record.last_started_at ?? null,
   };
 }
 
@@ -151,6 +153,7 @@ export async function updateCampaign(
     citySize: string;
     mode: CampaignMode;
     numberCreditsUsed: number;
+    lastStartedAt: string | null;
   }>
 ): Promise<Campaign | null> {
   const supabase = await createServerSupabaseClient();
@@ -165,6 +168,7 @@ export async function updateCampaign(
   if (updates.citySize !== undefined) payload.city_size = updates.citySize;
   if (updates.mode !== undefined) payload.mode = updates.mode;
   if (updates.numberCreditsUsed !== undefined) payload.number_credits_used = Math.max(0, Math.min(300, updates.numberCreditsUsed));
+  if (updates.lastStartedAt !== undefined) payload.last_started_at = updates.lastStartedAt;
 
   if (Object.keys(payload).length === 0) {
     return getCampaignById(userId, campaignId);
@@ -235,10 +239,19 @@ export async function sumTodayCreditsUsedForUserAdmin(userId: string): Promise<n
   return (data || []).reduce((acc, row) => acc + (row.number_credits_used ?? 0), 0);
 }
 
+/**
+ * Unlink all leads from a campaign (set campaign_id to null).
+ * Used when re-running a campaign with a new city so the campaign only shows leads from this run.
+ */
+export async function unlinkLeadsFromCampaign(userId: string, campaignId: string): Promise<void> {
+  const admin = createAdminClient();
+  await admin.from('leads').update({ campaign_id: null }).eq('campaign_id', campaignId).eq('user_id', userId);
+}
+
 export async function deleteCampaign(userId: string, campaignId: string): Promise<boolean> {
   const admin = createAdminClient();
   // Unlink leads first so FK doesn't block (or use ON DELETE SET NULL; we clear anyway for consistency)
-  await admin.from('leads').update({ campaign_id: null }).eq('campaign_id', campaignId).eq('user_id', userId);
+  await unlinkLeadsFromCampaign(userId, campaignId);
   const { error } = await admin
     .from('campaigns')
     .delete()

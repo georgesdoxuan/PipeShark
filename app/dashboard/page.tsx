@@ -585,7 +585,14 @@ export default function CampaignsPage() {
                   const createdAfterCampaign = leadCreatedAt >= campaignCreatedAt;
                   return matchesBusinessType && matchesCity && createdAfterCampaign;
                 });
-                const allCampaignLeads = campaignLeads.length > 0 ? campaignLeads : fallbackLeads;
+                let allCampaignLeads = campaignLeads.length > 0 ? campaignLeads : fallbackLeads;
+                // When campaign has specific cities (e.g. Toronto), show only leads from those cities (n8n may return other cities)
+                if (campaign.cities && campaign.cities.length > 0) {
+                  const citySet = new Set(campaign.cities.map((c: string) => c.trim().toLowerCase()));
+                  allCampaignLeads = allCampaignLeads.filter(
+                    (lead: Lead) => lead.city?.trim() && citySet.has(lead.city.trim().toLowerCase())
+                  );
+                }
                 const leadsCount = allCampaignLeads.length;
                 const draftsCount = allCampaignLeads.filter(
                   (lead: Lead) => lead.emailDraftCreated
