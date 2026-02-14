@@ -459,9 +459,12 @@ export default function CampaignForm({
       
       const campaignId = createData.campaignId;
       const campaignCreatedAt = createData.campaign?.createdAt || new Date().toISOString();
-      
-      console.log('✅ Campaign created:', campaignId, 'Created at:', campaignCreatedAt);
-      
+      if (!campaignId || typeof campaignId !== 'string') {
+        throw new Error('Campaign created but no campaign ID returned');
+      }
+
+      console.log('✅ Campaign created:', campaignId, 'Created at:', campaignCreatedAt');
+
       // Step 2: Count initial campaign leads (should be 0 for new campaign)
       console.log('📊 Counting initial campaign leads...');
       const initialCount = await fetchCampaignLeadsCount(
