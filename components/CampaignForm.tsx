@@ -463,7 +463,7 @@ export default function CampaignForm({
         throw new Error('Campaign created but no campaign ID returned');
       }
 
-      console.log('✅ Campaign created:', campaignId, 'Created at:', campaignCreatedAt');
+      console.log('✅ Campaign created:', campaignId, 'Created at:', campaignCreatedAt);
 
       // Step 2: Count initial campaign leads (should be 0 for new campaign)
       console.log('📊 Counting initial campaign leads...');
