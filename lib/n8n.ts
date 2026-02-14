@@ -8,6 +8,8 @@ interface CampaignParams {
   businessType: string;
   targetCount?: number;
   cities?: string[];
+  /** Single city (when cities.length === 1, for n8n to use explicitly) */
+  city?: string;
   citySize?: string;
   /** Country (e.g. when drawn randomly with city) */
   country?: string;
@@ -70,6 +72,9 @@ export async function triggerN8nWorkflow(params?: CampaignParams) {
         // Don't send citySize if cities are specified
       } else if (params.citySize) {
         requestBody.citySize = params.citySize;
+      }
+      if (params.city && params.city.trim()) {
+        requestBody.city = params.city.trim();
       }
       if (params.exampleEmail && params.exampleEmail.trim()) {
         requestBody.exampleEmail = params.exampleEmail.trim();
