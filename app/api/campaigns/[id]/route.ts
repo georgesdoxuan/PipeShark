@@ -62,6 +62,7 @@ export async function PATCH(
     if (body.cities !== undefined) updates.cities = body.cities;
     if (body.citySize !== undefined) updates.citySize = body.citySize;
     if (body.numberCreditsUsed !== undefined) updates.numberCreditsUsed = body.numberCreditsUsed;
+    if (body.gmailEmail !== undefined) updates.gmailEmail = body.gmailEmail;
 
     const campaign = await updateCampaign(user.id, params.id, updates);
     if (!campaign) {

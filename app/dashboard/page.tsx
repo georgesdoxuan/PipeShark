@@ -72,6 +72,7 @@ export default function CampaignsPage() {
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [showScheduleCampaignsModal, setShowScheduleCampaignsModal] = useState(false);
   const [scheduleModalSelectedIds, setScheduleModalSelectedIds] = useState<string[]>([]);
+  const [dailyLimit, setDailyLimit] = useState(300);
   const [deleting, setDeleting] = useState(false);
   const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -110,7 +111,10 @@ export default function CampaignsPage() {
       fetchLeads();
       fetchSchedule();
     }
-    
+    fetch('/api/campaigns/count-today')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d && typeof d.limit === 'number') setDailyLimit(d.limit); })
+      .catch(() => {});
     // Refresh every 2 min (only if not paused and draft modal is closed)
     const interval = setInterval(() => {
       if (!isPaused && !draftModalOpenRef.current) {
@@ -119,7 +123,6 @@ export default function CampaignsPage() {
         fetchSchedule();
       }
     }, 120000);
-    
     return () => clearInterval(interval);
   }, [isPaused]);
 
@@ -897,7 +900,7 @@ export default function CampaignsPage() {
                   </h3>
                 </div>
                 <p className="text-zinc-600 dark:text-neutral-300 text-sm mb-3">
-                  Choose the campaigns that will launch at the set time (max 300 credits/day). They will run one after the other, even when you&apos;re not on the site.
+                  Choose the campaigns that will launch at the set time (max {dailyLimit} credits/day). They will run one after the other, even when you&apos;re not on the site.
                 </p>
                 <div className="flex-1 overflow-y-auto space-y-2 mb-4 pr-1">
                   {campaigns.map((c) => {
@@ -929,7 +932,7 @@ export default function CampaignsPage() {
                   })}
                 </div>
                 <p className="text-xs text-zinc-500 dark:text-neutral-400 mb-4">
-                  Total: {campaigns.filter((c) => scheduleModalSelectedIds.includes(c.id)).reduce((acc, c) => acc + (c.numberCreditsUsed ?? 0), 0)} credits / 300 max
+                  Total: {campaigns.filter((c) => scheduleModalSelectedIds.includes(c.id)).reduce((acc, c) => acc + (c.numberCreditsUsed ?? 0), 0)} credits / {dailyLimit} max
                 </p>
                 <div className="flex gap-3">
                   <button

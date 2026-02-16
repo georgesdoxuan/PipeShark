@@ -9,6 +9,10 @@ const TARGETS_ICON_SRC = '/Icône de groupe de personnes.png';
 const LOGO_BLUE_FILTER =
   '[filter:brightness(0)_saturate(100%)_invert(68%)_sepia(60%)_saturate(1200%)_hue-rotate(180deg)] dark:[filter:brightness(0)_invert(1)]';
 
+/** Ton logo paper-plane en vert pour Emails sent (vert franc, pas turquoise) */
+const PAPER_PLANE_SRC = '/paper-plane.png';
+const SENT_ICON_GREEN_STYLE = { filter: 'invert(1) sepia(1) hue-rotate(65deg) saturate(10) brightness(0.7) contrast(1.1)' };
+
 interface StatsCardsProps {
   stats: {
     leadsWithEmail: number;
@@ -64,6 +68,7 @@ export default function StatsCards({ stats, compact = false }: StatsCardsProps) 
       title: 'Emails sent',
       value: stats.emailsSent ?? 0,
       icon: Send,
+      customIconSrc: PAPER_PLANE_SRC,
       style: 'sent',
     },
     {
@@ -79,7 +84,8 @@ export default function StatsCards({ stats, compact = false }: StatsCardsProps) 
   const sizeClass = compact
     ? 'w-36 min-w-[9rem] h-36 p-4'
     : 'w-36 h-36 sm:w-40 sm:h-40 p-5';
-  const iconSizeClass = compact ? 'w-7 h-7' : 'w-9 h-9 sm:w-10 sm:h-10';
+  const iconSizeClass = compact ? 'w-11 h-11' : 'w-14 h-14 sm:w-16 sm:h-16';
+  const iconPx = compact ? 44 : 64;
   const valueClass = compact ? 'text-3xl' : 'text-4xl sm:text-5xl';
 
   return (
@@ -95,9 +101,16 @@ export default function StatsCards({ stats, compact = false }: StatsCardsProps) 
               <p className="text-zinc-600 dark:text-neutral-400 text-sm font-semibold leading-tight break-normal line-clamp-2 flex-1 min-w-[4rem]" title={card.title}>
                 {card.title}
               </p>
-              <span className={`${s.iconBg} rounded-xl p-2 flex-shrink-0`}>
+              <span className={`${s.iconBg} rounded-xl p-3 flex-shrink-0 flex items-center justify-center ${iconSizeClass}`}>
                 {'customIconSrc' in card && card.customIconSrc ? (
-                  <Image src={card.customIconSrc} alt="" width={compact ? 28 : 40} height={compact ? 28 : 40} className={`${iconSizeClass} object-contain ${LOGO_BLUE_FILTER}`} />
+                  card.style === 'sent' ? (
+                    <span className={`${iconSizeClass} flex items-center justify-center overflow-hidden`} style={SENT_ICON_GREEN_STYLE}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={PAPER_PLANE_SRC} alt="" width={iconPx} height={iconPx} className="w-full h-full object-contain" />
+                    </span>
+                  ) : (
+                    <Image src={card.customIconSrc} alt="" width={iconPx} height={iconPx} className={`${iconSizeClass} object-contain ${LOGO_BLUE_FILTER}`} />
+                  )
                 ) : (
                   <card.icon className={`${iconSizeClass} ${s.iconColor}`} strokeWidth={2} />
                 )}

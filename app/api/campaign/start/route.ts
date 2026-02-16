@@ -7,9 +7,11 @@ import { addCompanyDescription } from '@/lib/supabase-company-descriptions';
 import { addEmailTemplate } from '@/lib/supabase-email-templates';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { getValidGmailAccessToken } from '@/lib/gmail';
+import { getDailyLimitForUser } from '@/lib/supabase-user-plan';
+import { getGmailTokensForEmail, listGmailAccountsForUser } from '@/lib/supabase-gmail-accounts';
+import { getUserPlanInfo } from '@/lib/supabase-user-plan';
 
-const DAILY_LIMIT = 300;
-const MAX_PER_CAMPAIGN = 300;
+const MAX_PER_CAMPAIGN_ABSOLUTE = 300;
 
 export async function POST(request: Request) {
   console.log('\n=== CAMPAIGN START API CALLED ===');
@@ -25,30 +27,47 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check Gmail connection before proceeding
-    const { createAdminClient } = await import('@/lib/supabase-server');
-    const admin = createAdminClient();
-    const { data: userProfile, error: profileError } = await admin
-      .from('user_profiles')
-      .select('gmail_access_token, gmail_refresh_token, gmail_email, gmail_token_expiry, gmail_connected')
-      .eq('id', user.id)
-      .single();
+    const body = await request.json();
+    const { businessType, cities, citySize, companyDescription, toneOfVoice, campaignGoal, magicLink, campaignId, targetCount, name, mode, exampleEmail, country, gmailEmail: bodyGmailEmail } = body;
 
-    if (profileError || !userProfile?.gmail_connected || !userProfile.gmail_access_token) {
+    const planInfo = await getUserPlanInfo(user.id);
+    const isPro = planInfo.plan === 'pro';
+
+    // Re-run: load existing campaign early (for Gmail account resolution and later use)
+    let existingCampaign: Awaited<ReturnType<typeof getCampaignById>> = null;
+    if (campaignId) {
+      existingCampaign = await getCampaignById(user.id, campaignId);
+      if (!existingCampaign) {
+        return NextResponse.json({ error: 'Campaign not found' }, { status: 404 });
+      }
+    }
+
+    // Resolve which Gmail account to use: re-run = campaign's gmail_email; new campaign = body gmail_email (Pro) or primary (Standard/trial)
+    let gmailEmailForTokens: string | null = null;
+    if (campaignId && existingCampaign) {
+      gmailEmailForTokens = existingCampaign.gmailEmail ?? null;
+    } else {
+      if (isPro && bodyGmailEmail != null && String(bodyGmailEmail).trim()) {
+        const accounts = await listGmailAccountsForUser(user.id);
+        const connected = accounts.filter((a) => a.connected);
+        const match = connected.find((a) => a.email.toLowerCase() === String(bodyGmailEmail).trim().toLowerCase());
+        if (!match) {
+          return NextResponse.json(
+            { error: 'Selected Gmail account not found or not connected. Choose one of your connected accounts.' },
+            { status: 400 }
+          );
+        }
+        gmailEmailForTokens = match.email;
+      }
+      // else Standard/trial: gmailEmailForTokens stays null = primary
+    }
+
+    const userProfile = await getGmailTokensForEmail(user.id, gmailEmailForTokens);
+    if (!userProfile?.gmail_access_token || !userProfile.gmail_refresh_token) {
       return NextResponse.json(
         {
           error: 'Please connect your Gmail account before starting a campaign',
           hint: 'Go to the dashboard and click "Connect Gmail"',
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!userProfile.gmail_refresh_token) {
-      return NextResponse.json(
-        {
-          error: 'Gmail token expired. Please reconnect Gmail.',
-          hint: 'Disconnect then reconnect Gmail from the dashboard',
         },
         { status: 400 }
       );
@@ -60,7 +79,8 @@ export async function POST(request: Request) {
         userProfile.gmail_access_token,
         userProfile.gmail_refresh_token,
         userProfile.gmail_token_expiry,
-        user.id
+        user.id,
+        userProfile.gmail_email
       );
     } catch (tokenError) {
       console.error('Gmail token refresh failed:', tokenError);
@@ -72,9 +92,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const body = await request.json();
-    const { businessType, cities, citySize, companyDescription, toneOfVoice, campaignGoal, magicLink, campaignId, targetCount, name, mode, exampleEmail, country } = body;
-
     // Validation
     if (!businessType || typeof businessType !== 'string' || !businessType.trim()) {
       return NextResponse.json(
@@ -83,18 +100,6 @@ export async function POST(request: Request) {
         },
         { status: 400 }
       );
-    }
-
-    // Re-run: when campaignId is provided, use that campaign so new leads go into the SAME campaign (no new row)
-    let existingCampaign = null;
-    if (campaignId) {
-      existingCampaign = await getCampaignById(user.id, campaignId);
-      if (!existingCampaign) {
-        return NextResponse.json(
-          { error: 'Campaign not found' },
-          { status: 404 }
-        );
-      }
     }
 
     // Use existing campaign description if not provided in body (for "Run" button)
@@ -198,23 +203,36 @@ export async function POST(request: Request) {
       );
     }
 
-    // For new campaigns: targetCount is required (1-300 max per campaign) for Daily Credits. Re-run does not consume new credits.
+    const dailyLimit = await getDailyLimitForUser(user.id);
+    const maxPerCampaign = Math.min(MAX_PER_CAMPAIGN_ABSOLUTE, dailyLimit);
+
+    if (!campaignId && dailyLimit === 0) {
+      return NextResponse.json(
+        {
+          error: 'Free trial ended',
+          details: 'Upgrade to Standard to keep sending campaigns. Go to Pricing to subscribe.',
+        },
+        { status: 403 }
+      );
+    }
+
+    // For new campaigns: targetCount is required (1–maxPerCampaign) for Daily Credits. Re-run does not consume new credits.
     const creditsToUse = !campaignId && typeof targetCount === 'number'
-      ? Math.min(MAX_PER_CAMPAIGN, Math.max(1, Math.round(targetCount)))
+      ? Math.min(maxPerCampaign, Math.max(1, Math.round(targetCount)))
       : 0;
     if (!campaignId) {
       if (creditsToUse < 1) {
         return NextResponse.json(
-          { error: `targetCount is required for new campaigns (1-${MAX_PER_CAMPAIGN})` },
+          { error: `targetCount is required for new campaigns (1-${maxPerCampaign})` },
           { status: 400 }
         );
       }
       const usedToday = await countTodayLeadsForUser(user.id);
-      if (usedToday + creditsToUse > DAILY_LIMIT) {
+      if (usedToday + creditsToUse > dailyLimit) {
         return NextResponse.json(
           {
             error: 'Daily quota exceeded',
-            details: `You have ${DAILY_LIMIT - usedToday} credits remaining today. This campaign requires ${creditsToUse} credits.`,
+            details: `You have ${dailyLimit - usedToday} credits remaining today. This campaign requires ${creditsToUse} credits.`,
           },
           { status: 400 }
         );
@@ -240,6 +258,7 @@ export async function POST(request: Request) {
         mode: campaignMode,
         numberCreditsUsed: creditsToUse,
         status: 'active',
+        gmailEmail: gmailEmailForTokens,
       });
       console.log('📝 Campaign created:', campaign.id, campaign.businessType, 'credits:', creditsToUse);
     }
@@ -271,7 +290,7 @@ export async function POST(request: Request) {
           ? existingCampaign.numberCreditsUsed
           : targetCount;
     if (typeof effectiveTargetCount === 'number' && effectiveTargetCount >= 1) {
-      payload.targetCount = Math.min(MAX_PER_CAMPAIGN, effectiveTargetCount);
+      payload.targetCount = Math.min(maxPerCampaign, effectiveTargetCount);
     }
 
     const effectiveCitySize = citySize || existingCampaign?.citySize || '1M+';

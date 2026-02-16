@@ -96,6 +96,9 @@ export default function CampaignForm({
   const [mergedDescriptions, setMergedDescriptions] = useState<{ id?: string; content: string; displayName: string; source: 'saved' | 'campaign' }[]>([]);
   const [emailTemplates, setEmailTemplates] = useState<{ id: string; name?: string; content: string; createdAt: string }[]>([]);
   const [drawnCityCountry, setDrawnCityCountry] = useState<CityCountry | null>(null);
+  const [gmailAccounts, setGmailAccounts] = useState<{ email: string; connected: boolean }[]>([]);
+  const [plan, setPlan] = useState<string | null>(null);
+  const [selectedGmailEmail, setSelectedGmailEmail] = useState<string>('');
 
   const currentFormState: CampaignFormState = {
     campaignName,
@@ -229,7 +232,23 @@ export default function CampaignForm({
       setDrawnCityCountry(null);
     }
   }, [initialFormState]);
-  
+
+  useEffect(() => {
+    fetch('/api/gmail/accounts', { credentials: 'include' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d?.accounts) {
+          setGmailAccounts(d.accounts);
+          setPlan(d.plan || null);
+          const connected = d.accounts.filter((a: { connected: boolean }) => a.connected);
+          if (d.plan === 'pro' && connected.length > 0 && !selectedGmailEmail) {
+            setSelectedGmailEmail(connected[0].email);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Fetch and count campaign leads (uses campaign_id, fallback for leads without campaign_id)
   const fetchCampaignLeadsCount = async (
     campaignId: string,
@@ -431,6 +450,9 @@ export default function CampaignForm({
       } else {
         payload.citySize = citySize;
       }
+      if (plan === 'pro' && selectedGmailEmail?.trim()) {
+        payload.gmail_email = selectedGmailEmail.trim();
+      }
 
       console.log('📤 Sending payload to /api/campaign/start:', payload);
 
@@ -519,6 +541,9 @@ export default function CampaignForm({
             }
           } else {
             runPayload.citySize = citySize;
+          }
+          if (plan === 'pro' && selectedGmailEmail?.trim()) {
+            runPayload.gmail_email = selectedGmailEmail.trim();
           }
 
           console.log('📤 Sending payload to /api/campaign/start (run):', runPayload);
@@ -1284,6 +1309,30 @@ export default function CampaignForm({
             <p className="text-xs text-red-500 dark:text-red-400 mt-1">{errors.targetCount}</p>
           )}
         </div>
+
+        {plan === 'pro' && gmailAccounts.filter((a) => a.connected).length > 0 && (
+          <div>
+            <label htmlFor="gmailAccount" className="block text-sm font-semibold text-zinc-700 dark:text-sky-200 mb-2">
+              Send from (Gmail account)
+            </label>
+            <select
+              id="gmailAccount"
+              value={selectedGmailEmail}
+              onChange={(e) => setSelectedGmailEmail(e.target.value)}
+              className="w-full px-4 py-2 border border-zinc-300 dark:border-sky-700/40 rounded-xl bg-white dark:bg-neutral-800/80 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+              disabled={loading || generating}
+            >
+              {gmailAccounts.filter((a) => a.connected).map((acc) => (
+                <option key={acc.email} value={acc.email}>
+                  {acc.email}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-zinc-500 dark:text-sky-400/90 mt-1">
+              Pro: choose which of your connected accounts will send this campaign.
+            </p>
+          </div>
+        )}
 
         <button
           type="submit"

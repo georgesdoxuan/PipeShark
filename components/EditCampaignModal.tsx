@@ -16,6 +16,7 @@ interface Campaign {
   numberCreditsUsed?: number;
   createdAt: string;
   status: 'active' | 'completed';
+  gmailEmail?: string | null;
 }
 
 interface EditCampaignModalProps {
@@ -30,8 +31,11 @@ interface EditCampaignModalProps {
     cities?: string[];
     citySize?: string;
     numberCreditsUsed?: number;
+    gmailEmail?: string | null;
   }) => Promise<void>;
   saving: boolean;
+  /** Max credits per campaign (from plan, e.g. 30 for Standard). Default 300. */
+  maxCreditsPerCampaign?: number;
 }
 
 function isValidUrl(url: string): boolean {
@@ -39,11 +43,14 @@ function isValidUrl(url: string): boolean {
   return url.trim().startsWith('http://') || url.trim().startsWith('https://');
 }
 
+const DEFAULT_MAX_CREDITS = 300;
+
 export default function EditCampaignModal({
   campaign,
   onClose,
   onSave,
   saving,
+  maxCreditsPerCampaign = DEFAULT_MAX_CREDITS,
 }: EditCampaignModalProps) {
   const [campaignName, setCampaignName] = useState(campaign.name || '');
   const [companyDescription, setCompanyDescription] = useState(
@@ -61,6 +68,9 @@ export default function EditCampaignModal({
   );
   const [citySize, setCitySize] = useState(campaign.citySize || '1M+');
   const [numberCreditsUsed, setNumberCreditsUsed] = useState(campaign.numberCreditsUsed ?? 20);
+  const [gmailAccounts, setGmailAccounts] = useState<{ email: string; connected: boolean }[]>([]);
+  const [plan, setPlan] = useState<string | null>(null);
+  const [selectedGmailEmail, setSelectedGmailEmail] = useState<string>(campaign.gmailEmail ?? '');
   const [errors, setErrors] = useState<{
     companyDescription?: string;
     magicLink?: string;
@@ -75,7 +85,21 @@ export default function EditCampaignModal({
     setCitiesInput(campaign.cities?.join(', ') || '');
     setCitySize(campaign.citySize || '1M+');
     setNumberCreditsUsed(campaign.numberCreditsUsed ?? 20);
+    setSelectedGmailEmail(campaign.gmailEmail ?? '');
   }, [campaign]);
+
+  useEffect(() => {
+    fetch('/api/gmail/accounts', { credentials: 'include' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d?.accounts) setGmailAccounts(d.accounts);
+        if (d?.plan) setPlan(d.plan);
+        if (d?.plan === 'pro' && campaign.gmailEmail == null && d.accounts?.filter((a: { connected: boolean }) => a.connected)[0]) {
+          setSelectedGmailEmail(d.accounts.filter((a: { connected: boolean }) => a.connected)[0].email);
+        }
+      })
+      .catch(() => {});
+  }, [campaign.gmailEmail]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -110,8 +134,11 @@ export default function EditCampaignModal({
     } else {
       updates.cities = [];
     }
-    const credits = Math.max(1, Math.min(300, Number(numberCreditsUsed) || 20));
+    const credits = Math.max(1, Math.min(maxCreditsPerCampaign, Number(numberCreditsUsed) || 20));
     updates.numberCreditsUsed = credits;
+    if (plan === 'pro' && selectedGmailEmail !== undefined) {
+      updates.gmailEmail = selectedGmailEmail.trim() || null;
+    }
 
     await onSave(updates);
   }
@@ -300,14 +327,35 @@ export default function EditCampaignModal({
               id="edit-numberCreditsUsed"
               type="number"
               min={1}
-              max={300}
+              max={maxCreditsPerCampaign}
               value={numberCreditsUsed}
-              onChange={(e) => setNumberCreditsUsed(Math.max(1, Math.min(300, parseInt(e.target.value, 10) || 1)))}
+              onChange={(e) => setNumberCreditsUsed(Math.max(1, Math.min(maxCreditsPerCampaign, parseInt(e.target.value, 10) || 1)))}
               className="w-full px-4 py-3 border border-sky-700/40 rounded-xl bg-neutral-800/80 text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
               disabled={saving}
             />
-            <p className="text-xs text-sky-400/90 mt-1">Credits consumed per launch (1–300)</p>
+            <p className="text-xs text-sky-400/90 mt-1">Credits consumed per launch (1–{maxCreditsPerCampaign})</p>
           </div>
+
+          {plan === 'pro' && gmailAccounts.filter((a) => a.connected).length > 0 && (
+            <div>
+              <label htmlFor="edit-gmailAccount" className="block text-sm font-semibold text-sky-200 mb-2">
+                Send from (Gmail account)
+              </label>
+              <select
+                id="edit-gmailAccount"
+                value={selectedGmailEmail}
+                onChange={(e) => setSelectedGmailEmail(e.target.value)}
+                className="w-full px-4 py-3 border border-sky-700/40 rounded-xl bg-neutral-800/80 text-white focus:outline-none focus:ring-2 focus:ring-sky-500"
+                disabled={saving}
+              >
+                {gmailAccounts.filter((a) => a.connected).map((acc) => (
+                  <option key={acc.email} value={acc.email}>
+                    {acc.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="pt-6 border-t border-sky-800/40 flex gap-3 justify-end">
             <button

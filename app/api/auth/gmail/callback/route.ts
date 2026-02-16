@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { createAdminClient } from '@/lib/supabase-server';
+import { ensureTrialEndsAt } from '@/lib/supabase-user-plan';
+import { canAddGmailAccount } from '@/lib/supabase-gmail-accounts';
 
 const CALLBACK_TIMEOUT_MS = 15000;
 
@@ -41,7 +43,7 @@ export async function GET(request: Request) {
   }
 
   const run = async () => {
-    let statePayload: { userId: string; nonce: string; returnTo?: string };
+    let statePayload: { userId: string; nonce: string; returnTo?: string; addSecondary?: boolean };
     try {
       statePayload = JSON.parse(Buffer.from(state, 'base64url').toString());
     } catch {
@@ -96,11 +98,38 @@ export async function GET(request: Request) {
       `https://www.googleapis.com/oauth2/v1/userinfo?access_token=${accessToken}`
     );
     const userInfo = await userInfoResponse.json();
-    const gmailEmail = userInfo.email || userInfo.id || '';
-
-    const profileEmail = user.email || gmailEmail || `${user.id}@pipeshark.local`;
+    const gmailEmail = (userInfo.email || userInfo.id || '').trim().toLowerCase();
+    if (!gmailEmail) {
+      return redirect(`${finalReturnUrl}?gmail_error=no_email`);
+    }
 
     const admin = createAdminClient();
+
+    if (statePayload.addSecondary) {
+      const allowed = await canAddGmailAccount(user.id);
+      if (!allowed) {
+        return redirect(`${finalReturnUrl}?gmail_error=pro_limit`);
+      }
+      const { error } = await admin.from('user_gmail_accounts').upsert(
+        {
+          user_id: user.id,
+          email: gmailEmail,
+          gmail_access_token: accessToken,
+          gmail_refresh_token: refreshToken || null,
+          gmail_token_expiry: expiresAt.toISOString(),
+          gmail_connected: true,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id,email' }
+      );
+      if (error) {
+        console.error('Failed to save secondary Gmail:', error);
+        return redirect(`${finalReturnUrl}?gmail_error=save_failed`);
+      }
+      return redirect(`${finalReturnUrl}?gmail_connected=1&added=secondary`);
+    }
+
+    const profileEmail = user.email || gmailEmail || `${user.id}@pipeshark.local`;
     const { error } = await admin
       .from('user_profiles')
       .upsert(
@@ -121,6 +150,8 @@ export async function GET(request: Request) {
       console.error('Failed to save Gmail tokens:', error);
       return redirect(`${finalReturnUrl}?gmail_error=save_failed`);
     }
+
+    await ensureTrialEndsAt(user.id);
 
     return redirect(`${finalReturnUrl}?gmail_connected=1`);
   };

@@ -34,11 +34,11 @@ export default function BusinessDescriptionsPage() {
         setDescriptions(Array.isArray(data) ? data : []);
       } else {
         setDescriptions([]);
-        if (res.status === 401) setError('Connectez-vous pour voir vos descriptions.');
+        if (res.status === 401) setError('Log in to see your descriptions.');
       }
     } catch {
       setDescriptions([]);
-      setError('Impossible de charger les descriptions.');
+      setError('Could not load descriptions.');
     } finally {
       setLoading(false);
     }
@@ -66,12 +66,12 @@ export default function BusinessDescriptionsPage() {
     e.preventDefault();
     const trimmed = newContent.trim();
     if (trimmed.length < 50) {
-      setError('La description doit contenir au moins 50 caractères.');
+      setError('Description must be at least 50 characters.');
       return;
     }
     const normalized = normalizeContent(trimmed);
     if (descriptions.some((d) => normalizeContent(d.content) === normalized)) {
-      setError('Cette description existe déjà.');
+      setError('This description already exists.');
       return;
     }
     setAdding(true);
@@ -88,11 +88,11 @@ export default function BusinessDescriptionsPage() {
         setDescriptions(data.descriptions);
         setNewContent('');
       } else {
-        setError(data.error || 'Erreur lors de l’ajout.');
+        setError(data.error || 'Error adding.');
         if (data.descriptions) setDescriptions(data.descriptions);
       }
     } catch {
-      setError('Erreur lors de l’enregistrement.');
+      setError('Error saving.');
     } finally {
       setAdding(false);
     }
@@ -114,7 +114,7 @@ export default function BusinessDescriptionsPage() {
   async function handleSaveEdit(id: string) {
     const trimmed = editContent.trim();
     if (trimmed.length < 50) {
-      setError('La description doit contenir au moins 50 caractères.');
+      setError('Description must be at least 50 characters.');
       return;
     }
     setSavingId(id);
@@ -133,10 +133,10 @@ export default function BusinessDescriptionsPage() {
         );
         cancelEdit();
       } else {
-        setError(data.error || 'Erreur lors de l’enregistrement.');
+        setError(data.error || 'Error saving.');
       }
     } catch {
-      setError('Erreur lors de l’enregistrement.');
+      setError('Error saving.');
     } finally {
       setSavingId(null);
     }
@@ -167,7 +167,7 @@ export default function BusinessDescriptionsPage() {
           className="inline-flex items-center gap-2 text-zinc-500 dark:text-neutral-400 hover:text-zinc-900 dark:hover:text-white mb-6 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Retour au tableau de bord
+          Back to dashboard
         </Link>
 
         <div className="mb-8">
@@ -176,25 +176,25 @@ export default function BusinessDescriptionsPage() {
             Business descriptions
           </h1>
           <p className="mt-1 text-sm text-zinc-600 dark:text-neutral-400">
-            Descriptions d’entreprise enregistrées, réutilisables pour vos campagnes.
+            Saved business descriptions, reusable for your campaigns.
           </p>
         </div>
 
         <form onSubmit={handleAdd} className="mb-8">
           <label className="block text-sm font-medium text-zinc-700 dark:text-neutral-300 mb-2">
-            Nouvelle description (min. 50 caractères)
+            New description (min. 50 characters)
           </label>
           <textarea
             value={newContent}
             onChange={(e) => setNewContent(e.target.value)}
-            placeholder="Ex: We are a family-owned plumbing company with 15 years of experience..."
+            placeholder="e.g. We are a family-owned plumbing company with 15 years of experience..."
             className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white placeholder-zinc-400 focus:ring-2 focus:ring-sky-500 focus:border-transparent resize-y min-h-[120px]"
             rows={4}
             disabled={adding}
           />
           <div className="mt-2 flex items-center justify-between gap-4">
             <span className="text-xs text-zinc-500 dark:text-neutral-500">
-              {newContent.trim().length} / 50 caractères
+              {newContent.trim().length} / 50 characters
             </span>
             <button
               type="submit"
@@ -202,7 +202,7 @@ export default function BusinessDescriptionsPage() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
             >
               <Plus className="w-4 h-4" />
-              {adding ? 'Ajout…' : 'Enregistrer'}
+              {adding ? 'Adding…' : 'Save'}
             </button>
           </div>
         </form>
@@ -214,10 +214,10 @@ export default function BusinessDescriptionsPage() {
         )}
 
         {loading ? (
-          <p className="text-zinc-500 dark:text-neutral-400">Chargement…</p>
+          <p className="text-zinc-500 dark:text-neutral-400">Loading…</p>
         ) : uniqueDescriptions.length === 0 ? (
           <div className="rounded-xl border border-zinc-200 dark:border-neutral-800 border-dashed p-8 text-center text-zinc-500 dark:text-neutral-400">
-            Aucune description enregistrée. Ajoutez-en une ci-dessus.
+            No descriptions saved. Add one above.
           </div>
         ) : (
           <ul className="space-y-4">
@@ -232,7 +232,7 @@ export default function BusinessDescriptionsPage() {
                       type="text"
                       value={editCampaignName}
                       onChange={(e) => setEditCampaignName(e.target.value)}
-                      placeholder="Nom (optionnel, ex: V3)"
+                      placeholder="Name (optional, e.g. V3)"
                       className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white placeholder-zinc-400 focus:ring-2 focus:ring-sky-500 text-sm"
                     />
                     <textarea
@@ -244,7 +244,7 @@ export default function BusinessDescriptionsPage() {
                     />
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs text-zinc-500 dark:text-neutral-500">
-                        {editContent.trim().length} / 50 caractères
+                        {editContent.trim().length} / 50 characters
                       </span>
                       <div className="flex items-center gap-2">
                         <button
@@ -254,7 +254,7 @@ export default function BusinessDescriptionsPage() {
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-zinc-600 dark:text-neutral-400 hover:bg-zinc-200 dark:hover:bg-neutral-700 rounded-lg text-sm font-medium transition-colors"
                         >
                           <X className="w-4 h-4" />
-                          Annuler
+                          Cancel
                         </button>
                         <button
                           type="button"
@@ -263,7 +263,7 @@ export default function BusinessDescriptionsPage() {
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors"
                         >
                           <Check className="w-4 h-4" />
-                          {savingId === d.id ? 'Enregistrement…' : 'Enregistrer'}
+                          {savingId === d.id ? 'Saving…' : 'Save'}
                         </button>
                       </div>
                     </div>
@@ -279,7 +279,7 @@ export default function BusinessDescriptionsPage() {
                           {d.content}
                         </p>
                         <p className="text-xs text-zinc-400 dark:text-neutral-500 mt-2">
-                          {new Date(d.createdAt).toLocaleDateString('fr-FR')}
+                          {new Date(d.createdAt).toLocaleDateString()}
                         </p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
@@ -287,7 +287,7 @@ export default function BusinessDescriptionsPage() {
                           type="button"
                           onClick={() => startEdit(d)}
                           className="p-2 text-zinc-600 dark:text-neutral-400 hover:text-sky-600 dark:hover:text-sky-400 hover:bg-zinc-100 dark:hover:bg-neutral-700 rounded-lg transition-colors"
-                          title="Modifier"
+                          title="Edit"
                         >
                           <Pencil className="w-4 h-4" />
                         </button>
@@ -296,7 +296,7 @@ export default function BusinessDescriptionsPage() {
                           onClick={() => handleDelete(d.id)}
                           disabled={deletingId === d.id}
                           className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
-                          title="Supprimer"
+                          title="Delete"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>

@@ -17,6 +17,8 @@ export interface Campaign {
   createdAt: string;
   status: 'active' | 'completed';
   lastStartedAt?: string | null;
+  /** Pro: which Gmail account runs this campaign. Null = primary. */
+  gmailEmail?: string | null;
 }
 
 interface CreateCampaignInput {
@@ -31,6 +33,7 @@ interface CreateCampaignInput {
   mode?: CampaignMode;
   numberCreditsUsed?: number;
   status?: 'active' | 'completed';
+  gmailEmail?: string | null;
 }
 
 function mapRecordToCampaign(record: any): Campaign {
@@ -49,6 +52,7 @@ function mapRecordToCampaign(record: any): Campaign {
     createdAt: record.created_at,
     status: record.status || 'active',
     lastStartedAt: record.last_started_at ?? null,
+    gmailEmail: record.gmail_email ?? null,
   };
 }
 
@@ -70,6 +74,7 @@ export async function createCampaign(userId: string, input: CreateCampaignInput)
       mode: input.mode || 'standard',
       number_credits_used: input.numberCreditsUsed ?? 0,
       status: input.status || 'active',
+      gmail_email: input.gmailEmail ?? null,
     })
     .select()
     .single();
@@ -154,6 +159,7 @@ export async function updateCampaign(
     mode: CampaignMode;
     numberCreditsUsed: number;
     lastStartedAt: string | null;
+    gmailEmail: string | null;
   }>
 ): Promise<Campaign | null> {
   const supabase = await createServerSupabaseClient();
@@ -169,6 +175,7 @@ export async function updateCampaign(
   if (updates.mode !== undefined) payload.mode = updates.mode;
   if (updates.numberCreditsUsed !== undefined) payload.number_credits_used = Math.max(0, Math.min(300, updates.numberCreditsUsed));
   if (updates.lastStartedAt !== undefined) payload.last_started_at = updates.lastStartedAt;
+  if (updates.gmailEmail !== undefined) payload.gmail_email = updates.gmailEmail;
 
   if (Object.keys(payload).length === 0) {
     return getCampaignById(userId, campaignId);

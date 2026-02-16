@@ -3,9 +3,9 @@ import { getScheduledCampaignRunsNow } from '@/lib/supabase-schedule';
 import { getCampaignsByIdsAdmin } from '@/lib/supabase-campaigns';
 import { getRandomCityFromSupabase } from '@/lib/supabase-cities';
 import { countLeadsForCampaignAdmin } from '@/lib/supabase-leads';
-import { createAdminClient } from '@/lib/supabase-server';
 import { getValidGmailAccessToken } from '@/lib/gmail';
 import { triggerN8nWorkflow } from '@/lib/n8n';
+import { getGmailTokensForEmail } from '@/lib/supabase-gmail-accounts';
 
 const POLL_LEADS_INTERVAL_MS = 15_000; // poll every 15s
 const WAIT_FOR_LEADS_TIMEOUT_MS = 2 * 60 * 1000; // max 2 min per campaign so cron can launch several within serverless timeout
@@ -51,7 +51,6 @@ export async function GET(request: Request) {
   try {
     const { runs, currentTimeUtc } = await getScheduledCampaignRunsNow(simulateTime);
     const results: { userId: string; campaignId: string; slotIndex: number; launched: boolean; error?: string }[] = [];
-    const admin = createAdminClient();
 
     for (const run of runs) {
       const { userId, campaignId, slotIndex } = run;
@@ -70,13 +69,8 @@ export async function GET(request: Request) {
           continue;
         }
 
-        const { data: userProfile } = await admin
-          .from('user_profiles')
-          .select('gmail_access_token, gmail_refresh_token, gmail_email, gmail_token_expiry, gmail_connected')
-          .eq('id', userId)
-          .single();
-
-        if (!userProfile?.gmail_connected || !userProfile.gmail_access_token || !userProfile.gmail_refresh_token) {
+        const userProfile = await getGmailTokensForEmail(userId, campaign.gmailEmail ?? null);
+        if (!userProfile?.gmail_access_token || !userProfile.gmail_refresh_token) {
           results.push({ userId, campaignId, slotIndex, launched: false, error: 'Gmail not connected' });
           continue;
         }
@@ -87,7 +81,8 @@ export async function GET(request: Request) {
             userProfile.gmail_access_token,
             userProfile.gmail_refresh_token,
             userProfile.gmail_token_expiry,
-            userId
+            userId,
+            userProfile.gmail_email
           );
         } catch (tokenErr: any) {
           results.push({ userId, campaignId, slotIndex, launched: false, error: `Gmail: ${tokenErr.message}` });

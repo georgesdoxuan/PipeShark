@@ -31,11 +31,11 @@ export default function ExempleMailsPage() {
         setTemplates(Array.isArray(data) ? data : []);
       } else {
         setTemplates([]);
-        if (res.status === 401) setError('Connectez-vous pour voir vos modèles.');
+        if (res.status === 401) setError('Log in to see your templates.');
       }
     } catch {
       setTemplates([]);
-      setError('Impossible de charger les modèles.');
+      setError('Could not load templates.');
     } finally {
       setLoading(false);
     }
@@ -49,7 +49,7 @@ export default function ExempleMailsPage() {
     e.preventDefault();
     const trimmed = newContent.trim();
     if (!trimmed) {
-      setError('Le contenu est requis.');
+      setError('Content is required.');
       return;
     }
     setAdding(true);
@@ -67,10 +67,10 @@ export default function ExempleMailsPage() {
         setNewContent('');
         setNewName('');
       } else {
-        setError(data.error || 'Erreur lors de l’ajout.');
+        setError(data.error || 'Error adding template.');
       }
     } catch {
-      setError('Erreur lors de l’enregistrement.');
+      setError('Error saving.');
     } finally {
       setAdding(false);
     }
@@ -100,40 +100,40 @@ export default function ExempleMailsPage() {
           className="inline-flex items-center gap-2 text-zinc-500 dark:text-neutral-400 hover:text-zinc-900 dark:hover:text-white mb-6 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Retour au tableau de bord
+          Back to dashboard
         </Link>
 
         <div className="mb-8">
           <h1 className="text-2xl font-display font-bold text-zinc-900 dark:text-white flex items-center gap-2">
             <Mail className="w-6 h-6" />
-            Exemple mails
+            Example emails
           </h1>
           <p className="mt-1 text-sm text-zinc-600 dark:text-neutral-400">
-            Modèles d’emails enregistrés pour personnaliser vos campagnes.
+            Saved email templates to personalize your campaigns.
           </p>
         </div>
 
         <form onSubmit={handleAdd} className="mb-8">
           <div className="mb-4">
             <label className="block text-sm font-medium text-zinc-700 dark:text-neutral-300 mb-2">
-              Nom (optionnel)
+              Name (optional)
             </label>
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="Ex: Relance prospection"
+              placeholder="e.g. Follow-up outreach"
               className="w-full px-4 py-2 rounded-xl border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white placeholder-zinc-400 focus:ring-2 focus:ring-sky-500 focus:border-transparent"
               disabled={adding}
             />
           </div>
           <label className="block text-sm font-medium text-zinc-700 dark:text-neutral-300 mb-2">
-            Contenu du modèle
+            Template content
           </label>
           <textarea
             value={newContent}
             onChange={(e) => setNewContent(e.target.value)}
-            placeholder="Corps de l’email type que vous souhaitez réutiliser..."
+            placeholder="Body of the sample email you want to reuse..."
             className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-zinc-900 dark:text-white placeholder-zinc-400 focus:ring-2 focus:ring-sky-500 focus:border-transparent resize-y min-h-[140px]"
             rows={5}
             disabled={adding}
@@ -145,7 +145,7 @@ export default function ExempleMailsPage() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-medium transition-colors"
             >
               <Plus className="w-4 h-4" />
-              {adding ? 'Ajout…' : 'Enregistrer'}
+              {adding ? 'Adding…' : 'Save'}
             </button>
           </div>
         </form>
@@ -157,10 +157,10 @@ export default function ExempleMailsPage() {
         )}
 
         {loading ? (
-          <p className="text-zinc-500 dark:text-neutral-400">Chargement…</p>
+          <p className="text-zinc-500 dark:text-neutral-400">Loading…</p>
         ) : templates.length === 0 ? (
           <div className="rounded-xl border border-zinc-200 dark:border-neutral-800 border-dashed p-8 text-center text-zinc-500 dark:text-neutral-400">
-            Aucun modèle enregistré. Ajoutez-en un ci-dessus pour le réutiliser dans vos campagnes.
+            No templates saved. Add one above to reuse it in your campaigns.
           </div>
         ) : (
           <ul className="space-y-4">
@@ -177,7 +177,7 @@ export default function ExempleMailsPage() {
                     {t.content}
                   </p>
                   <p className="text-xs text-zinc-400 dark:text-neutral-500 mt-2">
-                    {new Date(t.createdAt).toLocaleDateString('fr-FR')}
+                    {new Date(t.createdAt).toLocaleDateString()}
                   </p>
                 </div>
                 <button
@@ -185,7 +185,7 @@ export default function ExempleMailsPage() {
                   onClick={() => handleDelete(t.id)}
                   disabled={deletingId === t.id}
                   className="shrink-0 p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
-                  title="Supprimer"
+                  title="Delete"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

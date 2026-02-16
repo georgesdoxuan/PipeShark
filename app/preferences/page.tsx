@@ -12,6 +12,9 @@ export default function PreferencesPage() {
   const [gmailLoading, setGmailLoading] = useState(true);
   const [gmailDisconnecting, setGmailDisconnecting] = useState(false);
   const [gmailError, setGmailError] = useState<string | null>(null);
+  const [gmailAccounts, setGmailAccounts] = useState<{ email: string; connected: boolean }[]>([]);
+  const [plan, setPlan] = useState<string | null>(null);
+  const [canAddMoreGmail, setCanAddMoreGmail] = useState(false);
   const searchParams = useSearchParams();
 
   async function fetchGmailStatus() {
@@ -40,10 +43,30 @@ export default function PreferencesPage() {
   }, []);
 
   useEffect(() => {
+    fetch('/api/gmail/accounts', { credentials: 'include' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d?.accounts) setGmailAccounts(d.accounts);
+        if (d?.plan) setPlan(d.plan);
+        if (typeof d?.canAddMore === 'boolean') setCanAddMoreGmail(d.canAddMore);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const connected = searchParams.get('gmail_connected');
+    const added = searchParams.get('added');
     const error = searchParams.get('gmail_error');
-    if (connected === '1') {
+    if (connected === '1' || added === 'secondary') {
       fetchGmailStatus();
+      fetch('/api/gmail/accounts', { credentials: 'include' })
+        .then((r) => r.ok ? r.json() : null)
+        .then((d) => {
+          if (d?.accounts) setGmailAccounts(d.accounts);
+          if (d?.plan) setPlan(d.plan);
+          if (typeof d?.canAddMore === 'boolean') setCanAddMoreGmail(d.canAddMore);
+        })
+        .catch(() => {});
       window.history.replaceState({}, '', '/preferences');
     }
     if (error) {
@@ -56,6 +79,8 @@ export default function PreferencesPage() {
         missing_params: 'Missing OAuth parameters.',
         timeout: 'Gmail connection timed out. Please try again.',
         unknown: 'Something went wrong. Please try again.',
+        pro_limit: 'Pro plan allows up to 3 Gmail accounts. You already have 3 connected.',
+        no_email: 'Google did not return an email for this account.',
       };
       setGmailError(messages[error] || `Gmail error: ${error}`);
       window.history.replaceState({}, '', '/preferences');
@@ -136,23 +161,38 @@ export default function PreferencesPage() {
                       </button>
                     </div>
                   ) : (
-                    <div className="bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-700/50 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <MailCheck className="w-5 h-5 text-sky-600 dark:text-sky-400" />
-                        <div>
-                          <p className="font-semibold text-sky-800 dark:text-sky-200">Gmail connected</p>
-                          <p className="text-sm text-sky-700/90 dark:text-sky-200/80">
-                            Account: {gmailEmail || '—'}
-                          </p>
+                    <div className="space-y-3">
+                      <div className="bg-sky-50 dark:bg-sky-900/20 border border-sky-200 dark:border-sky-700/50 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <MailCheck className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                          <div>
+                            <p className="font-semibold text-sky-800 dark:text-sky-200">Gmail connected</p>
+                            <p className="text-sm text-sky-700/90 dark:text-sky-200/80">
+                              {gmailAccounts.filter((a) => a.connected).length > 0
+                                ? gmailAccounts.filter((a) => a.connected).map((a) => a.email).join(', ')
+                                : gmailEmail || '—'}
+                            </p>
+                          </div>
                         </div>
+                        <button
+                          onClick={handleDisconnectGmail}
+                          disabled={gmailDisconnecting}
+                          className="text-red-600 dark:text-red-400 hover:text-red-500 text-sm underline disabled:opacity-50"
+                        >
+                          {gmailDisconnecting ? 'Disconnecting...' : 'Disconnect primary'}
+                        </button>
                       </div>
-                      <button
-                        onClick={handleDisconnectGmail}
-                        disabled={gmailDisconnecting}
-                        className="text-red-600 dark:text-red-400 hover:text-red-500 text-sm underline disabled:opacity-50"
-                      >
-                        {gmailDisconnecting ? 'Disconnecting...' : 'Disconnect'}
-                      </button>
+                      {plan === 'pro' && canAddMoreGmail && (
+                        <div className="flex justify-end">
+                          <a
+                            href="/api/auth/gmail?add_secondary=1&return_to=/preferences"
+                            className="inline-flex items-center gap-2 bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-xl font-semibold text-sm transition-colors"
+                          >
+                            <MailCheck className="w-4 h-4" />
+                            Connect another Gmail (Pro: up to 3)
+                          </a>
+                        </div>
+                      )}
                     </div>
                   )}
                 </>

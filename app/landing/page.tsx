@@ -1,13 +1,18 @@
 'use client';
 
-import { useEffect } from 'react';
-import { Target, Zap, Mail, BarChart3, Shield, ArrowRight, LayoutDashboard, CreditCard, Check, Clock, FileText, Sparkles, Inbox, Send } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Target, Zap, Mail, BarChart3, Shield, ArrowRight, LayoutDashboard, CreditCard, Check, Clock, FileText, Sparkles, Inbox, Send, Ticket } from 'lucide-react';
 import Link from 'next/link';
 import ViperLogo from '@/components/ViperLogo';
 
 const ANCHORS = ['features', 'faq', 'pricing'] as const;
 
 export default function LandingPage() {
+  const [promoCode, setPromoCode] = useState('');
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoSuccess, setPromoSuccess] = useState<string | null>(null);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const hash = window.location.hash.slice(1);
@@ -271,7 +276,7 @@ export default function LandingPage() {
                 <h4 className="text-lg font-display font-bold text-white">Standard</h4>
               </div>
               <p className="text-2xl font-bold text-white mb-5">
-                $24<span className="text-sm font-normal text-sky-300">/month</span>
+                $19<span className="text-sm font-normal text-sky-300">/month</span>
               </p>
               <ul className="space-y-3 text-sm text-sky-200/90 mb-6 flex-1">
                 <li className="flex items-start gap-2">
@@ -292,7 +297,9 @@ export default function LandingPage() {
                 </li>
               </ul>
               <Link
-                href="/pricing"
+                href="https://buy.stripe.com/28E14ndf425P7p9d6GcIE00"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="block w-full text-center px-4 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold text-sm transition-colors mt-auto"
               >
                 Get Standard
@@ -309,12 +316,12 @@ export default function LandingPage() {
                 <h4 className="text-lg font-display font-bold text-white">Pro</h4>
               </div>
               <p className="text-2xl font-bold text-white mb-5">
-                $59<span className="text-sm font-normal text-sky-300">/month</span>
+                $39<span className="text-sm font-normal text-sky-300">/month</span>
               </p>
               <ul className="space-y-3 text-sm text-sky-200/90 mb-6 flex-1">
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
-                  <span><strong className="text-white">3,000</strong> AI emails/month (90/day)</span>
+                  <span>Connect up to 3 email accounts — <strong className="text-white">3,000</strong> AI emails/month (90/day)</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <Check className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
@@ -330,7 +337,9 @@ export default function LandingPage() {
                 </li>
               </ul>
               <Link
-                href="/pricing"
+                href="https://buy.stripe.com/aFabJ1b6WfWFgZJ3w6cIE01"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="block w-full text-center px-4 py-3 rounded-xl bg-sky-700 hover:bg-sky-600 text-white font-semibold text-sm transition-colors mt-auto"
               >
                 Get Pro
@@ -367,6 +376,80 @@ export default function LandingPage() {
                 Contact us
               </Link>
             </div>
+          </div>
+
+          {/* Promo code */}
+          <div className="mt-12 p-6 rounded-2xl border border-sky-700/50 bg-sky-950/30 max-w-md mx-auto">
+            <p className="text-sky-200 font-semibold mb-3 flex items-center justify-center gap-2">
+              <Ticket className="w-5 h-5 text-sky-400" />
+              Have a promo code?
+            </p>
+            <p className="text-sky-300/80 text-sm text-center mb-4">
+              Enter your code to activate the Standard or Pro plan for free.
+            </p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setPromoError(null);
+                setPromoSuccess(null);
+                if (!promoCode.trim()) return;
+                setPromoLoading(true);
+                try {
+                  const res = await fetch('/api/promo/redeem', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ code: promoCode.trim() }),
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (res.status === 401) {
+                    setPromoError('Log in to activate this code.');
+                    return;
+                  }
+                  if (!res.ok) {
+                    setPromoError(data?.error || 'Invalid code.');
+                    return;
+                  }
+                  setPromoSuccess(data?.message || 'Plan activated.');
+                  setPromoCode('');
+                } catch {
+                  setPromoError('Something went wrong. Please try again.');
+                } finally {
+                  setPromoLoading(false);
+                }
+              }}
+              className="flex flex-col sm:flex-row gap-3"
+            >
+              <input
+                type="text"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                placeholder="Promo code"
+                className="flex-1 px-4 py-3 rounded-xl bg-black/40 border border-sky-700/50 text-white placeholder:text-sky-400/60 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                disabled={promoLoading}
+                maxLength={20}
+              />
+              <button
+                type="submit"
+                disabled={promoLoading || !promoCode.trim()}
+                className="px-6 py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {promoLoading ? 'Activating...' : 'Activate'}
+              </button>
+            </form>
+            {promoError && (
+              <p className="mt-3 text-sm text-amber-400 text-center">
+                {promoError}
+                {promoError.includes('Log in') && (
+                  <Link href="/dashboard" className="block mt-2 text-sky-400 hover:text-sky-300 underline">
+                    Go to dashboard →
+                  </Link>
+                )}
+              </p>
+            )}
+            {promoSuccess && (
+              <p className="mt-3 text-sm text-emerald-400 text-center font-medium">{promoSuccess}</p>
+            )}
           </div>
         </div>
       </section>

@@ -41,9 +41,10 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const returnTo = searchParams.get('return_to') || '/dashboard';
+    const addSecondary = searchParams.get('add_secondary') === '1';
 
     const nonce = randomBytes(16).toString('hex');
-    const statePayload = JSON.stringify({ userId: user.id, nonce, returnTo });
+    const statePayload = JSON.stringify({ userId: user.id, nonce, returnTo, addSecondary: addSecondary || undefined });
     const state = Buffer.from(statePayload).toString('base64url');
 
     const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');

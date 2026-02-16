@@ -3,8 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { getSchedule, setSchedule } from '@/lib/supabase-schedule';
 import { getCampaignsForUser } from '@/lib/supabase-campaigns';
 import { countTodayLeadsForUser } from '@/lib/supabase-leads';
-
-const DAILY_LIMIT = 300;
+import { getDailyLimitForUser } from '@/lib/supabase-user-plan';
 
 export async function GET() {
   try {
@@ -100,10 +99,11 @@ export async function POST(request: Request) {
       const campaignsToSum = userCampaigns.filter((c) => ids.includes(c.id));
       const totalCredits = campaignsToSum.reduce((acc, c) => acc + (c.numberCreditsUsed ?? 0), 0);
       const usedToday = await countTodayLeadsForUser(user.id);
-      if (usedToday + totalCredits > DAILY_LIMIT) {
+      const dailyLimit = await getDailyLimitForUser(user.id);
+      if (usedToday + totalCredits > dailyLimit) {
         return NextResponse.json(
           {
-            error: `You have ${DAILY_LIMIT - usedToday} credits left today. Selected campaigns total ${totalCredits} credits. Reduce the selection or target counts.`,
+            error: `You have ${dailyLimit - usedToday} credits left today. Selected campaigns total ${totalCredits} credits. Reduce the selection or target counts.`,
           },
           { status: 400 }
         );

@@ -57,6 +57,7 @@ export default function CampaignDetailPage() {
   const [showEditSettings, setShowEditSettings] = useState(false);
   const [showLeadsWithoutEmail, setShowLeadsWithoutEmail] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
+  const [dailyLimit, setDailyLimit] = useState(300);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isPausedRef = useRef(false);
   const draftModalOpenRef = useRef(false);
@@ -68,6 +69,13 @@ export default function CampaignDetailPage() {
   useEffect(() => {
     isPausedRef.current = isPaused;
   }, [isPaused]);
+
+  useEffect(() => {
+    fetch('/api/campaigns/count-today')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d && typeof d.limit === 'number') setDailyLimit(d.limit); })
+      .catch(() => {});
+  }, []);
 
   // Split leads: main table shows ALL leads with email (no limit per run)
   const { mainLeads, leadsWithoutEmail } = useMemo(() => {
@@ -527,6 +535,7 @@ export default function CampaignDetailPage() {
         <EditCampaignModal
           campaign={campaign}
           onClose={() => setShowEditSettings(false)}
+          maxCreditsPerCampaign={dailyLimit}
           onSave={async (updates) => {
             setEditSaving(true);
             try {

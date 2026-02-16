@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { countTodayLeadsForUser } from '@/lib/supabase-leads';
+import { listGmailAccountsForUser, canAddGmailAccount } from '@/lib/supabase-gmail-accounts';
 import { getUserPlanInfo } from '@/lib/supabase-user-plan';
 
 export async function GET() {
@@ -14,21 +14,20 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const count = await countTodayLeadsForUser(user.id);
+    const accounts = await listGmailAccountsForUser(user.id);
     const planInfo = await getUserPlanInfo(user.id);
-    const remaining = Math.max(0, planInfo.dailyLimit - count);
+    const canAddMore = await canAddGmailAccount(user.id);
 
     return NextResponse.json({
-      count,
-      remaining,
-      limit: planInfo.dailyLimit,
-      trialExpired: planInfo.trialExpired,
+      accounts,
       plan: planInfo.plan,
+      dailyLimit: planInfo.dailyLimit,
+      canAddMore,
     });
-  } catch (error: any) {
-    console.error('Error counting today credits:', error.message);
+  } catch (err) {
+    console.error('Gmail accounts error:', err);
     return NextResponse.json(
-      { error: 'Failed to count credits', details: error.message },
+      { error: 'Failed to list Gmail accounts' },
       { status: 500 }
     );
   }
