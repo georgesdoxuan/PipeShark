@@ -2,9 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
-import { Settings, ArrowLeft, MailCheck, MailX, Scale, Lock } from 'lucide-react';
+import { Settings, ArrowLeft, MailCheck, MailX, Scale, Lock, Send } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import SenderAccountForm from '@/components/SenderAccountForm';
+
+interface SenderAccountPublic {
+  id: string;
+  email: string;
+  smtpHost: string;
+  smtpPort: number;
+  isPrimary: boolean;
+  createdAt: string;
+}
 
 export default function PreferencesPage() {
   const [gmailConnected, setGmailConnected] = useState(false);
@@ -15,6 +25,8 @@ export default function PreferencesPage() {
   const [gmailAccounts, setGmailAccounts] = useState<{ email: string; connected: boolean }[]>([]);
   const [plan, setPlan] = useState<string | null>(null);
   const [canAddMoreGmail, setCanAddMoreGmail] = useState(false);
+  const [senderAccounts, setSenderAccounts] = useState<SenderAccountPublic[]>([]);
+  const [senderAccountsLoading, setSenderAccountsLoading] = useState(true);
   const searchParams = useSearchParams();
 
   async function fetchGmailStatus() {
@@ -51,6 +63,22 @@ export default function PreferencesPage() {
         if (typeof d?.canAddMore === 'boolean') setCanAddMoreGmail(d.canAddMore);
       })
       .catch(() => {});
+  }, []);
+
+  function fetchSenderAccounts() {
+    setSenderAccountsLoading(true);
+    fetch('/api/sender-accounts', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.accounts) setSenderAccounts(d.accounts);
+        else setSenderAccounts([]);
+      })
+      .catch(() => setSenderAccounts([]))
+      .finally(() => setSenderAccountsLoading(false));
+  }
+
+  useEffect(() => {
+    fetchSenderAccounts();
   }, []);
 
   useEffect(() => {
@@ -199,6 +227,22 @@ export default function PreferencesPage() {
               )}
               {gmailLoading && (
                 <p className="text-zinc-500 dark:text-neutral-400 text-sm">Loading...</p>
+              )}
+            </div>
+
+            {/* Email sending (SMTP) – queue-based sending */}
+            <div className="mb-6 pt-6 border-t border-zinc-200 dark:border-neutral-800">
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
+                <Send className="w-5 h-5 text-sky-500" />
+                Email sending (SMTP)
+              </h2>
+              <p className="text-sm text-zinc-600 dark:text-neutral-400 mb-4">
+                Add a sending account to use the email queue: campaigns can enqueue leads and n8n sends via SMTP (e.g. Gmail App Password). The email address here should match the one you use for campaigns.
+              </p>
+              {senderAccountsLoading ? (
+                <p className="text-zinc-500 dark:text-neutral-400 text-sm">Loading...</p>
+              ) : (
+                <SenderAccountForm accounts={senderAccounts} onSuccess={fetchSenderAccounts} />
               )}
             </div>
           </div>

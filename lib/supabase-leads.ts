@@ -272,6 +272,31 @@ export async function getCampaignStatsForUser(userId: string) {
   };
 }
 
+/** Leads that have a draft and not yet sent, for enqueue (SMTP queue). Excludes invalid emails. */
+export async function getLeadsWithDraftForEnqueue(
+  userId: string,
+  campaignId: string
+): Promise<{ id: string; email: string; draft: string }[]> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('leads')
+    .select('id, email, draft')
+    .eq('user_id', userId)
+    .eq('campaign_id', campaignId)
+    .eq('email_sent', false)
+    .not('draft', 'is', null);
+  if (error) throw error;
+  const rows = (data || []).filter(
+    (r: any) =>
+      r.email &&
+      String(r.email).trim() &&
+      String(r.email).toLowerCase() !== 'no email found' &&
+      r.draft &&
+      String(r.draft).trim()
+  );
+  return rows.map((r: any) => ({ id: r.id, email: r.email.trim(), draft: String(r.draft).trim() }));
+}
+
 /** Count leads for a campaign (admin, for cron). */
 export async function countLeadsForCampaignAdmin(
   userId: string,

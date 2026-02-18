@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Target, Zap, Mail, BarChart3, Shield, ArrowRight, LayoutDashboard, CreditCard, Check, Clock, FileText, Sparkles, Inbox, Send, Ticket } from 'lucide-react';
+import { Target, Mail, BarChart3, Shield, ArrowRight, LayoutDashboard, CreditCard, Check, Clock, FileText, Sparkles, Inbox, Ticket } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import ViperLogo from '@/components/ViperLogo';
 
@@ -36,7 +37,7 @@ export default function LandingPage() {
         <div className="grid grid-cols-3 items-center w-full px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center gap-2 flex-shrink-0">
             <ViperLogo className="h-12 w-auto flex-shrink-0 min-w-12" />
-            <h1 className="text-xl font-brand font-bold tracking-wide text-white">PipeShark</h1>
+            <h1 className="text-xl font-brand font-bold tracking-wide text-white">Pipeshark</h1>
           </div>
           <nav className="hidden sm:flex items-center justify-center gap-1 sm:gap-3">
             <Link
@@ -154,19 +155,11 @@ export default function LandingPage() {
             </div>
 
             <div className="bg-black/50 rounded-xl p-5 border border-sky-900">
-              <div className="w-10 h-10 bg-sky-800 rounded-lg flex items-center justify-center mb-3">
-                <Zap className="w-5 h-5 text-sky-300" />
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-3 overflow-hidden">
+                <Image src="/gmail.png" alt="" width={40} height={40} className="w-10 h-10 object-contain" />
               </div>
               <h4 className="text-lg font-display font-bold text-white mb-1">Gmail connection</h4>
-              <p className="text-sky-200/90 text-sm">One-click connect. PipeShark works with your existing Gmail account — no new inbox.</p>
-            </div>
-
-            <div className="bg-black/50 rounded-xl p-5 border border-sky-900 lg:col-span-2">
-              <div className="w-10 h-10 bg-sky-800 rounded-lg flex items-center justify-center mb-3">
-                <Send className="w-5 h-5 text-sky-300" />
-              </div>
-              <h4 className="text-lg font-display font-bold text-white mb-1">Drafts directly in Gmail</h4>
-              <p className="text-sky-200/90 text-sm">All drafts land in your Gmail draft folder, ready to review and send when you want. You stay in control.</p>
+              <p className="text-sky-200/90 text-sm">One-click connect. PipeShark works with your existing Gmail account — no new inbox. All drafts land in your Gmail draft folder, ready to review and send when you want. You stay in control.</p>
             </div>
 
             <div className="bg-sky-900/30 rounded-xl p-5 border border-sky-700/50">
@@ -575,7 +568,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <ViperLogo className="h-16 w-auto flex-shrink-0 min-w-16" />
-            <h4 className="text-xl font-brand font-bold tracking-wide text-white">PipeShark</h4>
+            <h4 className="text-xl font-brand font-bold tracking-wide text-white">Pipeshark</h4>
           </div>
           <p className="text-sky-500 text-sm">
             Automated prospecting tool

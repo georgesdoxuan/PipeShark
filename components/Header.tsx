@@ -159,7 +159,7 @@ export default function Header() {
               </button>
               <Link href="/dashboard" className="flex items-center gap-2">
                 <ViperLogo className="h-12 w-auto flex-shrink-0 min-w-12 self-center" />
-                <h1 className="text-lg font-brand font-bold tracking-wide text-zinc-900 dark:text-white">PipeShark</h1>
+                <h1 className="text-lg font-brand font-bold tracking-wide text-zinc-900 dark:text-white">Pipeshark</h1>
               </Link>
             </div>
             {user && (
@@ -288,7 +288,7 @@ export default function Header() {
             <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-sky-800/50">
               <div className="flex items-center gap-2">
                 <ViperLogo className="h-10 w-auto" />
-                <span className="font-brand font-bold text-zinc-900 dark:text-white">PipeShark</span>
+                <span className="font-brand font-bold text-zinc-900 dark:text-white">Pipeshark</span>
               </div>
               <button
                 type="button"
