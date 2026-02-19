@@ -42,10 +42,10 @@ export default function SenderAccountForm({ accounts, onSuccess }: SenderAccount
   const [provider, setProvider] = useState<'gmail' | 'custom'>('gmail');
   const [email, setEmail] = useState('');
   const [appPassword, setAppPassword] = useState('');
-  const [smtpHost, setSmtpHost] = useState(PROVIDERS[0].smtpHost);
-  const [smtpPort, setSmtpPort] = useState(PROVIDERS[0].smtpPort);
-  const [imapHost, setImapHost] = useState(PROVIDERS[0].imapHost);
-  const [imapPort, setImapPort] = useState(PROVIDERS[0].imapPort);
+  const [smtpHost, setSmtpHost] = useState<string>(PROVIDERS[0].smtpHost);
+  const [smtpPort, setSmtpPort] = useState<number>(PROVIDERS[0].smtpPort);
+  const [imapHost, setImapHost] = useState<string>(PROVIDERS[0].imapHost);
+  const [imapPort, setImapPort] = useState<number>(PROVIDERS[0].imapPort);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
