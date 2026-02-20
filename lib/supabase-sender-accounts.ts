@@ -151,15 +151,30 @@ export async function getSenderAccountByIdAdmin(senderAccountId: string): Promis
 
 /** Resolve sender_account_id from user_id + email (e.g. campaign.gmail_email). */
 export async function getSenderAccountIdByEmail(userId: string, email: string | null): Promise<string | null> {
-  if (!email?.trim()) return null;
+  if (email?.trim()) {
+    const supabase = await createServerSupabaseClient();
+    const { data, error } = await supabase
+      .from('sender_accounts')
+      .select('id')
+      .eq('user_id', userId)
+      .ilike('email', email.trim())
+      .limit(1)
+      .single();
+    if (!error && data) return data.id;
+  }
+  return getPrimarySenderAccountId(userId);
+}
+
+/** Get the primary sender account id for a user (fallback when campaign has no gmail_email). */
+export async function getPrimarySenderAccountId(userId: string): Promise<string | null> {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from('sender_accounts')
     .select('id')
     .eq('user_id', userId)
-    .ilike('email', email.trim())
+    .order('is_primary', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
   if (error || !data) return null;
   return data.id;
 }

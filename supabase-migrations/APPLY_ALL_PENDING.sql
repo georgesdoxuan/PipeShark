@@ -63,6 +63,10 @@ CREATE INDEX IF NOT EXISTS todos_created_at_idx ON todos(created_at DESC);
 ALTER TABLE todos ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'todo';
 UPDATE todos SET status = 'done' WHERE completed = true;
 
+-- 014: cities table (if missing, see 014_create_cities_table.sql)
+-- 015: Add country to leads (for timezone / business-hours scheduling)
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS country TEXT;
+
 -- 013: Create email_templates (example emails for AI inspiration, reusable)
 CREATE TABLE IF NOT EXISTS email_templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

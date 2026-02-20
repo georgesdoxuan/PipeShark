@@ -276,11 +276,11 @@ export async function getCampaignStatsForUser(userId: string) {
 export async function getLeadsWithDraftForEnqueue(
   userId: string,
   campaignId: string
-): Promise<{ id: string; email: string; draft: string }[]> {
+): Promise<{ id: string; email: string; draft: string; city: string | null; country: string | null }[]> {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from('leads')
-    .select('id, email, draft')
+    .select('id, email, draft, city, country')
     .eq('user_id', userId)
     .eq('campaign_id', campaignId)
     .eq('email_sent', false)
@@ -294,7 +294,13 @@ export async function getLeadsWithDraftForEnqueue(
       r.draft &&
       String(r.draft).trim()
   );
-  return rows.map((r: any) => ({ id: r.id, email: r.email.trim(), draft: String(r.draft).trim() }));
+  return rows.map((r: any) => ({
+    id: r.id,
+    email: r.email.trim(),
+    draft: String(r.draft).trim(),
+    city: r.city ?? null,
+    country: r.country ?? null,
+  }));
 }
 
 /** Count leads for a campaign (admin, for cron). */

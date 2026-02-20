@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { randomBytes } from 'crypto';
 
 const GMAIL_SCOPES = [
+  'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/gmail.compose',
   'https://www.googleapis.com/auth/gmail.modify',
 ].join(' ');

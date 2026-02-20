@@ -7,7 +7,7 @@ import LeadsTable from '@/components/LeadsTable';
 import CreditsGauge from '@/components/CreditsGauge';
 import { useApiPause } from '@/contexts/ApiPauseContext';
 import { useCampaignLoading } from '@/contexts/CampaignLoadingContext';
-import { ArrowLeft, RefreshCw, Play, Loader2, FileText, X, ChevronDown, ChevronUp, MailX, MessageCircle, Target, CircleDollarSign, Briefcase } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Play, Loader2, FileText, X, ChevronDown, ChevronUp, MailX, MessageCircle, Target, CircleDollarSign, Briefcase, Send } from 'lucide-react';
 import Link from 'next/link';
 import EditCampaignModal from '@/components/EditCampaignModal';
 
@@ -57,6 +57,8 @@ export default function CampaignDetailPage() {
   const [showEditSettings, setShowEditSettings] = useState(false);
   const [showLeadsWithoutEmail, setShowLeadsWithoutEmail] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
+  const [enqueueLoading, setEnqueueLoading] = useState(false);
+  const [enqueueMessage, setEnqueueMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [dailyLimit, setDailyLimit] = useState(300);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isPausedRef = useRef(false);
@@ -293,6 +295,33 @@ export default function CampaignDetailPage() {
     }
   }
 
+  async function handleEnqueue() {
+    setEnqueueMessage(null);
+    setEnqueueLoading(true);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/enqueue`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setEnqueueMessage({
+          type: 'success',
+          text: data.message || `${data.enqueued ?? 0} email(s) added to the send queue.`,
+        });
+        fetchData();
+        setTimeout(() => setEnqueueMessage(null), 5000);
+      } else {
+        const detail = data.details ? ` — ${data.details}` : '';
+        setEnqueueMessage({
+          type: 'error',
+          text: (data.error || data.hint || 'Failed to add to send queue.') + detail,
+        });
+      }
+    } catch (e: any) {
+      setEnqueueMessage({ type: 'error', text: e?.message || 'Failed to add to send queue.' });
+    } finally {
+      setEnqueueLoading(false);
+    }
+  }
+
   if (!campaign) {
     return (
       <div className="min-h-screen bg-white dark:bg-black relative">
@@ -484,9 +513,35 @@ export default function CampaignDetailPage() {
 
           {/* Campaign Targets Table - only leads with email, limited to target count */}
           <div>
-            <h2 className="text-2xl font-display font-bold text-zinc-900 dark:text-white mb-4">
-              Campaign Targets ({mainLeads.length})
-            </h2>
+            <div className="flex flex-wrap items-center gap-4 mb-4">
+              <h2 className="text-2xl font-display font-bold text-zinc-900 dark:text-white">
+                Campaign Targets ({mainLeads.length})
+              </h2>
+              <button
+                onClick={handleEnqueue}
+                disabled={enqueueLoading || loading || mainLeads.length === 0}
+                className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-2 rounded-xl font-medium shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                title="Add leads with drafts to the send queue (emails will be sent at random times during business hours in each lead's timezone)"
+              >
+                {enqueueLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                <span>{enqueueLoading ? 'Adding...' : 'Add to send queue'}</span>
+              </button>
+            </div>
+            {enqueueMessage && (
+              <div
+                className={`mb-4 flex items-center gap-2 p-3 rounded-xl ${
+                  enqueueMessage.type === 'success'
+                    ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                    : 'bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/30'
+                }`}
+              >
+                <span className="font-medium">{enqueueMessage.text}</span>
+              </div>
+            )}
             <LeadsTable
               leads={mainLeads}
               loading={loading}

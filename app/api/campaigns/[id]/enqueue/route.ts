@@ -6,14 +6,15 @@ import { getSenderAccountIdByEmail } from '@/lib/supabase-sender-accounts';
 import {
   insertEmailQueueRows,
   parseDraftSubjectAndBody,
-  buildScheduledTimes,
+  buildScheduledAtForLeads,
   getLeadIdsAlreadyInQueue,
 } from '@/lib/supabase-email-queue';
 
 /**
  * POST /api/campaigns/[id]/enqueue
  * Enqueue campaign leads (with draft, not yet sent) into email_queue with scheduled_at
- * (random 15–20 min spacing). Requires sender account (SMTP) for campaign's gmail_email.
+ * during business hours (9–18) in each lead's country timezone, at random times.
+ * Requires sender account (SMTP) for campaign's gmail_email.
  */
 export async function POST(
   request: Request,
@@ -70,7 +71,7 @@ export async function POST(
       });
     }
 
-    const scheduledTimes = buildScheduledTimes(toEnqueue.length);
+    const scheduledTimes = buildScheduledAtForLeads(toEnqueue);
     const rows = toEnqueue.map((lead, i) => {
       const { subject, body } = parseDraftSubjectAndBody(lead.draft);
       return {
@@ -93,8 +94,9 @@ export async function POST(
     });
   } catch (error: any) {
     console.error('Enqueue error:', error);
+    const details = error?.message ?? (typeof error === 'string' ? error : String(error));
     return NextResponse.json(
-      { error: 'Failed to enqueue', details: error.message },
+      { error: 'Failed to enqueue', details },
       { status: 500 }
     );
   }
