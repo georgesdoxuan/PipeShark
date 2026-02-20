@@ -23,6 +23,8 @@ interface CampaignParams {
   gmailAccessToken?: string;
   gmailRefreshToken?: string;
   gmailEmail?: string;
+  /** When true, workflow should create Gmail drafts only (no enqueue / no send). */
+  createDraftsOnly?: boolean;
 }
 
 export async function triggerN8nWorkflow(params?: CampaignParams) {
@@ -82,6 +84,7 @@ export async function triggerN8nWorkflow(params?: CampaignParams) {
       if (params.gmailAccessToken) requestBody.gmailAccessToken = params.gmailAccessToken;
       if (params.gmailRefreshToken) requestBody.gmailRefreshToken = params.gmailRefreshToken;
       if (params.gmailEmail) requestBody.gmailEmail = params.gmailEmail;
+      if (params.createDraftsOnly === true) requestBody.createDraftsOnly = true;
     }
     
     console.log('🚀 Triggering n8n workflow with POST:', url);

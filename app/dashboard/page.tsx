@@ -69,6 +69,7 @@ export default function CampaignsPage() {
   const [showAllCampaigns, setShowAllCampaigns] = useState(false);
   const [scheduleTime, setScheduleTime] = useState<string>('09:00');
   const [scheduledCampaignIds, setScheduledCampaignIds] = useState<string[]>([]);
+  const [launchDeliveryMode, setLaunchDeliveryMode] = useState<'drafts' | 'queue'>('queue');
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [showScheduleCampaignsModal, setShowScheduleCampaignsModal] = useState(false);
   const [scheduleModalSelectedIds, setScheduleModalSelectedIds] = useState<string[]>([]);
@@ -194,16 +195,18 @@ export default function CampaignsPage() {
         const raw = data.launchTime || '';
         setScheduleTime(normalizeToCronHour(raw) || '09:00');
         setScheduledCampaignIds(Array.isArray(data.campaignIds) ? data.campaignIds : []);
+        setLaunchDeliveryMode(data.launchDeliveryMode === 'drafts' ? 'drafts' : 'queue');
       }
     } catch {
       // Ignore
     }
   }
 
-  async function saveSchedule(time: string, campaignIds?: string[]) {
+  async function saveSchedule(time: string, campaignIds?: string[], deliveryMode?: 'drafts' | 'queue') {
     setScheduleSaving(true);
     try {
       const ids = campaignIds !== undefined ? campaignIds : scheduledCampaignIds;
+      const mode = deliveryMode !== undefined ? deliveryMode : launchDeliveryMode;
       const res = await fetch('/api/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -211,12 +214,15 @@ export default function CampaignsPage() {
           launchTime: time,
           campaignIds: ids,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          launchDeliveryMode: mode,
         }),
       });
       if (res.ok) {
         const data = await res.json();
         setScheduleTime(time);
         if (data.campaignIds) setScheduledCampaignIds(data.campaignIds);
+        if (data.launchDeliveryMode === 'drafts' || data.launchDeliveryMode === 'queue')
+          setLaunchDeliveryMode(data.launchDeliveryMode);
       }
     } catch {
       // Ignore
@@ -478,6 +484,21 @@ export default function CampaignsPage() {
                 })}
               </select>
               <span className="text-sm text-zinc-500 dark:text-neutral-400">everyday</span>
+              <span className="text-zinc-300 dark:text-zinc-600 mx-0.5">|</span>
+              <select
+                aria-label="Daily launch: drafts only or send via queue"
+                value={launchDeliveryMode}
+                onChange={(e) => {
+                  const mode = e.target.value === 'drafts' ? 'drafts' : 'queue';
+                  setLaunchDeliveryMode(mode);
+                  saveSchedule(scheduleTime, undefined, mode);
+                }}
+                className="rounded-md border border-zinc-200 dark:border-sky-700/50 bg-zinc-50 dark:bg-neutral-800 text-sm text-zinc-800 dark:text-neutral-100 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+                title="Brouillons = créer des brouillons Gmail à l'heure du lancement. File = ajouter à la file d'envoi (envoi SMTP aux heures planifiées)."
+              >
+                <option value="queue">Send via queue</option>
+                <option value="drafts">Drafts only</option>
+              </select>
               {campaigns.length > 0 && (
                 <button
                   type="button"

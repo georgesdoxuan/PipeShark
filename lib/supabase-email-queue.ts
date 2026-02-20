@@ -2,8 +2,13 @@ import { DateTime } from 'luxon';
 import { createServerSupabaseClient } from './supabase-server';
 import { createAdminClient } from './supabase-server';
 import { getTimezoneForLead } from './country-timezone';
+import { getCampaignsByIdsAdmin } from './supabase-campaigns';
+import { getSenderAccountIdByEmailAdmin } from './supabase-sender-accounts';
+import { getLeadsWithDraftForEnqueueAdmin } from './supabase-leads';
 
 export type EmailQueueStatus = 'pending' | 'sent' | 'failed' | 'cancelled';
+
+export type DeliveryType = 'send' | 'draft';
 
 export interface EmailQueueInsert {
   user_id: string;
@@ -13,6 +18,7 @@ export interface EmailQueueInsert {
   subject: string;
   body: string;
   scheduled_at: string; // ISO
+  delivery_type?: DeliveryType;
 }
 
 /** Bulk insert into email_queue. Caller must resolve sender_account_id. */
@@ -28,9 +34,31 @@ export async function insertEmailQueueRows(rows: EmailQueueInsert[]): Promise<nu
     body: r.body,
     scheduled_at: r.scheduled_at,
     status: 'pending',
+    delivery_type: r.delivery_type ?? 'send',
     updated_at: new Date().toISOString(),
   }));
   const { data, error } = await supabase.from('email_queue').insert(payload).select('id');
+  if (error) throw error;
+  return (data || []).length;
+}
+
+/** Same as insertEmailQueueRows but using admin client (for cron). */
+export async function insertEmailQueueRowsAdmin(rows: EmailQueueInsert[]): Promise<number> {
+  if (rows.length === 0) return 0;
+  const admin = createAdminClient();
+  const payload = rows.map((r) => ({
+    user_id: r.user_id,
+    sender_account_id: r.sender_account_id,
+    lead_id: r.lead_id ?? null,
+    recipient: r.recipient,
+    subject: r.subject,
+    body: r.body,
+    scheduled_at: r.scheduled_at,
+    status: 'pending',
+    delivery_type: r.delivery_type ?? 'send',
+    updated_at: new Date().toISOString(),
+  }));
+  const { data, error } = await admin.from('email_queue').insert(payload).select('id');
   if (error) throw error;
   return (data || []).length;
 }
@@ -164,6 +192,21 @@ export interface PendingQueueItem {
   subject: string;
   body: string;
   scheduled_at: string;
+  delivery_type: DeliveryType;
+}
+
+/** Load a single queue item by id (admin). Returns null if not found or not pending. */
+export async function getQueueItemByIdAdmin(queueId: string): Promise<(PendingQueueItem) | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('email_queue')
+    .select('id, user_id, sender_account_id, lead_id, recipient, subject, body, scheduled_at, delivery_type')
+    .eq('id', queueId)
+    .eq('status', 'pending')
+    .single();
+  if (error || !data) return null;
+  const row = data as PendingQueueItem & { delivery_type?: string };
+  return { ...row, delivery_type: (row.delivery_type === 'draft' ? 'draft' : 'send') as DeliveryType };
 }
 
 export async function getPendingQueueItemsAdmin(limit: number = 10): Promise<PendingQueueItem[]> {
@@ -171,13 +214,14 @@ export async function getPendingQueueItemsAdmin(limit: number = 10): Promise<Pen
   const now = new Date().toISOString();
   const { data, error } = await admin
     .from('email_queue')
-    .select('id, user_id, sender_account_id, lead_id, recipient, subject, body, scheduled_at')
+    .select('id, user_id, sender_account_id, lead_id, recipient, subject, body, scheduled_at, delivery_type')
     .eq('status', 'pending')
     .lte('scheduled_at', now)
     .order('scheduled_at', { ascending: true })
     .limit(limit);
   if (error) throw error;
-  return (data || []) as PendingQueueItem[];
+  const rows = (data || []) as (PendingQueueItem & { delivery_type?: string })[];
+  return rows.map((r) => ({ ...r, delivery_type: (r.delivery_type === 'draft' ? 'draft' : 'send') as DeliveryType }));
 }
 
 /** Mark queue item as sent (n8n or API). */
@@ -205,4 +249,43 @@ export async function markLeadEmailSentAdmin(leadId: string): Promise<void> {
   const admin = createAdminClient();
   const { error } = await admin.from('leads').update({ email_sent: true }).eq('id', leadId);
   if (error) throw error;
+}
+
+/**
+ * Enqueue campaign leads (with draft) into email_queue using admin client.
+ * Used by cron after Daily Launch: deliveryType 'send' = SMTP at scheduled times, 'draft' = Gmail draft at scheduled times.
+ * Returns number of rows enqueued; throws if campaign not found or no sender account.
+ */
+export async function enqueueCampaignLeadsForUser(
+  userId: string,
+  campaignId: string,
+  options?: { deliveryType?: DeliveryType }
+): Promise<number> {
+  const deliveryType = options?.deliveryType === 'draft' ? 'draft' : 'send';
+  const campaigns = await getCampaignsByIdsAdmin(userId, [campaignId]);
+  const campaign = campaigns[0];
+  if (!campaign) throw new Error('Campaign not found');
+  const senderAccountId = await getSenderAccountIdByEmailAdmin(userId, campaign.gmailEmail ?? null);
+  if (!senderAccountId) throw new Error('No SMTP sender account for this campaign');
+  const leads = await getLeadsWithDraftForEnqueueAdmin(userId, campaignId);
+  if (leads.length === 0) return 0;
+  const leadIds = leads.map((l) => l.id);
+  const alreadyInQueue = await getLeadIdsAlreadyInQueue(userId, leadIds);
+  const toEnqueue = leads.filter((l) => !alreadyInQueue.has(l.id));
+  if (toEnqueue.length === 0) return 0;
+  const scheduledTimes = buildScheduledAtForLeads(toEnqueue);
+  const rows: EmailQueueInsert[] = toEnqueue.map((lead, i) => {
+    const { subject, body } = parseDraftSubjectAndBody(lead.draft);
+    return {
+      user_id: userId,
+      sender_account_id: senderAccountId,
+      lead_id: lead.id,
+      recipient: lead.email,
+      subject: subject || '(No subject)',
+      body: body || '',
+      scheduled_at: scheduledTimes[i],
+      delivery_type: deliveryType,
+    };
+  });
+  return insertEmailQueueRowsAdmin(rows);
 }

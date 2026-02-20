@@ -86,3 +86,15 @@ CREATE POLICY "Users can manage own email templates"
 
 CREATE INDEX IF NOT EXISTS email_templates_user_id_idx ON email_templates(user_id);
 CREATE INDEX IF NOT EXISTS email_templates_created_at_idx ON email_templates(created_at DESC);
+
+-- 024: Daily launch delivery mode (drafts only vs send via queue)
+ALTER TABLE user_schedule ADD COLUMN IF NOT EXISTS launch_delivery_mode TEXT DEFAULT 'queue';
+ALTER TABLE user_schedule DROP CONSTRAINT IF EXISTS chk_launch_delivery_mode;
+ALTER TABLE user_schedule ADD CONSTRAINT chk_launch_delivery_mode
+  CHECK (launch_delivery_mode IS NULL OR launch_delivery_mode IN ('drafts', 'queue'));
+
+-- 025: delivery_type on email_queue: 'send' (SMTP) or 'draft' (Gmail draft at scheduled_at)
+ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS delivery_type TEXT NOT NULL DEFAULT 'send';
+ALTER TABLE email_queue DROP CONSTRAINT IF EXISTS chk_email_queue_delivery_type;
+ALTER TABLE email_queue ADD CONSTRAINT chk_email_queue_delivery_type
+  CHECK (delivery_type IN ('send', 'draft'));

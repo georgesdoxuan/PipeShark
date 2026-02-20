@@ -21,6 +21,7 @@ export async function GET() {
       launchTime: schedule.launchTime,
       campaignIds: schedule.campaignIds,
       timezone: schedule.timezone,
+      launchDeliveryMode: schedule.launchDeliveryMode,
     });
   } catch (error: any) {
     console.error('Error fetching schedule:', error.message);
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { launchTime, campaignIds, timezone: tzParam } = body;
+    const { launchTime, campaignIds, timezone: tzParam, launchDeliveryMode: deliveryModeParam } = body;
 
     if (!launchTime || typeof launchTime !== 'string') {
       return NextResponse.json(
@@ -110,12 +111,16 @@ export async function POST(request: Request) {
       }
     }
 
-    await setSchedule(user.id, normalizedLaunchTime, ids, timezone);
+    const deliveryMode =
+      deliveryModeParam === 'drafts' || deliveryModeParam === 'queue' ? deliveryModeParam : undefined;
+    await setSchedule(user.id, normalizedLaunchTime, ids, timezone, deliveryMode);
+    const schedule = await getSchedule(user.id);
     return NextResponse.json({
       success: true,
       launchTime: normalizedLaunchTime,
       campaignIds: ids,
       timezone,
+      launchDeliveryMode: schedule.launchDeliveryMode,
     });
   } catch (error: any) {
     console.error('Error setting schedule:', error.message);

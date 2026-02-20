@@ -196,6 +196,36 @@ export async function getPrimarySenderAccountId(userId: string): Promise<string 
   return data.id;
 }
 
+/** Resolve sender_account_id using admin client (for cron). */
+export async function getSenderAccountIdByEmailAdmin(userId: string, email: string | null): Promise<string | null> {
+  if (email?.trim()) {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from('sender_accounts')
+      .select('id')
+      .eq('user_id', userId)
+      .ilike('email', email.trim())
+      .limit(1)
+      .single();
+    if (!error && data) return data.id;
+  }
+  return getPrimarySenderAccountIdAdmin(userId);
+}
+
+/** Get primary sender account id using admin client (for cron). */
+export async function getPrimarySenderAccountIdAdmin(userId: string): Promise<string | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('sender_accounts')
+    .select('id')
+    .eq('user_id', userId)
+    .order('is_primary', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  return data.id;
+}
+
 export interface CreateSenderAccountInput {
   email: string;
   smtpHost: string;

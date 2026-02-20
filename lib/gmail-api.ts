@@ -131,3 +131,50 @@ export async function userHasSentEmailTo(
   const messages = data.messages || [];
   return messages.length > 0;
 }
+
+/**
+ * Build RFC 2822 message and return base64url-encoded raw for Gmail API.
+ */
+function buildRawMessage(to: string, subject: string, body: string): string {
+  const lines = [
+    `To: ${to.trim()}`,
+    `Subject: ${(subject || '').replace(/\r?\n/g, ' ') || '(No subject)'}`,
+    'Content-Type: text/plain; charset=utf-8',
+    '',
+    body || '',
+  ];
+  const msg = lines.join('\r\n');
+  const b64 = Buffer.from(msg, 'utf8').toString('base64');
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/**
+ * Create a Gmail draft via Gmail API (users.drafts.create).
+ * Uses OAuth access token; draft appears in the authenticated user's Gmail.
+ */
+export async function createGmailDraft(
+  accessToken: string,
+  to: string,
+  subject: string,
+  body: string
+): Promise<{ id: string; messageId: string } | null> {
+  const raw = buildRawMessage(to, subject, body);
+  const url = 'https://gmail.googleapis.com/gmail/v1/users/me/drafts';
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ message: { raw } }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    console.error('[Gmail] createGmailDraft failed', res.status, err);
+    return null;
+  }
+  const data = await res.json();
+  const draftId = data.id;
+  const messageId = data.message?.id;
+  return draftId && messageId ? { id: draftId, messageId } : null;
+}

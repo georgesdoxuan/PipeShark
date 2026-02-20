@@ -1,27 +1,36 @@
 import { createServerSupabaseClient, createAdminClient } from './supabase-server';
 
+export type LaunchDeliveryMode = 'drafts' | 'queue';
+
 export interface ScheduleData {
   launchTime: string | null;
   campaignIds: string[];
   timezone: string | null;
+  launchDeliveryMode: LaunchDeliveryMode;
+}
+
+function normalizeDeliveryMode(v: unknown): LaunchDeliveryMode {
+  if (v === 'drafts' || v === 'queue') return v;
+  return 'queue';
 }
 
 export async function getSchedule(userId: string): Promise<ScheduleData> {
   const supabase = await createServerSupabaseClient();
   const { data, error } = await supabase
     .from('user_schedule')
-    .select('launch_time, campaign_ids, timezone')
+    .select('launch_time, campaign_ids, timezone, launch_delivery_mode')
     .eq('user_id', userId)
     .single();
 
   if (error || !data) {
-    return { launchTime: null, campaignIds: [], timezone: null };
+    return { launchTime: null, campaignIds: [], timezone: null, launchDeliveryMode: 'queue' };
   }
   const ids = data.campaign_ids;
   return {
     launchTime: data.launch_time ?? null,
     campaignIds: Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [],
     timezone: typeof data.timezone === 'string' ? data.timezone : null,
+    launchDeliveryMode: normalizeDeliveryMode(data.launch_delivery_mode),
   };
 }
 
@@ -29,7 +38,8 @@ export async function setSchedule(
   userId: string,
   launchTime: string,
   campaignIds?: string[],
-  timezone?: string | null
+  timezone?: string | null,
+  launchDeliveryMode?: LaunchDeliveryMode
 ): Promise<void> {
   const supabase = await createServerSupabaseClient();
   const payload: {
@@ -38,6 +48,7 @@ export async function setSchedule(
     updated_at: string;
     campaign_ids?: string[];
     timezone?: string | null;
+    launch_delivery_mode?: LaunchDeliveryMode;
   } = {
     user_id: userId,
     launch_time: launchTime,
@@ -48,6 +59,9 @@ export async function setSchedule(
   }
   if (timezone !== undefined) {
     payload.timezone = timezone || null;
+  }
+  if (launchDeliveryMode !== undefined) {
+    payload.launch_delivery_mode = normalizeDeliveryMode(launchDeliveryMode);
   }
   await supabase.from('user_schedule').upsert(payload, { onConflict: 'user_id' });
 }
@@ -128,6 +142,7 @@ export interface ScheduledCampaignRun {
   userId: string;
   campaignId: string;
   slotIndex: number;
+  deliveryMode: LaunchDeliveryMode;
 }
 
 /**
@@ -150,7 +165,7 @@ export async function getScheduledCampaignRunsNow(
 
   const { data: rows, error } = await admin
     .from('user_schedule')
-    .select('user_id, launch_time, timezone, campaign_ids');
+    .select('user_id, launch_time, timezone, campaign_ids, launch_delivery_mode');
 
   if (error || !rows?.length) {
     return { runs: [], currentTimeUtc: matchTime };
@@ -183,6 +198,7 @@ export async function getScheduledCampaignRunsNow(
         userId: row.user_id,
         campaignId: campaignIds[slotIndex],
         slotIndex,
+        deliveryMode: normalizeDeliveryMode(row.launch_delivery_mode),
       });
     }
   }
