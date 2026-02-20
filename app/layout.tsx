@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Poppins } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { ApiPauseProvider } from "@/contexts/ApiPauseContext";
 import { CampaignLoadingProvider } from "@/contexts/CampaignLoadingContext";
@@ -46,6 +47,7 @@ export default function RootLayout({
           <ApiPauseProvider>
             <CampaignLoadingProvider>
               {children}
+              <Analytics />
             </CampaignLoadingProvider>
           </ApiPauseProvider>
         </ThemeProvider>
