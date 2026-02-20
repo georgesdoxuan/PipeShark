@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Mail, Plus, ExternalLink, Loader2 } from 'lucide-react';
+import { Mail, Plus, ExternalLink, Loader2, Eye, EyeOff } from 'lucide-react';
 
 const GMAIL_APP_PASSWORDS_URL = 'https://support.google.com/accounts/answer/185833';
 
@@ -31,6 +31,7 @@ interface SenderAccountPublic {
   smtpPort: number;
   isPrimary: boolean;
   createdAt: string;
+  smtpPassword?: string;
 }
 
 interface SenderAccountFormProps {
@@ -48,6 +49,7 @@ export default function SenderAccountForm({ accounts, onSuccess }: SenderAccount
   const [imapPort, setImapPort] = useState<number>(PROVIDERS[0].imapPort);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [visiblePasswordId, setVisiblePasswordId] = useState<string | null>(null);
 
   const handleProviderChange = (id: 'gmail' | 'custom') => {
     setProvider(id);
@@ -112,12 +114,29 @@ export default function SenderAccountForm({ accounts, onSuccess }: SenderAccount
       {accounts.length > 0 && (
         <div className="rounded-xl border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-900/50 p-4">
           <p className="text-sm font-medium text-zinc-700 dark:text-neutral-300 mb-2">Configured sending accounts</p>
-          <ul className="text-sm text-zinc-600 dark:text-neutral-400 space-y-1">
+          <ul className="text-sm text-zinc-600 dark:text-neutral-400 space-y-3">
             {accounts.map((a) => (
-              <li key={a.id} className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-sky-500" />
-                {a.email} — {a.smtpHost}:{a.smtpPort}
+              <li key={a.id} className="flex flex-wrap items-center gap-2">
+                <Mail className="w-4 h-4 text-sky-500 shrink-0" />
+                <span>{a.email} — {a.smtpHost}:{a.smtpPort}</span>
                 {a.isPrimary && <span className="text-xs text-sky-600 dark:text-sky-400">(primary)</span>}
+                {a.smtpPassword != null && (
+                  <span className="inline-flex items-center gap-1 ml-1">
+                    <span className="text-zinc-500 dark:text-neutral-500">Mot de passe:</span>
+                    <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-neutral-800 text-zinc-800 dark:text-neutral-200 font-mono text-xs">
+                      {visiblePasswordId === a.id ? a.smtpPassword : '••••••••••••••••'}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => setVisiblePasswordId((id) => (id === a.id ? null : a.id))}
+                      className="text-zinc-500 hover:text-zinc-700 dark:text-neutral-400 dark:hover:text-neutral-200 p-0.5 rounded"
+                      title={visiblePasswordId === a.id ? 'Masquer' : 'Afficher'}
+                      aria-label={visiblePasswordId === a.id ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+                    >
+                      {visiblePasswordId === a.id ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </span>
+                )}
               </li>
             ))}
           </ul>

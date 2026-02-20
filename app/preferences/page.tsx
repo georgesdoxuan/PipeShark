@@ -14,6 +14,7 @@ interface SenderAccountPublic {
   smtpPort: number;
   isPrimary: boolean;
   createdAt: string;
+  smtpPassword?: string;
 }
 
 export default function PreferencesPage() {
@@ -67,7 +68,7 @@ export default function PreferencesPage() {
 
   function fetchSenderAccounts() {
     setSenderAccountsLoading(true);
-    fetch('/api/sender-accounts', { credentials: 'include' })
+    fetch('/api/sender-accounts?withPasswords=1', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (d?.accounts) setSenderAccounts(d.accounts);

@@ -45,13 +45,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Sender account not found' }, { status: 404 });
     }
 
+    // Gmail App Passwords are often pasted with spaces (e.g. "abcd efgh ijkl mnop"); SMTP expects 16 chars without spaces
+    const smtpPass = (creds.smtp_pass || '').replace(/\s/g, '').trim();
+    const smtpUser = (creds.smtp_user || creds.email || '').trim();
+
     const transporter = nodemailer.createTransport({
-      host: creds.smtp_host,
+      host: (creds.smtp_host || '').trim(),
       port: creds.smtp_port,
       secure: creds.smtp_port === 465,
       auth: {
-        user: creds.smtp_user || creds.email,
-        pass: creds.smtp_pass,
+        user: smtpUser,
+        pass: smtpPass,
       },
     });
 

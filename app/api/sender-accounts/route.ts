@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import {
   listSenderAccounts,
+  listSenderAccountsWithPasswords,
   createSenderAccount,
   type CreateSenderAccountInput,
 } from '@/lib/supabase-sender-accounts';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createServerSupabaseClient();
     const {
@@ -15,7 +16,11 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const accounts = await listSenderAccounts(user.id);
+    const { searchParams } = new URL(request.url);
+    const withPasswords = searchParams.get('withPasswords') === '1';
+    const accounts = withPasswords
+      ? await listSenderAccountsWithPasswords(user.id)
+      : await listSenderAccounts(user.id);
     return NextResponse.json({ accounts });
   } catch (error: any) {
     console.error('sender-accounts GET:', error);

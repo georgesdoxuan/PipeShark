@@ -101,6 +101,23 @@ export async function listSenderAccounts(userId: string): Promise<SenderAccountP
   return (data || []).map((r: any) => mapToPublic(r));
 }
 
+export type SenderAccountWithPassword = SenderAccountPublic & { smtpPassword: string };
+
+export async function listSenderAccountsWithPasswords(userId: string): Promise<SenderAccountWithPassword[]> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('sender_accounts')
+    .select('id, user_id, email, smtp_host, smtp_port, smtp_user, smtp_pass_encrypted, imap_host, imap_port, is_primary, created_at, updated_at')
+    .eq('user_id', userId)
+    .order('is_primary', { ascending: false })
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return (data || []).map((r: any) => ({
+    ...mapToPublic(r),
+    smtpPassword: decryptSmtpPassword(r.smtp_pass_encrypted),
+  }));
+}
+
 /** Get sender account by id (for current user). Returns record with decrypted password for sending. */
 export async function getSenderAccountForUser(
   userId: string,
@@ -192,7 +209,9 @@ export interface CreateSenderAccountInput {
 
 export async function createSenderAccount(userId: string, input: CreateSenderAccountInput): Promise<SenderAccountPublic> {
   const supabase = await createServerSupabaseClient();
-  const encrypted = encryptSmtpPassword(input.smtpPassword);
+  // Gmail App Passwords are often pasted with spaces; store without spaces for SMTP
+  const passwordNormalized = (input.smtpPassword || '').replace(/\s/g, '').trim();
+  const encrypted = encryptSmtpPassword(passwordNormalized);
   const { data, error } = await supabase
     .from('sender_accounts')
     .insert({
