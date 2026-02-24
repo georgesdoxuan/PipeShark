@@ -552,7 +552,7 @@ export default function CampaignsPage() {
                     />
                     <Tooltip
                       contentStyle={{ borderRadius: 6, border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
-                      formatter={(value: number) => [value, 'Replies']}
+                      formatter={(value: number | undefined) => [value ?? 0, 'Replies']}
                       labelFormatter={(label) => label}
                     />
                     <Bar dataKey="count" fill="rgb(14 165 233)" radius={[3, 3, 0, 0]} maxBarSize={20} />
