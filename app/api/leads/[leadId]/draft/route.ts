@@ -8,7 +8,7 @@ export async function PATCH(
   { params }: { params: Promise<{ leadId: string }> }
 ) {
   try {
-    const { leadId } = await params();
+    const { leadId } = await params;
     if (!leadId) {
       return NextResponse.json({ error: 'Missing leadId' }, { status: 400 });
     }
