@@ -226,6 +226,29 @@ export async function getQueueInfoForLeads(
   return out;
 }
 
+/** Update subject and body of pending queue row(s) for a lead so scheduled send uses the new draft. */
+export async function updatePendingQueueDraftByLeadId(
+  userId: string,
+  leadId: string,
+  subject: string,
+  body: string
+): Promise<number> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('email_queue')
+    .update({
+      subject: (subject || '(No subject)').trim(),
+      body: (body || '').trim(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+    .eq('lead_id', leadId)
+    .eq('status', 'pending')
+    .select('id');
+  if (error) return 0;
+  return (data || []).length;
+}
+
 /** For n8n: fetch pending queue items where scheduled_at <= now (service role). */
 export interface PendingQueueItem {
   id: string;

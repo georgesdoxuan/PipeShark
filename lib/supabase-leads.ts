@@ -395,6 +395,21 @@ export async function setLeadEmailSent(
   return !error;
 }
 
+/** Update a lead's draft (subject + body as single content). Used when user edits draft in PipeShark. */
+export async function updateLeadDraft(
+  userId: string,
+  leadId: string,
+  draftContent: string
+): Promise<boolean> {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase
+    .from('leads')
+    .update({ draft: draftContent.trim() || null })
+    .eq('id', leadId)
+    .eq('user_id', userId);
+  return !error;
+}
+
 export interface NotificationReply {
   id: string;
   email: string | null;
