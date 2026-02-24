@@ -26,7 +26,7 @@ const ARTICLE_IMAGE_URL = process.env.NEXT_PUBLIC_ARTICLE_SILICON_TRADES_IMAGE_U
 
 export default function SiliconTradesArticlePage() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white/60 dark:bg-black/70">
       <header className="sticky top-0 z-50 bg-white border-b border-zinc-200">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between gap-4">
           <Link

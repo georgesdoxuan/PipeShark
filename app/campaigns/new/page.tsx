@@ -53,7 +53,7 @@ export default function NewCampaignPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black relative">
+    <div className="min-h-screen bg-white/60 dark:bg-black/70 relative">
       <div>
         <Header />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -31,7 +31,7 @@ export default function ProfilePage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black relative">
+    <div className="min-h-screen bg-zinc-50/60 dark:bg-black/70 relative">
       <div className="relative z-10">
         <Header />
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

@@ -7,9 +7,10 @@ import StatsCards from '@/components/StatsCards';
 import CreditsGauge from '@/components/CreditsGauge';
 import { useApiPause } from '@/contexts/ApiPauseContext';
 import Image from 'next/image';
-import { Plus, Calendar, MapPin, Trash2, X, AlertTriangle, Send, Mail, Clock, Pencil, MailCheck, MailX, CheckSquare, Square, MoreVertical, LayoutGrid } from 'lucide-react';
+import { Plus, Calendar, MapPin, Trash2, X, AlertTriangle, Send, Mail, Clock, Pencil, MailCheck, MailX, CheckSquare, Square, MoreVertical } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 
 interface Campaign {
   id: string;
@@ -25,6 +26,22 @@ interface Campaign {
   countryByCity?: Record<string, string>;
   /** date of the most recent lead for this campaign (from list API) */
   lastLeadAt?: string;
+  /** hex color for title on card (persisted in Supabase) */
+  titleColor?: string | null;
+}
+
+/** Dark color variants for campaign titles (deterministic from id when not yet saved). */
+// Couleurs douces mais plus présentes (moins cassées)
+const CAMPAIGN_TITLE_COLORS = [
+  '#0d9488', '#4361ee', '#7c3aed', '#b45309', '#047857',
+  '#0369a1', '#6d28d9', '#15803d', '#c2410c', '#475569',
+  '#0e7490', '#a16207', '#5b21b6', '#4b5563', '#1d4ed8',
+];
+
+function getCampaignTitleColor(campaign: Campaign): string {
+  if (campaign.titleColor?.trim()) return campaign.titleColor.trim();
+  const hash = campaign.id.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0) | 0;
+  return CAMPAIGN_TITLE_COLORS[Math.abs(hash) % CAMPAIGN_TITLE_COLORS.length];
 }
 
 interface Lead {
@@ -74,6 +91,7 @@ export default function CampaignsPage() {
   const [showScheduleCampaignsModal, setShowScheduleCampaignsModal] = useState(false);
   const [scheduleModalSelectedIds, setScheduleModalSelectedIds] = useState<string[]>([]);
   const [dailyLimit, setDailyLimit] = useState(300);
+  const [repliesByDay, setRepliesByDay] = useState<{ date: string; count: number; label?: string }[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -85,6 +103,7 @@ export default function CampaignsPage() {
   const searchParams = useSearchParams();
   const draftModalOpenRef = useRef(false);
   const leadsSectionRef = useRef<HTMLDivElement>(null);
+  const titleColorPersistedRef = useRef<Set<string>>(new Set());
 
   const { isPaused } = useApiPause();
 
@@ -111,6 +130,7 @@ export default function CampaignsPage() {
       fetchCampaigns();
       fetchLeads();
       fetchSchedule();
+      fetchRepliesByDay();
     }
     fetch('/api/campaigns/count-today')
       .then((r) => r.ok ? r.json() : null)
@@ -122,10 +142,37 @@ export default function CampaignsPage() {
         fetchCampaigns();
         fetchLeads();
         fetchSchedule();
+        fetchRepliesByDay();
       }
     }, 120000);
     return () => clearInterval(interval);
   }, [isPaused]);
+
+  // Persist title color for campaigns that don't have one yet (deterministic from id).
+  useEffect(() => {
+    const toPersist = campaigns.filter((c) => !c.titleColor?.trim() && !titleColorPersistedRef.current.has(c.id));
+    if (toPersist.length === 0) return;
+    toPersist.forEach((campaign) => {
+      titleColorPersistedRef.current.add(campaign.id);
+      const color = getCampaignTitleColor(campaign);
+      fetch(`/api/campaigns/${campaign.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titleColor: color }),
+      })
+        .then((res) => res.ok && res.json())
+        .then((updated) => {
+          if (updated?.titleColor) {
+            setCampaigns((prev) =>
+              prev.map((c) => (c.id === campaign.id ? { ...c, titleColor: updated.titleColor } : c))
+            );
+          }
+        })
+        .catch(() => {
+          titleColorPersistedRef.current.delete(campaign.id);
+        });
+    });
+  }, [campaigns]);
 
   const GMAIL_STATUS_TIMEOUT_MS = 8000;
 
@@ -231,6 +278,22 @@ export default function CampaignsPage() {
     }
   }
 
+  async function fetchRepliesByDay() {
+    try {
+      const res = await fetch('/api/stats/replies-by-day');
+      const data = await (res.ok ? res.json() : []);
+      const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+      setRepliesByDay(
+        (Array.isArray(data) ? data : []).map(({ date, count }: { date: string; count: number }) => {
+          const d = new Date(date + 'T12:00:00');
+          return { date, count, label: `${dayNames[d.getDay()]} ${d.getDate()}` };
+        })
+      );
+    } catch {
+      setRepliesByDay([]);
+    }
+  }
+
   async function fetchCampaigns() {
     // Don't fetch if paused
     if (isPaused) {
@@ -261,21 +324,34 @@ export default function CampaignsPage() {
     if (isPaused) {
       return;
     }
-    
+
     setLoadingLeads(true);
     try {
-      await fetch('/api/gmail/check-replies', { method: 'POST', credentials: 'include' });
+      // Run Gmail check-replies in background; when done, refresh leads/stats silently
+      fetch('/api/gmail/check-replies', { method: 'POST', credentials: 'include' })
+        .then(() =>
+          Promise.all([
+            fetch('/api/campaigns').then((r) => r.ok ? r.json() : null),
+            fetch('/api/leads').then((r) => r.ok ? r.json() : null),
+          ])
+        )
+        .then(([statsData, leadsData]) => {
+          if (statsData) setStats(statsData);
+          if (Array.isArray(leadsData)) setLeads(leadsData);
+        })
+        .catch(() => {});
+
       const [statsRes, leadsRes] = await Promise.all([
         fetch('/api/campaigns'),
         fetch('/api/leads'),
       ]);
       const statsData = await statsRes.json();
       const leadsData = await leadsRes.json();
-      
+
       if (statsRes.ok) {
         setStats(statsData);
       }
-      
+
       if (leadsRes.ok && Array.isArray(leadsData)) {
         setLeads(leadsData);
       } else {
@@ -389,7 +465,7 @@ export default function CampaignsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-black relative">
+    <div className="min-h-screen bg-zinc-100/60 dark:bg-black/70 relative">
       <div>
         <Header />
         <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
@@ -435,7 +511,14 @@ export default function CampaignsPage() {
             {/* My Campaigns */}
             <div className="flex flex-col gap-5 flex-shrink-0">
               <div className="flex items-center gap-2">
-                <LayoutGrid className="w-8 h-8 text-sky-500 dark:text-sky-400 flex-shrink-0" />
+                <span className="w-8 h-8 flex-shrink-0 flex items-center justify-center" aria-hidden>
+                  <svg viewBox="0 0 24 24" className="w-8 h-8 text-sky-400 dark:text-sky-300" fill="currentColor">
+                    <rect x="1" y="1" width="9" height="9" rx="2.5" />
+                    <rect x="13" y="1" width="9" height="9" rx="2.5" />
+                    <rect x="1" y="13" width="9" height="9" rx="2.5" />
+                    <rect x="13" y="13" width="9" height="9" rx="2.5" />
+                  </svg>
+                </span>
                 <h1 className="text-3xl font-display font-bold text-zinc-900 dark:text-white">
                   My Campaigns
                 </h1>
@@ -448,8 +531,34 @@ export default function CampaignsPage() {
                 New Campaign
               </Link>
             </div>
-            {/* Leads & Replies - centered between My Campaigns and Credits */}
-            <div className="flex-1 min-w-0 flex justify-center">
+            {/* Centre : graphique (espace vide) + cartes Leads / Emails / Replies */}
+            <div className="flex-1 min-w-0 flex items-start justify-center gap-4 flex-wrap">
+              <div className="rounded-2xl bg-white/80 dark:bg-neutral-800/60 shadow-sm p-3 min-w-[200px] w-[240px] shrink-0">
+                <p className="text-xs font-semibold text-zinc-600 dark:text-neutral-300 mb-2">Replies this week</p>
+                <ResponsiveContainer width="100%" height={100}>
+                  <BarChart data={repliesByDay} margin={{ top: 2, right: 4, left: 0, bottom: 0 }}>
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 9, fill: 'var(--foreground)', opacity: 0.8 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fontSize: 9, fill: 'var(--foreground)', opacity: 0.7 }}
+                      tickLine={false}
+                      axisLine={false}
+                      width={16}
+                    />
+                    <Tooltip
+                      contentStyle={{ borderRadius: 6, border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
+                      formatter={(value: number) => [value, 'Replies']}
+                      labelFormatter={(label) => label}
+                    />
+                    <Bar dataKey="count" fill="rgb(14 165 233)" radius={[3, 3, 0, 0]} maxBarSize={20} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
               <StatsCards stats={stats} compact />
             </div>
             {/* Daily Credits */}
@@ -460,7 +569,7 @@ export default function CampaignsPage() {
 
           {/* Daily launch - just above campaign cards */}
           <div className="mb-2">
-            <div className="rounded-xl border border-zinc-200 dark:border-sky-800/50 bg-white dark:bg-neutral-800/50 shadow-sm p-3 inline-flex flex-wrap items-center gap-2">
+            <div className="rounded-xl bg-white dark:bg-neutral-800/50 shadow-sm p-3 inline-flex flex-wrap items-center gap-2">
               <Clock className="w-4 h-4 text-sky-500 dark:text-sky-400 flex-shrink-0" />
               <span className="text-sm font-medium text-zinc-700 dark:text-neutral-200">Daily launch</span>
               <select
@@ -682,13 +791,13 @@ export default function CampaignsPage() {
                                 }}
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                 autoFocus
-                                className="flex-1 min-w-0 text-lg font-display font-bold text-zinc-900 dark:text-white bg-sky-100 dark:bg-sky-950/80 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-400"
+                                className="flex-1 min-w-0 text-lg font-display font-bold text-zinc-900 dark:text-white rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-sky-400 bg-sky-100/80 dark:bg-sky-950/80"
                               />
                             ) : (
                               <>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <h3 className="text-lg font-display font-bold text-zinc-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-300 transition-colors truncate min-w-0">
+                                    <h3 className="text-lg font-display font-bold text-zinc-900 dark:text-white group-hover:opacity-80 transition-opacity truncate min-w-0">
                                       {campaign.name?.trim() || campaign.businessType.charAt(0).toUpperCase() + campaign.businessType.slice(1)}
                                     </h3>
                                     {scheduledCampaignIds.includes(campaign.id) && (

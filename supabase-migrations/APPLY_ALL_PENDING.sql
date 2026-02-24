@@ -98,3 +98,6 @@ ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS delivery_type TEXT NOT NULL DEF
 ALTER TABLE email_queue DROP CONSTRAINT IF EXISTS chk_email_queue_delivery_type;
 ALTER TABLE email_queue ADD CONSTRAINT chk_email_queue_delivery_type
   CHECK (delivery_type IN ('send', 'draft'));
+
+-- 026: Campaign title color (dashboard card)
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS title_color TEXT;

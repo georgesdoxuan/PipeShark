@@ -8,7 +8,7 @@ export default function DashboardLayout({
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-white dark:bg-black flex items-center justify-center">
+        <div className="min-h-screen bg-white/60 dark:bg-black/70 flex items-center justify-center">
           <p className="text-zinc-600 dark:text-neutral-400">Loading...</p>
         </div>
       }

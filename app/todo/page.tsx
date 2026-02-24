@@ -119,7 +119,7 @@ export default function TodoPage() {
   }, {} as Record<TodoStatus, Todo[]>);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black relative">
+    <div className="min-h-screen bg-white/60 dark:bg-black/70 relative">
       <div className="relative z-10">
         <Header />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

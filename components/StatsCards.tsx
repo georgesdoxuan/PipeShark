@@ -31,19 +31,16 @@ const CARD_STYLES = {
     accent: 'from-sky-500/10 to-sky-600/5 dark:from-sky-400/15 dark:to-sky-600/5',
     iconBg: 'bg-sky-500/15 dark:bg-sky-400/20',
     iconColor: 'text-sky-600 dark:text-sky-300',
-    border: 'border-sky-200/60 dark:border-sky-500/30',
   },
   sent: {
     accent: 'from-emerald-500/10 to-teal-500/5 dark:from-emerald-400/15 dark:to-teal-600/5',
     iconBg: 'bg-emerald-500/15 dark:bg-emerald-400/20',
     iconColor: 'text-emerald-600 dark:text-emerald-300',
-    border: 'border-emerald-200/60 dark:border-emerald-500/30',
   },
   replies: {
     accent: 'from-amber-500/10 to-orange-500/5 dark:from-amber-400/15 dark:to-orange-600/5',
     iconBg: 'bg-amber-500/15 dark:bg-amber-400/20',
     iconColor: 'text-amber-600 dark:text-amber-300',
-    border: 'border-amber-200/60 dark:border-amber-500/30',
   },
 } as const;
 
@@ -95,7 +92,7 @@ export default function StatsCards({ stats, compact = false }: StatsCardsProps) 
         return (
           <div
             key={card.title}
-            className={`${sizeClass} flex flex-col rounded-2xl bg-white dark:bg-neutral-900 bg-gradient-to-br ${s.accent} ${s.border} border shadow-md hover:shadow-lg transition-all duration-300 shrink-0 overflow-hidden relative`}
+            className={`${sizeClass} flex flex-col rounded-2xl bg-white dark:bg-neutral-900 bg-gradient-to-br ${s.accent} shadow-md hover:shadow-lg transition-all duration-300 shrink-0 overflow-hidden relative`}
           >
             <div className="flex items-start justify-between gap-2 min-h-0 flex-shrink-0">
               <p className="text-zinc-600 dark:text-neutral-400 text-sm font-semibold leading-tight break-normal line-clamp-2 flex-1 min-w-[4rem]" title={card.title}>

@@ -19,6 +19,8 @@ export interface Campaign {
   lastStartedAt?: string | null;
   /** Pro: which Gmail account runs this campaign. Null = primary. */
   gmailEmail?: string | null;
+  /** Hex color for campaign title on dashboard (e.g. #1e3a5f). */
+  titleColor?: string | null;
 }
 
 interface CreateCampaignInput {
@@ -53,6 +55,7 @@ function mapRecordToCampaign(record: any): Campaign {
     status: record.status || 'active',
     lastStartedAt: record.last_started_at ?? null,
     gmailEmail: record.gmail_email ?? null,
+    titleColor: record.title_color ?? null,
   };
 }
 
@@ -160,6 +163,7 @@ export async function updateCampaign(
     numberCreditsUsed: number;
     lastStartedAt: string | null;
     gmailEmail: string | null;
+    titleColor: string | null;
   }>
 ): Promise<Campaign | null> {
   const supabase = await createServerSupabaseClient();
@@ -176,6 +180,7 @@ export async function updateCampaign(
   if (updates.numberCreditsUsed !== undefined) payload.number_credits_used = Math.max(0, Math.min(300, updates.numberCreditsUsed));
   if (updates.lastStartedAt !== undefined) payload.last_started_at = updates.lastStartedAt;
   if (updates.gmailEmail !== undefined) payload.gmail_email = updates.gmailEmail;
+  if (updates.titleColor !== undefined) payload.title_color = updates.titleColor?.trim() || null;
 
   if (Object.keys(payload).length === 0) {
     return getCampaignById(userId, campaignId);

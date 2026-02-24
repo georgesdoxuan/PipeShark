@@ -27,7 +27,7 @@ export default function PricingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100 dark:bg-black">
+    <div className="min-h-screen bg-zinc-100/60 dark:bg-black/70">
       <Header />
       <main className="w-full px-4 sm:px-6 lg:px-8 py-12">
         <div className="max-w-4xl mx-auto">

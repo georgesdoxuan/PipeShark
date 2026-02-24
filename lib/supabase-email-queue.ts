@@ -182,6 +182,50 @@ export async function getLeadIdsAlreadyInQueue(userId: string, leadIds: string[]
   return set;
 }
 
+/** Per-lead queue info (delivery_type, scheduled_at). Matches by lead_id first, then by recipient email when lead_id is null. */
+export async function getQueueInfoForLeads(
+  userId: string,
+  leads: { id: string; email: string | null }[]
+): Promise<Record<string, { delivery_type: DeliveryType; scheduled_at: string }>> {
+  if (leads.length === 0) return {};
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('email_queue')
+    .select('lead_id, recipient, delivery_type, scheduled_at, created_at')
+    .eq('user_id', userId)
+    .in('status', ['pending', 'sent'])
+    .order('created_at', { ascending: false });
+
+  if (error) return {};
+  const leadIds = new Set(leads.map((l) => l.id));
+  const emailToLeadId = new Map<string, string>();
+  for (const l of leads) {
+    if (l.email) emailToLeadId.set(l.email.trim().toLowerCase(), l.id);
+  }
+  const out: Record<string, { delivery_type: DeliveryType; scheduled_at: string }> = {};
+  const assignedByEmail = new Set<string>();
+
+  for (const row of data || []) {
+    const info = {
+      delivery_type: (row.delivery_type === 'draft' ? 'draft' : 'send') as DeliveryType,
+      scheduled_at: String(row.scheduled_at ?? ''),
+    };
+    const lid = row.lead_id as string | null;
+    if (lid && leadIds.has(lid) && out[lid] === undefined) {
+      out[lid] = info;
+      continue;
+    }
+    const recipient = (row.recipient as string || '').trim().toLowerCase();
+    if (!recipient) continue;
+    const matchedLeadId = emailToLeadId.get(recipient);
+    if (matchedLeadId && out[matchedLeadId] === undefined && !assignedByEmail.has(recipient)) {
+      out[matchedLeadId] = info;
+      assignedByEmail.add(recipient);
+    }
+  }
+  return out;
+}
+
 /** For n8n: fetch pending queue items where scheduled_at <= now (service role). */
 export interface PendingQueueItem {
   id: string;

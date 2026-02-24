@@ -6,7 +6,7 @@ import { ArrowLeft } from 'lucide-react';
 
 export default function TermsOfServicePage() {
   return (
-    <div className="min-h-screen bg-white dark:bg-black relative">
+    <div className="min-h-screen bg-white/60 dark:bg-black/70 relative">
       <Header />
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Link

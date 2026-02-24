@@ -1,21 +1,16 @@
 import type { Metadata } from "next";
-import { Inter, Poppins } from "next/font/google";
+import { Montserrat } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { ApiPauseProvider } from "@/contexts/ApiPauseContext";
 import { CampaignLoadingProvider } from "@/contexts/CampaignLoadingContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import AppBackgroundWrapper from "@/components/AppBackgroundWrapper";
 
-const inter = Inter({
-  variable: "--font-inter",
+const montserrat = Montserrat({
+  variable: "--font-montserrat",
   subsets: ["latin"],
-  display: "swap",
-});
-
-const poppins = Poppins({
-  variable: "--font-poppins",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800", "900"],
+  weight: ["300", "400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -36,7 +31,7 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${poppins.variable} antialiased`}
+        className={`${montserrat.variable} antialiased`}
       >
         <script
           dangerouslySetInnerHTML={{
@@ -46,7 +41,7 @@ export default function RootLayout({
         <ThemeProvider>
           <ApiPauseProvider>
             <CampaignLoadingProvider>
-              {children}
+              <AppBackgroundWrapper>{children}</AppBackgroundWrapper>
               <Analytics />
             </CampaignLoadingProvider>
           </ApiPauseProvider>

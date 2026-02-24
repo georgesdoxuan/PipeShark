@@ -474,3 +474,40 @@ export async function getNotificationsForUser(userId: string): Promise<Notificat
     recentReplies,
   };
 }
+
+/** Reply count per day for the last N days (for dashboard chart). Returns [{ date: 'YYYY-MM-DD', count }]. */
+export async function getRepliesPerDayForUser(
+  userId: string,
+  days: number = 7
+): Promise<{ date: string; count: number }[]> {
+  const supabase = await createServerSupabaseClient();
+  const start = new Date();
+  start.setDate(start.getDate() - (days - 1));
+  start.setUTCHours(0, 0, 0, 0);
+  const startIso = start.toISOString();
+
+  const { data, error } = await supabase
+    .from('leads')
+    .select('replied_at')
+    .eq('user_id', userId)
+    .eq('replied', true)
+    .not('replied_at', 'is', null)
+    .gte('replied_at', startIso);
+
+  if (error) return [];
+
+  const byDay: Record<string, number> = {};
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    byDay[d.toISOString().slice(0, 10)] = 0;
+  }
+  for (const row of data || []) {
+    const date = (row as { replied_at: string }).replied_at?.slice(0, 10);
+    if (date && date in byDay) byDay[date]++;
+  }
+
+  return Object.entries(byDay)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, count]) => ({ date, count }));
+}

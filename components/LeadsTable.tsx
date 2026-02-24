@@ -22,6 +22,9 @@ interface Lead {
   repliedAt?: string | null;
   gmailThreadId?: string | null;
   emailSent?: boolean;
+  /** From email_queue when lead is in queue */
+  deliveryType?: 'draft' | 'send' | null;
+  scheduledAt?: string | null;
 }
 
 const selectClass = "text-sm font-medium text-zinc-700 dark:text-sky-200 bg-white dark:bg-neutral-800/80 border border-zinc-200 dark:border-sky-700/50 rounded-xl px-4 py-2.5 shadow-sm hover:border-sky-300 dark:hover:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-400 transition-colors cursor-pointer appearance-none bg-[length:14px] bg-[right_0.75rem_center] bg-no-repeat pr-9";
@@ -348,6 +351,12 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                 Sent
               </th>
               <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
+                Delivery type
+              </th>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
+                Scheduled at
+              </th>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
                 Reply
               </th>
               <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ minWidth: 145 }}>
@@ -361,7 +370,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
           <tbody className="bg-white dark:bg-neutral-900/95 divide-y divide-zinc-200 dark:divide-sky-800/30">
             {paginatedLeads.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-6 py-12 text-center">
+                <td colSpan={13} className="px-6 py-12 text-center">
                   <p className="text-zinc-600 dark:text-sky-200">
                     {searchQuery.trim() 
                       ? `No results for "${searchQuery}"` 
@@ -471,6 +480,22 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                       <Square className="w-5 h-5 text-zinc-300 dark:text-zinc-500 shrink-0" aria-hidden />
                     )}
                   </span>
+                </td>
+                <td className="px-4 py-4 whitespace-nowrap">
+                  {lead.deliveryType === 'draft' ? (
+                    <span className="text-xs font-medium text-amber-700 dark:text-amber-300">Draft</span>
+                  ) : lead.deliveryType === 'send' ? (
+                    <span className="text-xs font-medium text-sky-700 dark:text-sky-300">Send</span>
+                  ) : (
+                    <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
+                  )}
+                </td>
+                <td className="px-4 py-4 whitespace-nowrap">
+                  {lead.scheduledAt ? (
+                    <span className="text-sm text-zinc-600 dark:text-sky-200">{formatDate(lead.scheduledAt)}</span>
+                  ) : (
+                    <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
+                  )}
                 </td>
                 <td className="px-4 py-4">
                   {lead.replied ? (

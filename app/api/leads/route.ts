@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { getLeadsForUser } from '@/lib/supabase-leads';
+import { getQueueInfoForLeads } from '@/lib/supabase-email-queue';
 
 export async function GET(request: Request) {
   try {
@@ -17,7 +18,15 @@ export async function GET(request: Request) {
     const campaignId = searchParams.get('campaignId') || undefined;
 
     const leads = await getLeadsForUser(user.id, campaignId);
-    return NextResponse.json(leads);
+    const queueInfo = await getQueueInfoForLeads(user.id, leads.map((l) => ({ id: l.id, email: l.email ?? null })));
+
+    const leadsWithQueue = leads.map((lead) => ({
+      ...lead,
+      deliveryType: queueInfo[lead.id]?.delivery_type ?? null,
+      scheduledAt: queueInfo[lead.id]?.scheduled_at ?? null,
+    }));
+
+    return NextResponse.json(leadsWithQueue);
   } catch (error: any) {
     console.error('Error fetching leads:', error.message);
     return NextResponse.json(
