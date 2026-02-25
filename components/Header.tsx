@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LogOut, User, Settings, Sun, Moon, Menu, X, LayoutDashboard, ListTodo, FileText, Mail, Bell, Sparkles, MessageCircle } from 'lucide-react';
+import { LogOut, User, Settings, Sun, Moon, Menu, X, LayoutDashboard, ListTodo, FileText, Mail, Bell, Sparkles, MessageCircle, HelpCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import ViperLogo from '@/components/ViperLogo';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -327,6 +327,15 @@ export default function Header() {
                 <Link href="/dashboard/exemple-mails" onClick={closeSidebar} className={navLinkClass}>
                   <Mail className="w-5 h-5 shrink-0" />
                   Exemple mails
+                </Link>
+              </div>
+              <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-sky-800/50">
+                <p className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-sky-500">
+                  Help
+                </p>
+                <Link href="/contact" onClick={closeSidebar} className={navLinkClass}>
+                  <HelpCircle className="w-5 h-5 shrink-0" />
+                  Contact
                 </Link>
               </div>
               <div className="mt-auto pt-4 border-t border-zinc-200 dark:border-sky-800/50 space-y-0">

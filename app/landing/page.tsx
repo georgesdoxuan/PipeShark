@@ -61,6 +61,12 @@ export default function LandingPage() {
             >
               Pricing
             </Link>
+            <Link
+              href="/contact"
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-sky-200 hover:text-white font-medium text-sm transition-colors"
+            >
+              Contact
+            </Link>
           </nav>
           <div className="flex items-center justify-end gap-1 sm:gap-3">
             <Link
@@ -572,6 +578,11 @@ export default function LandingPage() {
           </div>
           <p className="text-sky-500 text-sm">
             Automated prospecting tool
+          </p>
+          <p className="mt-3 text-sky-400/90 text-sm">
+            <a href="mailto:hello@pipeshark.io" className="hover:text-sky-300 underline">
+              hello@pipeshark.io
+            </a>
           </p>
         </div>
       </footer>
