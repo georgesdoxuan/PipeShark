@@ -116,6 +116,7 @@ export default function CampaignForm({
     citySize,
     cities,
     targetCount,
+    businessLinkText,
   };
 
   const hasChanges =
@@ -129,7 +130,8 @@ export default function CampaignForm({
     magicLink !== baseline.current.magicLink ||
     citySize !== baseline.current.citySize ||
     cities !== baseline.current.cities ||
-    targetCount !== baseline.current.targetCount;
+    targetCount !== baseline.current.targetCount ||
+    (businessLinkText ?? '') !== (baseline.current.businessLinkText ?? '');
 
   function handleSaveDraft() {
     onSaveDraft?.(currentFormState);
