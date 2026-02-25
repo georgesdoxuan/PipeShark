@@ -145,7 +145,7 @@ export default function Header() {
 
   return (
     <>
-      <header className="bg-white dark:bg-black border-b border-zinc-200 dark:border-sky-900/50 sticky top-0 z-50">
+      <header className="bg-transparent sticky top-0 z-50">
         <div className="w-full px-4 sm:px-6 lg:px-8 py-1.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">

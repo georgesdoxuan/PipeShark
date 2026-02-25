@@ -19,6 +19,8 @@ export interface CampaignFormState {
   citySize: string;
   cities: string;
   targetCount: number;
+  /** Optional: text describing the link between user's business and the prospect's (used in AI prompt when non-empty). */
+  businessLinkText: string;
 }
 
 const DEFAULT_FORM_STATE: CampaignFormState = {
@@ -33,6 +35,7 @@ const DEFAULT_FORM_STATE: CampaignFormState = {
   citySize: '1M+',
   cities: '',
   targetCount: 10,
+  businessLinkText: '',
 };
 
 interface CampaignFormProps {
@@ -65,6 +68,7 @@ export default function CampaignForm({
   const [citySize, setCitySize] = useState(baseline.current.citySize);
   const [cities, setCities] = useState(baseline.current.cities);
   const [targetCount, setTargetCount] = useState(baseline.current.targetCount);
+  const [businessLinkText, setBusinessLinkText] = useState(baseline.current.businessLinkText ?? '');
   const [showBackConfirm, setShowBackConfirm] = useState(false);
   const [draftSavedFeedback, setDraftSavedFeedback] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -229,6 +233,7 @@ export default function CampaignForm({
       setCitySize(merged.citySize);
       setCities(merged.cities);
       setTargetCount(merged.targetCount);
+      setBusinessLinkText(merged.businessLinkText ?? '');
       setDrawnCityCountry(null);
     }
   }, [initialFormState]);
@@ -442,6 +447,7 @@ export default function CampaignForm({
         targetCount: targetCount,
       };
       if (exampleEmail.trim()) payload.exampleEmail = exampleEmail.trim();
+      if (businessLinkText.trim()) payload.businessLinkText = businessLinkText.trim();
       if (citiesArray.length > 0) {
         payload.cities = citiesArray;
         if (drawnCityCountry && citiesArray.length === 1 && citiesArray[0] === drawnCityCountry.city) {
@@ -534,6 +540,7 @@ export default function CampaignForm({
             targetCount: targetCount, // So n8n can stop after X leads with email
           };
           if (exampleEmail.trim()) runPayload.exampleEmail = exampleEmail.trim();
+          if (businessLinkText.trim()) runPayload.businessLinkText = businessLinkText.trim();
           if (citiesArray.length > 0) {
             runPayload.cities = citiesArray;
             if (drawnCityCountry && citiesArray.length === 1 && citiesArray[0] === drawnCityCountry.city) {
@@ -996,6 +1003,24 @@ export default function CampaignForm({
           <p className="text-xs text-zinc-500 dark:text-sky-400/90 mt-1">
             What you want the prospect to do after reading the email.
           </p>
+        </div>
+
+        <div>
+          <label htmlFor="businessLinkText" className="block text-sm font-semibold text-zinc-700 dark:text-sky-200 mb-2">
+            Link between your business and the prospect&apos;s <span className="text-zinc-500 dark:text-sky-400/90 text-xs">(optional)</span>
+          </label>
+          <p className="text-xs text-zinc-500 dark:text-sky-400/90 mb-1">
+            In one or two sentences, describe how your company relates to their type of business. The AI will weave this into the email when you fill this in.
+          </p>
+          <textarea
+            id="businessLinkText"
+            value={businessLinkText}
+            onChange={(e) => setBusinessLinkText(e.target.value)}
+            placeholder="e.g. We help electricians like you get more leads from their website and schedule jobs faster."
+            rows={2}
+            disabled={loading}
+            className="w-full px-4 py-2.5 border border-zinc-300 dark:border-sky-700/40 rounded-xl bg-white dark:bg-neutral-800/80 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-sky-400/70 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-sm resize-none"
+          />
         </div>
 
         {/* Example email (optional) - AI will use as inspiration */}

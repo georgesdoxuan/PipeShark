@@ -7,7 +7,7 @@ import StatsCards from '@/components/StatsCards';
 import CreditsGauge from '@/components/CreditsGauge';
 import { useApiPause } from '@/contexts/ApiPauseContext';
 import Image from 'next/image';
-import { Plus, Calendar, MapPin, Trash2, X, AlertTriangle, Send, Mail, Clock, Pencil, MailCheck, MailX, CheckSquare, Square, MoreVertical } from 'lucide-react';
+import { Plus, Calendar, MapPin, Trash2, X, AlertTriangle, Mail, Clock, Pencil, MailCheck, MailX, CheckSquare, Square, MoreVertical } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
@@ -88,6 +88,8 @@ export default function CampaignsPage() {
   const [scheduledCampaignIds, setScheduledCampaignIds] = useState<string[]>([]);
   const [launchDeliveryMode, setLaunchDeliveryMode] = useState<'drafts' | 'queue'>('queue');
   const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [enqueueLoading, setEnqueueLoading] = useState(false);
+  const [enqueueFeedback, setEnqueueFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showScheduleCampaignsModal, setShowScheduleCampaignsModal] = useState(false);
   const [scheduleModalSelectedIds, setScheduleModalSelectedIds] = useState<string[]>([]);
   const [dailyLimit, setDailyLimit] = useState(300);
@@ -627,6 +629,59 @@ export default function CampaignsPage() {
               )}
               {scheduleSaving && (
                 <span className="text-xs text-zinc-400 dark:text-neutral-500">Saving…</span>
+              )}
+              <span className="text-zinc-300 dark:text-zinc-600 mx-0.5">|</span>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (scheduledCampaignIds.length === 0 || enqueueLoading) return;
+                  setEnqueueLoading(true);
+                  setEnqueueFeedback(null);
+                  try {
+                    const res = await fetch('/api/schedule/enqueue', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ campaignIds: scheduledCampaignIds }),
+                      credentials: 'include',
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (res.ok && data.enqueued !== undefined) {
+                      setEnqueueFeedback({
+                        type: 'success',
+                        text: data.enqueued === 0
+                          ? 'No new leads to add (all already in queue or sent).'
+                          : `${data.enqueued} lead${data.enqueued !== 1 ? 's' : ''} added to send queue.`,
+                      });
+                      fetchLeads();
+                      setTimeout(() => setEnqueueFeedback(null), 5000);
+                    } else {
+                      setEnqueueFeedback({ type: 'error', text: data.error || 'Failed to add to queue.' });
+                    }
+                  } catch {
+                    setEnqueueFeedback({ type: 'error', text: 'Failed to add to queue.' });
+                  } finally {
+                    setEnqueueLoading(false);
+                  }
+                }}
+                disabled={scheduledCampaignIds.length === 0 || enqueueLoading}
+                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                title="Add all leads from the selected Daily launch campaigns to the send queue (SMTP at scheduled times)."
+              >
+                {/* Same icon as "Emails sent" card, in white */}
+                <img
+                  src="/paper-plane.png"
+                  alt=""
+                  width={16}
+                  height={16}
+                  className="w-4 h-4 shrink-0 object-contain"
+                  style={{ filter: 'brightness(0) invert(1)' }}
+                />
+                {enqueueLoading ? 'Adding…' : 'Add to send queue'}
+              </button>
+              {enqueueFeedback && (
+                <span className={`text-xs ${enqueueFeedback.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {enqueueFeedback.text}
+                </span>
               )}
             </div>
           </div>

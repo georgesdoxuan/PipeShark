@@ -131,6 +131,16 @@ body {
   animation-duration: 20s;
 }
 
+/* Landing page bubbles – adapted color for light/dark */
+.bubble-landing-page.bubble {
+  background: rgba(14, 165, 233, 0.2);
+  box-shadow: 0 0 4px rgba(14, 165, 233, 0.25), inset 0 0 4px rgba(14, 165, 233, 0.12);
+}
+.dark .bubble-landing-page.bubble {
+  background: rgba(14, 165, 233, 0.3);
+  box-shadow: 0 0 4px rgba(14, 165, 233, 0.35), inset 0 0 4px rgba(14, 165, 233, 0.18);
+}
+
 @keyframes swim-right {
   0% {
     transform: translateX(0) translateY(0);

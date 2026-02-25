@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { businessType, cities, citySize, companyDescription, toneOfVoice, campaignGoal, magicLink, campaignId, targetCount, name, mode, exampleEmail, country, gmailEmail: bodyGmailEmail } = body;
+    const { businessType, cities, citySize, companyDescription, toneOfVoice, campaignGoal, magicLink, campaignId, targetCount, name, mode, exampleEmail, country, gmailEmail: bodyGmailEmail, businessLinkText } = body;
 
     const planInfo = await getUserPlanInfo(user.id);
     const isPro = planInfo.plan === 'pro';
@@ -282,6 +282,9 @@ export async function POST(request: Request) {
     };
     if (exampleEmail && typeof exampleEmail === 'string' && exampleEmail.trim()) {
       payload.exampleEmail = exampleEmail.trim();
+    }
+    if (businessLinkText && typeof businessLinkText === 'string' && businessLinkText.trim()) {
+      payload.businessLinkText = businessLinkText.trim();
     }
     const effectiveTargetCount =
       typeof targetCount === 'number' && targetCount >= 1

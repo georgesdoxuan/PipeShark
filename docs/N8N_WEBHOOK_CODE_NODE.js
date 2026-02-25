@@ -2,30 +2,27 @@
  * n8n Code node – à coller après le node Webhook.
  *
  * Les villes viennent du tableau Supabase (villes anglophones 100k+ habitants).
- * L'app envoie dans le webhook la liste des villes (cities) selon la taille choisie (citySize).
- * Ce node tire une ville au hasard dans cette liste et renvoie targetCount dans l'output.
+ * L'app envoie soit une seule ville (city + cities avec 1 élément) quand elle a tiré
+ * au sort côté app → on utilise cette ville telle quelle (pas de tirage ici).
+ * Soit une liste de villes (cities) → on en tire une au hasard.
  *
- * Le webhook reçoit : businessType, cities (array depuis Supabase), companyDescription,
- * country (optionnel, tirage au sort côté app), toneOfVoice, campaignGoal, magicLink,
- * searchMode, targetCount.
+ * Le webhook reçoit : businessType, cities (array), city (optionnel), country (optionnel),
+ * companyDescription, toneOfVoice, campaignGoal, magicLink, searchMode, targetCount,
+ * exampleEmail, businessLinkText (optionnel), campaignId (optionnel, pour re-run).
  *
- * IMPORTANT – Re-run (relance) : quand l'utilisateur relance une campagne, l'app envoie
- * campaignId (id de la campagne existante). Tu DOIS passer ce campaignId à chaque lead
- * inséré dans Supabase (colonne campaign_id). Sinon les nouveaux leads n'apparaîtront pas
- * dans la même campagne et une "nouvelle" campagne semblera apparaître.
+ * businessLinkText : texte saisi par l'utilisateur décrivant le lien entre son entreprise
+ * et celle du prospect. Repassé tel quel dans l'output pour que le prompt IA l'utilise.
+ *
+ * Génère un offset de pagination aléatoire pour éviter les doublons.
  */
 
 // Récupère les paramètres du webhook
-const webhookData = $('Webhook').item.json.body || {};
-
-// Re-run : id de la campagne existante – à utiliser pour campaign_id sur chaque lead inséré en base
-const campaignId = webhookData.campaignId || null;
+const webhookData = $('Webhook').first().json.body || {};
 
 const businessType = webhookData.businessType || "plumber";
 const companyDescription = webhookData.companyDescription || "";
-const country = webhookData.country || null; // Optionnel : pays (quand tirage au sort côté app)
+const country = webhookData.country || null;
 
-// Nombre de leads choisi par l'utilisateur pour la campagne (formulaire)
 const targetCount = typeof webhookData.targetCount === 'number' && webhookData.targetCount >= 1
   ? Math.min(20, Math.max(1, Math.round(webhookData.targetCount)))
   : 10;
@@ -34,16 +31,30 @@ const toneOfVoice = webhookData.toneOfVoice || "professional";
 const campaignGoal = webhookData.campaignGoal || "book_call";
 const magicLink = webhookData.magicLink || "";
 const searchMode = webhookData.searchMode || "standard";
+const exampleEmail = webhookData.exampleEmail || "";
+const businessLinkText = typeof webhookData.businessLinkText === 'string' ? webhookData.businessLinkText.trim() : '';
 
-// Liste des villes envoyée par l'app (depuis Supabase, filtrée par citySize)
+// Liste des villes envoyée par l'app
 const cities = Array.isArray(webhookData.cities) ? webhookData.cities : [];
 
-// Une ville au hasard dans la liste (ou fallback si vide)
-const city = cities.length > 0
-  ? cities[Math.floor(Math.random() * cities.length)]
-  : "New York";
+// Ville à utiliser : si l'app envoie une seule ville (city ou cities avec 1 élément), on la prend telle quelle.
+// Sinon on tire une ville au hasard dans la liste (ou fallback si vide).
+let city;
+if (typeof webhookData.city === 'string' && webhookData.city.trim()) {
+  // L'app a déjà tiré une ville (ex. Toronto) → on utilise celle-là uniquement
+  city = webhookData.city.trim();
+} else if (cities.length === 1) {
+  city = cities[0];
+} else if (cities.length > 1) {
+  city = cities[Math.floor(Math.random() * cities.length)];
+} else {
+  city = "New York";
+}
 
-// Objet de sortie : champs de base + targetCount + campaignId (pour que le node Supabase insère avec campaign_id)
+// Offset de pagination aléatoire
+const maxOffset = 100;
+const startOffset = Math.floor(Math.random() * maxOffset);
+
 const output = {
   business: businessType,
   city: city,
@@ -52,14 +63,17 @@ const output = {
   campaignGoal: campaignGoal,
   magicLink: magicLink,
   searchMode: searchMode,
-  targetCount: targetCount
+  targetCount: targetCount,
+  exampleEmail: exampleEmail,
+  businessLinkText: businessLinkText,
+  startOffset: startOffset,
 };
 
 if (country && typeof country === 'string' && country.trim()) {
   output.country = country.trim();
 }
-if (campaignId) {
-  output.campaignId = campaignId;  // À mapper sur la colonne campaign_id dans le node Supabase (Insert)
+if (webhookData.campaignId) {
+  output.campaignId = webhookData.campaignId;
 }
 
 return [{ json: output }];

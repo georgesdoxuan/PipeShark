@@ -25,6 +25,8 @@ interface CampaignParams {
   gmailEmail?: string;
   /** When true, workflow should create Gmail drafts only (no enqueue / no send). */
   createDraftsOnly?: boolean;
+  /** Optional: text describing the link between user's business and the prospect's (passed to n8n, used in AI prompt when non-empty). */
+  businessLinkText?: string;
 }
 
 export async function triggerN8nWorkflow(params?: CampaignParams) {
@@ -85,6 +87,7 @@ export async function triggerN8nWorkflow(params?: CampaignParams) {
       if (params.gmailRefreshToken) requestBody.gmailRefreshToken = params.gmailRefreshToken;
       if (params.gmailEmail) requestBody.gmailEmail = params.gmailEmail;
       if (params.createDraftsOnly === true) requestBody.createDraftsOnly = true;
+      if (params.businessLinkText && params.businessLinkText.trim()) requestBody.businessLinkText = params.businessLinkText.trim();
     }
     
     console.log('🚀 Triggering n8n workflow with POST:', url);
