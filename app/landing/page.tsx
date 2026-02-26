@@ -214,7 +214,9 @@ export default function LandingPage() {
               <ArrowRight className="w-5 h-5" />
             </Link>
             <Link
-              href="/contact"
+              href="https://calendly.com/hello-pipeshark/30min"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-8 py-4 bg-white dark:bg-neutral-800 text-zinc-900 dark:text-white border-2 border-zinc-200 dark:border-sky-600/50 hover:border-sky-500 dark:hover:border-sky-500 rounded-xl font-semibold text-lg shadow-md hover:shadow-lg transition-all duration-200"
             >
               Book a Demo
