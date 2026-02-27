@@ -2,7 +2,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Supabase Setup
 
-Hellooooooooooooooooooooodskjdkkjkl
+Hellooooooooooooooooooooodskjdkkjkli
 If you haven't already, run the migrations in Supabase:
 j
 1. Go to your Supabase project → SQL Editor
