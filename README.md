@@ -9,7 +9,7 @@ j
 2. Run the SQL from `supabase-migrations/001_create_campaigns_table.sql`
 ki
 This creates the `campaigns` table so your campaigns persist between sessions.
-
+ki
 ## Getting Started
 
 First, run the development server:
