@@ -395,6 +395,21 @@ export async function setLeadEmailSent(
   return !error;
 }
 
+/** Set Gmail thread ID on lead (e.g. when a Gmail draft is created for this lead). */
+export async function setLeadGmailThreadId(
+  leadId: string,
+  userId: string,
+  threadId: string
+): Promise<boolean> {
+  const supabase = await createAdminClient();
+  const { error } = await supabase
+    .from('leads')
+    .update({ gmail_thread_id: threadId })
+    .eq('id', leadId)
+    .eq('user_id', userId);
+  return !error;
+}
+
 /** Update a lead's draft (subject + body as single content). Used when user edits draft in PipeShark. */
 export async function updateLeadDraft(
   userId: string,

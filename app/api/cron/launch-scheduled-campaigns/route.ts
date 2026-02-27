@@ -6,7 +6,6 @@ import { countLeadsForCampaignAdmin } from '@/lib/supabase-leads';
 import { getValidGmailAccessToken } from '@/lib/gmail';
 import { triggerN8nWorkflow } from '@/lib/n8n';
 import { getGmailTokensForEmail } from '@/lib/supabase-gmail-accounts';
-import { enqueueCampaignLeadsForUser } from '@/lib/supabase-email-queue';
 
 const POLL_LEADS_INTERVAL_MS = 15_000; // poll every 15s
 const WAIT_FOR_LEADS_TIMEOUT_MS = 2 * 60 * 1000; // max 2 min per campaign so cron can launch several within serverless timeout
@@ -119,16 +118,11 @@ export async function GET(request: Request) {
           }
         }
 
-        const deliveryType = run.deliveryMode === 'drafts' ? 'draft' : 'send';
-        console.log(`[cron] Launching campaign slot ${slotIndex + 1}: ${campaign.businessType} (${payload.cities?.[0] ?? payload.citySize}) for user ${userId} (${deliveryType})`);
+        console.log(`[cron] Launching campaign slot ${slotIndex + 1}: ${campaign.businessType} (${payload.cities?.[0] ?? payload.citySize}) for user ${userId}`);
         await triggerN8nWorkflow(payload);
         await waitForCampaignLeads(userId, campaign.id, targetCount);
-        try {
-          const enqueued = await enqueueCampaignLeadsForUser(userId, campaign.id, { deliveryType: deliveryType as 'send' | 'draft' });
-          if (enqueued > 0) console.log(`[cron] Auto-enqueued ${enqueued} (${deliveryType}) for campaign ${campaignId}`);
-        } catch (enqErr: any) {
-          console.warn(`[cron] Auto-enqueue failed for campaign ${campaignId}:`, enqErr?.message);
-        }
+        // Pas d’enqueue ici : l’utilisateur doit cliquer « Add to send queue » pour ajouter les leads à la file.
+        // Le workflow n8n « Schedule + send queue » enverra ensuite les mails aux heures programmées.
         results.push({ userId, campaignId, slotIndex, launched: true });
       } catch (err: any) {
         console.error(`[cron] Run failed:`, err.message);

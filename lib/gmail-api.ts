@@ -32,6 +32,17 @@ export interface GmailThread {
   messages?: GmailThreadMessage[];
 }
 
+/** Message as returned for the messaging UI (thread view). */
+export interface GmailThreadMessageDisplay {
+  id: string;
+  from: string;
+  to: string;
+  date: string;
+  snippet: string;
+  body: string;
+  isFromUser: boolean;
+}
+
 /**
  * Fetch a thread by ID with message metadata (From header).
  * Returns null if thread not found or API error.
@@ -54,15 +65,97 @@ export async function getGmailThread(
 }
 
 /**
+ * Extract header value from message payload.
+ */
+function getHeader(message: GmailThreadMessage, name: string): string | null {
+  const headers = message.payload?.headers;
+  if (!headers) return null;
+  const h = headers.find((x) => x.name.toLowerCase() === name.toLowerCase());
+  return h?.value?.trim() ?? null;
+}
+
+/**
  * Extract sender email from message payload headers.
  */
 function getFromEmail(message: GmailThreadMessage): string | null {
-  const headers = message.payload?.headers;
-  if (!headers) return null;
-  const from = headers.find((h) => h.name.toLowerCase() === 'from');
-  if (!from?.value) return null;
-  const match = from.value.match(/<([^>]+)>/);
-  return match ? match[1].trim().toLowerCase() : from.value.trim().toLowerCase();
+  const from = getHeader(message, 'from');
+  if (!from) return null;
+  const match = from.match(/<([^>]+)>/);
+  return match ? match[1].trim().toLowerCase() : from.trim().toLowerCase();
+}
+
+/**
+ * Decode base64url body from Gmail API payload.
+ */
+function decodeBody(data: string | undefined): string {
+  if (!data) return '';
+  try {
+    const base64 = data.replace(/-/g, '+').replace(/_/g, '/');
+    return Buffer.from(base64, 'base64').toString('utf8');
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Extract plain text body from a message payload (body or first text part).
+ */
+function getMessageBody(payload: GmailThreadMessage['payload'] & { body?: { data?: string }; parts?: Array<{ mimeType?: string; body?: { data?: string } }> }): string {
+  if (!payload) return '';
+  if (payload.body?.data) return decodeBody(payload.body.data);
+  const parts = payload.parts;
+  if (!parts?.length) return '';
+  const textPart = parts.find((p) => p.mimeType === 'text/plain' || (p.mimeType && p.mimeType.startsWith('text/')));
+  return textPart?.body?.data ? decodeBody(textPart.body.data) : '';
+}
+
+/**
+ * Fetch a thread with full message bodies for the messaging UI.
+ * Returns messages sorted by internal date (oldest first).
+ */
+export async function getGmailThreadWithBodies(
+  accessToken: string,
+  threadId: string,
+  userEmail: string
+): Promise<GmailThreadMessageDisplay[]> {
+  const url = `${GMAIL_API}/threads/${encodeURIComponent(threadId)}?format=full`;
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    if (res.status === 404) return [];
+    const err = await res.text();
+    console.error('[Gmail] getGmailThreadWithBodies failed', res.status, err);
+    return [];
+  }
+  const thread = await res.json();
+  const messages = (thread.messages || []) as (GmailThreadMessage & {
+    payload?: { body?: { data?: string }; parts?: Array<{ mimeType?: string; body?: { data?: string } }> };
+    snippet?: string;
+    internalDate?: string;
+  })[];
+  const userLower = userEmail.trim().toLowerCase();
+  const out: GmailThreadMessageDisplay[] = messages.map((msg) => {
+    const from = getHeader(msg, 'From') ?? '';
+    const to = getHeader(msg, 'To') ?? '';
+    const fromEmail = getFromEmail(msg) ?? from;
+    const isFromUser = fromEmail === userLower;
+    const body = getMessageBody(msg.payload);
+    const date = msg.internalDate
+      ? new Date(parseInt(msg.internalDate, 10)).toISOString()
+      : getHeader(msg, 'Date') ?? '';
+    return {
+      id: msg.id,
+      from,
+      to,
+      date,
+      snippet: msg.snippet ?? body.slice(0, 200),
+      body: body || msg.snippet || '',
+      isFromUser,
+    };
+  });
+  out.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  return out;
 }
 
 /**
@@ -176,5 +269,36 @@ export async function createGmailDraft(
   const data = await res.json();
   const draftId = data.id;
   const messageId = data.message?.id;
-  return draftId && messageId ? { id: draftId, messageId } : null;
+  const threadId = data.message?.threadId ?? null;
+  return draftId && messageId ? { id: draftId, messageId, threadId } : null;
+}
+
+/**
+ * Send an email via Gmail API (users.messages.send).
+ * Uses same RFC 2822 raw format as createGmailDraft.
+ */
+export async function sendGmailMessage(
+  accessToken: string,
+  to: string,
+  subject: string,
+  body: string
+): Promise<{ id: string } | null> {
+  const raw = buildRawMessage(to, subject, body);
+  const url = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send';
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ raw }),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    console.error('[Gmail] sendGmailMessage failed', res.status, err);
+    return null;
+  }
+  const data = await res.json();
+  const id = data.id;
+  return id ? { id } : null;
 }

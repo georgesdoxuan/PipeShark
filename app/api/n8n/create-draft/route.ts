@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-server';
-import { getQueueItemByIdAdmin, markQueueItemSentAdmin } from '@/lib/supabase-email-queue';
+import { getQueueItemByIdAdmin, markQueueItemSentAdmin, markQueueItemDraftAdmin } from '@/lib/supabase-email-queue';
 import { getGmailTokensForEmail } from '@/lib/supabase-gmail-accounts';
+import { setLeadGmailThreadId } from '@/lib/supabase-leads';
 import { getValidGmailAccessToken } from '@/lib/gmail';
 import { createGmailDraft } from '@/lib/gmail-api';
 
@@ -20,16 +21,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let body: { queue_id?: string; queueId?: string };
+  let body: { queue_id?: string; queueId?: string; id?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const queueId = body.queue_id ?? body.queueId;
+  const queueId = body.queue_id ?? body.queueId ?? body.id;
   if (!queueId || typeof queueId !== 'string') {
-    return NextResponse.json({ error: 'Missing queue_id or queueId' }, { status: 400 });
+    return NextResponse.json({ error: 'Missing queue_id, queueId or id' }, { status: 400 });
   }
 
   const item = await getQueueItemByIdAdmin(queueId);
@@ -39,6 +40,12 @@ export async function POST(request: Request) {
 
   if (item.delivery_type !== 'draft') {
     return NextResponse.json({ error: 'Queue item is not a draft' }, { status: 400 });
+  }
+
+  // SMTP connection: no Gmail draft, just mark queue item as draft in DB
+  if (item.connection_type === 'smtp') {
+    await markQueueItemDraftAdmin(queueId);
+    return NextResponse.json({ ok: true, queueId, draft: false });
   }
 
   let gmailEmail: string | null = null;
@@ -90,10 +97,15 @@ export async function POST(request: Request) {
 
   await markQueueItemSentAdmin(queueId);
 
+  if (item.lead_id && draft.threadId) {
+    await setLeadGmailThreadId(item.lead_id, item.user_id, draft.threadId);
+  }
+
   return NextResponse.json({
     ok: true,
     queueId,
     draftId: draft.id,
     messageId: draft.messageId,
+    threadId: draft.threadId ?? undefined,
   });
 }

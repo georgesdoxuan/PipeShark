@@ -296,7 +296,7 @@ export default function LandingPage() {
                 <Shield className="w-8 h-8 text-emerald-600 dark:text-emerald-400" strokeWidth={2} />
               </div>
               <h4 className="text-lg font-display font-bold text-zinc-900 dark:text-white mb-2 leading-snug">Drafts, not auto-send</h4>
-              <p className="text-zinc-600 dark:text-sky-200/90 text-sm leading-relaxed">We create drafts instead of sending automatically to protect you from spam regulations. You decide when each email goes out.</p>
+              <p className="text-zinc-600 dark:text-sky-200/90 text-sm leading-relaxed">We create drafts instead of sending automatically to protect you from spam regulations. You decide when each email goes out. PipeShark is GDPR compliant.</p>
             </div>
           </div>
 
@@ -701,6 +701,9 @@ export default function LandingPage() {
           </div>
           <p className="text-zinc-500 dark:text-sky-500 text-sm">
             Automated prospecting for local businesses
+          </p>
+          <p className="mt-2 text-zinc-500 dark:text-sky-500 text-sm">
+            GDPR compliant
           </p>
           <p className="mt-3 text-zinc-600 dark:text-sky-400/90 text-sm">
             <a href="mailto:hello@pipeshark.io" className="hover:text-sky-600 dark:hover:text-sky-300 underline">

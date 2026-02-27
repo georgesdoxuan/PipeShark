@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LogOut, User, Settings, Sun, Moon, Menu, X, LayoutDashboard, ListTodo, FileText, Mail, Bell, Sparkles, MessageCircle, HelpCircle } from 'lucide-react';
+import { LogOut, User, Settings, Sun, Moon, Menu, X, LayoutDashboard, ListTodo, FileText, Mail, Bell, Sparkles, MessageCircle, HelpCircle, ArrowLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import ViperLogo from '@/components/ViperLogo';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -50,7 +50,13 @@ function formatRelativeTime(iso: string) {
   return d.toLocaleDateString();
 }
 
-export default function Header() {
+interface HeaderProps {
+  /** When set, shows a back (arrow) icon on the right side of the header linking to this href */
+  backHref?: string;
+}
+
+export default function Header(props?: HeaderProps) {
+  const { backHref } = props ?? {};
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
@@ -161,21 +167,38 @@ export default function Header() {
                 <ViperLogo className="h-12 w-auto flex-shrink-0 min-w-12 self-center" />
                 <h1 className="text-lg font-brand font-bold tracking-wide text-zinc-900 dark:text-white">Pipeshark</h1>
               </Link>
+              {backHref && (
+                <Link
+                  href={backHref}
+                  aria-label="Retour"
+                  className="p-1.5 text-zinc-800 dark:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors"
+                >
+                  <ArrowLeft className="w-5 h-5" strokeWidth={2} />
+                </Link>
+              )}
             </div>
             {user && (
-              <div className="relative" ref={notificationsRef}>
-                <button
-                  type="button"
-                  onClick={() => setNotificationsOpen((o) => !o)}
-                  aria-label="Notifications"
-                  className="p-1.5 text-zinc-800 dark:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors relative"
-                >
-                  <Bell className="w-5 h-5" strokeWidth={2} />
-                  {notifications && ((notifications.todayLeadsCount > 0 && !notifSeenToday) || notifications.recentReplies.length > 0) && (
-                    <span className="absolute top-1 right-1 w-2 h-2 bg-sky-500 rounded-full" aria-hidden />
-                  )}
-                </button>
-                {notificationsOpen && (
+              <div className="flex items-center gap-0.5">
+                <Link
+                      href="/messages"
+                      aria-label="Messagerie"
+                      className="p-1.5 text-zinc-800 dark:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors"
+                    >
+                      <MessageCircle className="w-5 h-5" strokeWidth={2} />
+                    </Link>
+                    <div className="relative" ref={notificationsRef}>
+                      <button
+                        type="button"
+                        onClick={() => setNotificationsOpen((o) => !o)}
+                        aria-label="Notifications"
+                        className="p-1.5 text-zinc-800 dark:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors relative"
+                      >
+                        <Bell className="w-5 h-5" strokeWidth={2} />
+                        {notifications && ((notifications.todayLeadsCount > 0 && !notifSeenToday) || notifications.recentReplies.length > 0) && (
+                          <span className="absolute top-1 right-1 w-2 h-2 bg-sky-500 rounded-full" aria-hidden />
+                        )}
+                      </button>
+                      {notificationsOpen && (
                   <div className="absolute right-0 top-full mt-2 w-[min(90vw,380px)] rounded-2xl border border-zinc-200 dark:border-sky-800/50 bg-white dark:bg-neutral-900 shadow-2xl shadow-black/10 dark:shadow-black/40 z-[60] overflow-hidden">
                     <div className="px-4 py-3.5 bg-zinc-50 dark:bg-neutral-800/50 border-b border-zinc-100 dark:border-sky-900/50">
                       <h3 className="font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
@@ -261,7 +284,8 @@ export default function Header() {
                       )}
                     </div>
                   </div>
-                )}
+                      )}
+                    </div>
               </div>
             )}
           </div>
@@ -304,6 +328,10 @@ export default function Header() {
                 <Link href="/dashboard" onClick={closeSidebar} className={navLinkClass}>
                   <LayoutDashboard className="w-5 h-5 shrink-0" />
                   Dashboard
+                </Link>
+                <Link href="/messages" onClick={closeSidebar} className={navLinkClass}>
+                  <MessageCircle className="w-5 h-5 shrink-0" />
+                  Messagerie
                 </Link>
                 <Link href="/todo" onClick={closeSidebar} className={navLinkClass}>
                   <ListTodo className="w-5 h-5 shrink-0" />

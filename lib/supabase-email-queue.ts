@@ -5,10 +5,13 @@ import { getTimezoneForLead } from './country-timezone';
 import { getCampaignsByIdsAdmin } from './supabase-campaigns';
 import { getSenderAccountIdByEmailAdmin } from './supabase-sender-accounts';
 import { getLeadsWithDraftForEnqueueAdmin } from './supabase-leads';
+import { getMailConnectionTypeForUser } from './supabase-preferences';
 
-export type EmailQueueStatus = 'pending' | 'sent' | 'failed' | 'cancelled';
+export type EmailQueueStatus = 'pending' | 'sent' | 'failed' | 'cancelled' | 'draft';
 
 export type DeliveryType = 'send' | 'draft';
+
+export type ConnectionType = 'smtp' | 'gmail';
 
 export interface EmailQueueInsert {
   user_id: string;
@@ -19,6 +22,8 @@ export interface EmailQueueInsert {
   body: string;
   scheduled_at: string; // ISO
   delivery_type?: DeliveryType;
+  /** How to send/draft: SMTP or Gmail. From user preference when enqueueing. */
+  connection_type?: ConnectionType;
 }
 
 /** Bulk insert into email_queue. Caller must resolve sender_account_id. */
@@ -35,6 +40,7 @@ export async function insertEmailQueueRows(rows: EmailQueueInsert[]): Promise<nu
     scheduled_at: r.scheduled_at,
     status: 'pending',
     delivery_type: r.delivery_type ?? 'send',
+    connection_type: r.connection_type ?? 'smtp',
     updated_at: new Date().toISOString(),
   }));
   const { data, error } = await supabase.from('email_queue').insert(payload).select('id');
@@ -56,6 +62,7 @@ export async function insertEmailQueueRowsAdmin(rows: EmailQueueInsert[]): Promi
     scheduled_at: r.scheduled_at,
     status: 'pending',
     delivery_type: r.delivery_type ?? 'send',
+    connection_type: r.connection_type ?? 'smtp',
     updated_at: new Date().toISOString(),
   }));
   const { data, error } = await admin.from('email_queue').insert(payload).select('id');
@@ -260,6 +267,7 @@ export interface PendingQueueItem {
   body: string;
   scheduled_at: string;
   delivery_type: DeliveryType;
+  connection_type: ConnectionType;
 }
 
 /** Load a single queue item by id (admin). Returns null if not found or not pending. */
@@ -267,13 +275,17 @@ export async function getQueueItemByIdAdmin(queueId: string): Promise<(PendingQu
   const admin = createAdminClient();
   const { data, error } = await admin
     .from('email_queue')
-    .select('id, user_id, sender_account_id, lead_id, recipient, subject, body, scheduled_at, delivery_type')
+    .select('id, user_id, sender_account_id, lead_id, recipient, subject, body, scheduled_at, delivery_type, connection_type')
     .eq('id', queueId)
     .eq('status', 'pending')
     .single();
   if (error || !data) return null;
-  const row = data as PendingQueueItem & { delivery_type?: string };
-  return { ...row, delivery_type: (row.delivery_type === 'draft' ? 'draft' : 'send') as DeliveryType };
+  const row = data as PendingQueueItem & { delivery_type?: string; connection_type?: string };
+  return {
+    ...row,
+    delivery_type: (row.delivery_type === 'draft' ? 'draft' : 'send') as DeliveryType,
+    connection_type: (row.connection_type === 'gmail' ? 'gmail' : 'smtp') as ConnectionType,
+  };
 }
 
 export async function getPendingQueueItemsAdmin(limit: number = 10): Promise<PendingQueueItem[]> {
@@ -281,14 +293,18 @@ export async function getPendingQueueItemsAdmin(limit: number = 10): Promise<Pen
   const now = new Date().toISOString();
   const { data, error } = await admin
     .from('email_queue')
-    .select('id, user_id, sender_account_id, lead_id, recipient, subject, body, scheduled_at, delivery_type')
+    .select('id, user_id, sender_account_id, lead_id, recipient, subject, body, scheduled_at, delivery_type, connection_type')
     .eq('status', 'pending')
     .lte('scheduled_at', now)
     .order('scheduled_at', { ascending: true })
     .limit(limit);
   if (error) throw error;
-  const rows = (data || []) as (PendingQueueItem & { delivery_type?: string })[];
-  return rows.map((r) => ({ ...r, delivery_type: (r.delivery_type === 'draft' ? 'draft' : 'send') as DeliveryType }));
+  const rows = (data || []) as (PendingQueueItem & { delivery_type?: string; connection_type?: string })[];
+  return rows.map((r) => ({
+    ...r,
+    delivery_type: (r.delivery_type === 'draft' ? 'draft' : 'send') as DeliveryType,
+    connection_type: (r.connection_type === 'gmail' ? 'gmail' : 'smtp') as ConnectionType,
+  }));
 }
 
 /** Mark queue item as sent (n8n or API). */
@@ -307,6 +323,16 @@ export async function markQueueItemFailedAdmin(queueId: string, errorLog: string
   const { error } = await admin
     .from('email_queue')
     .update({ status: 'failed', error_log: errorLog, updated_at: new Date().toISOString() })
+    .eq('id', queueId);
+  if (error) throw error;
+}
+
+/** Mark queue item as draft (e.g. when connection_type is SMTP and delivery_type is draft: no external draft, just DB). */
+export async function markQueueItemDraftAdmin(queueId: string): Promise<void> {
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('email_queue')
+    .update({ status: 'draft', updated_at: new Date().toISOString(), error_log: null })
     .eq('id', queueId);
   if (error) throw error;
 }
@@ -340,6 +366,7 @@ export async function enqueueCampaignLeadsForUser(
   const alreadyInQueue = await getLeadIdsAlreadyInQueue(userId, leadIds);
   const toEnqueue = leads.filter((l) => !alreadyInQueue.has(l.id));
   if (toEnqueue.length === 0) return 0;
+  const connectionType = await getMailConnectionTypeForUser(userId);
   const scheduledTimes = buildScheduledAtForLeads(toEnqueue);
   const rows: EmailQueueInsert[] = toEnqueue.map((lead, i) => {
     const { subject, body } = parseDraftSubjectAndBody(lead.draft);
@@ -352,6 +379,7 @@ export async function enqueueCampaignLeadsForUser(
       body: body || '',
       scheduled_at: scheduledTimes[i],
       delivery_type: deliveryType,
+      connection_type: connectionType,
     };
   });
   return insertEmailQueueRowsAdmin(rows);

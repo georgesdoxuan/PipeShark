@@ -28,6 +28,9 @@ export default function PreferencesPage() {
   const [canAddMoreGmail, setCanAddMoreGmail] = useState(false);
   const [senderAccounts, setSenderAccounts] = useState<SenderAccountPublic[]>([]);
   const [senderAccountsLoading, setSenderAccountsLoading] = useState(true);
+  const [mailConnectionType, setMailConnectionType] = useState<'smtp' | 'gmail'>('smtp');
+  const [mailConnectionLoading, setMailConnectionLoading] = useState(true);
+  const [mailConnectionSaving, setMailConnectionSaving] = useState(false);
   const searchParams = useSearchParams();
 
   async function fetchGmailStatus() {
@@ -81,6 +84,34 @@ export default function PreferencesPage() {
   useEffect(() => {
     fetchSenderAccounts();
   }, []);
+
+  useEffect(() => {
+    fetch('/api/preferences/mail-connection', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.mail_connection_type === 'gmail') setMailConnectionType('gmail');
+        else setMailConnectionType('smtp');
+      })
+      .catch(() => {})
+      .finally(() => setMailConnectionLoading(false));
+  }, []);
+
+  async function setMailConnection(value: 'smtp' | 'gmail') {
+    setMailConnectionSaving(true);
+    try {
+      const res = await fetch('/api/preferences/mail-connection', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ mail_connection_type: value }),
+      });
+      if (res.ok) {
+        setMailConnectionType(value);
+      }
+    } finally {
+      setMailConnectionSaving(false);
+    }
+  }
 
   useEffect(() => {
     const connected = searchParams.get('gmail_connected');
@@ -154,9 +185,49 @@ export default function PreferencesPage() {
               Preferences
             </h1>
 
-            {/* Gmail Connection Section */}
+            {/* Mail account connection: SMTP or Gmail for both send + draft */}
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-1">Mail account connection</h2>
+              <p className="text-sm text-zinc-600 dark:text-neutral-400 mb-3">
+                Choose how to send and create drafts: <strong>SMTP</strong> (e.g. Gmail App Password) or <strong>Gmail (OAuth)</strong>. This applies to both sending emails and creating drafts from the queue.
+              </p>
+              {!mailConnectionLoading && (
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="mail_connection"
+                      checked={mailConnectionType === 'smtp'}
+                      onChange={() => setMailConnection('smtp')}
+                      disabled={mailConnectionSaving}
+                      className="text-sky-600 focus:ring-sky-500"
+                    />
+                    <span className="text-sm font-medium text-zinc-800 dark:text-neutral-200">SMTP</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="mail_connection"
+                      checked={mailConnectionType === 'gmail'}
+                      onChange={() => setMailConnection('gmail')}
+                      disabled={mailConnectionSaving}
+                      className="text-sky-600 focus:ring-sky-500"
+                    />
+                    <span className="text-sm font-medium text-zinc-800 dark:text-neutral-200">Gmail (OAuth)</span>
+                  </label>
+                  {mailConnectionSaving && (
+                    <span className="text-sm text-zinc-500 dark:text-neutral-400">Saving…</span>
+                  )}
+                </div>
+              )}
+              {mailConnectionLoading && (
+                <p className="text-sm text-zinc-500 dark:text-neutral-400">Loading…</p>
+              )}
+            </div>
+
+            {/* Option 1: Gmail (OAuth) */}
             <div className="mb-6">
-              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-3">Gmail connection</h2>
+              <h3 className="text-base font-semibold text-zinc-800 dark:text-neutral-200 mb-3">Gmail (OAuth)</h3>
               {gmailError && (
                 <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/50 rounded-xl p-4 flex items-start justify-between gap-4">
                   <p className="text-sm text-red-700 dark:text-red-200">{gmailError}</p>
@@ -231,12 +302,12 @@ export default function PreferencesPage() {
               )}
             </div>
 
-            {/* Email sending (SMTP) – queue-based sending */}
+            {/* Option 2: SMTP – queue-based sending */}
             <div className="mb-6 pt-6 border-t border-zinc-200 dark:border-neutral-800">
-              <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
+              <h3 className="text-base font-semibold text-zinc-800 dark:text-neutral-200 mb-3 flex items-center gap-2">
                 <Send className="w-5 h-5 text-sky-500" />
-                Email sending (SMTP)
-              </h2>
+                SMTP
+              </h3>
               <p className="text-sm text-zinc-600 dark:text-neutral-400 mb-4">
                 Add a sending account to use the email queue: campaigns can enqueue leads and n8n sends via SMTP (e.g. Gmail App Password). The email address here should match the one you use for campaigns.
               </p>
