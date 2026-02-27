@@ -13,7 +13,7 @@ This creates the `campaigns` table so your campaigns persist between sessions.
 ## Getting Started
 
 First, run the development server:
-
+i
 ```bash
 npm run dev
 # or
