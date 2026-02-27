@@ -4,7 +4,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 Hellooooooooooooooooooooodskjdkkj
 If you haven't already, run the migrations in Supabase:
-
+j
 1. Go to your Supabase project → SQL Editor
 2. Run the SQL from `supabase-migrations/001_create_campaigns_table.sql`
 
