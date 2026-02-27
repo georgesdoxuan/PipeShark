@@ -10,7 +10,7 @@ j
 ki
 This creates the `campaigns` table so your campaigns persist between sessions.
 ki
-## Getting Started
+## Getting Startedkj
 
 First, run the development server:
 i
