@@ -147,7 +147,9 @@ export interface ScheduledCampaignRun {
 
 /**
  * Returns which single campaign should run NOW for each user.
- * Campaigns are spread by hour: 1st at launch_time (e.g. 15:00), 2nd at 16:00, 3rd at 17:00, etc.
+ * Only returns a run in the first 15 minutes of the launch hour so the cron (every 15 min)
+ * triggers the leadgen workflow exactly once per day at the chosen "Daily launch" time.
+ * Campaigns are spread by hour: 1st at launch_time (e.g. 14:00), 2nd at 15:00, etc.
  * Optional simulateTime (HH:MM) for testing.
  */
 export async function getScheduledCampaignRunsNow(
@@ -193,7 +195,9 @@ export async function getScheduledCampaignRunsNow(
     const currentHour = parseInt(currentLocal.slice(0, 2), 10) || 0;
     const slotIndex = (currentHour - launchHour + 24) % 24;
 
-    if (slotIndex < campaignIds.length) {
+    // Only trigger in the first 15 minutes of the slot hour so cron (every 15 min) fires once per day
+    const currentMin = parseInt(currentLocal.slice(3, 5), 10) || 0;
+    if (slotIndex < campaignIds.length && currentMin < 15) {
       runs.push({
         userId: row.user_id,
         campaignId: campaignIds[slotIndex],

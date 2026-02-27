@@ -1,15 +1,18 @@
-# Cron « Daily schedule » – lancement des campagnes programmées
+# Cron « Daily launch » – lancement quotidien du workflow leadgen
 
-**L’automatisation est dans n8n** : un workflow n8n avec un trigger **Schedule / Cron** lance à l’heure voulue (ex. tous les jours à 9h). Ce workflow appelle ensuite l’API Next.js via un nœud **HTTP Request**. Next.js expose uniquement l’endpoint ; c’est n8n qui décide *quand* l’appeler.
+**Déclencheur : le cron Vercel** (`vercel.json`). Il appelle l’API toutes les 15 minutes. L’heure de lancement est celle que tu choisis dans **Pipeshark → Dashboard → Daily launch** (heure + timezone + campagnes). Le workflow leadgen (n8n) ne se déclenche **qu’une fois par jour** à cette heure (première fenêtre de 15 min de l’heure choisie).
 
-## URL à appeler
+Aucun workflow n8n ne doit appeler cette URL pour le lancement quotidien ; seul le cron Vercel le fait.
+
+## URL à appeler (cron Vercel)
 
 **Méthode :** `GET`  
-**URL exacte :**  
-`https://<TON_DOMAINE_VERCEL>/api/cron/launch-scheduled-campaigns`
+**URL exacte (sans redirection) :**  
+`https://www.pipeshark.io/api/cron/launch-scheduled-campaigns`  
+(ou ton domaine **avec www** si pipeshark.io redirige sans www vers www — sinon le cron peut recevoir une 307 et perdre le header `Authorization`.)
 
-- Remplace `<TON_DOMAINE_VERCEL>` par l’URL réelle de ton déploiement (ex. `pipeshark.vercel.app` ou ton domaine custom).
-- **Ne pas** mettre de slash final : utiliser `/api/cron/launch-scheduled-campaigns` et **pas** `/api/cron/launch-scheduled-campaigns/`.
+- Utilise l’URL **finale** (avec www si c’est le cas) pour éviter 307 + 401.
+- **Ne pas** mettre de slash final.
 
 ## Authentification
 
@@ -25,16 +28,11 @@ Si `CRON_SECRET` est défini dans les variables d’environnement de l’app (Ve
 Exemple d’URL complète avec secret en query :  
 `https://pipeshark.vercel.app/api/cron/launch-scheduled-campaigns?secret=TON_CRON_SECRET`
 
-## Configuration du nœud HTTP Request dans n8n (Daily schedule)
+## Configuration du cron sur Vercel
 
-1. **Method:** GET  
-2. **URL:**  
-   `https://<TON_DOMAINE>/api/cron/launch-scheduled-campaigns`  
-   (sans slash à la fin)
-3. **Authentication:**  
-   - Soit « Header Auth » avec `Authorization` = `Bearer {{ $env.CRON_SECRET }}`  
-   - Soit ajouter en query : `?secret={{ $env.CRON_SECRET }}`
-4. Vérifier que la variable d’environnement (ou le secret n8n) utilisé correspond bien à `CRON_SECRET` défini sur Vercel.
+Dans **Vercel → projet → Settings → Crons**, le cron est défini dans `vercel.json` :  
+`path: /api/cron/launch-scheduled-campaigns`, `schedule: "*/15 * * * *"`.  
+Vercel envoie le `CRON_SECRET` en header. L’URL appelée doit être celle du déploiement (ex. `https://www.pipeshark.io`) pour éviter redirection et 401.
 
 ## Erreur 404 « requested path is invalid »
 
@@ -47,18 +45,18 @@ Si tu reçois une 404 avec ce message, l’URL appelée ne correspond pas à la 
 | Slash final | Pas de slash à la fin | `/api/cron/launch-scheduled-campaigns/` |
 | Domaine | Ton domaine Vercel / production | `localhost`, ancien sous-domaine, etc. |
 
-Une fois l’URL corrigée dans le nœud HTTP Request du workflow « daily schedule », la 404 doit disparaître.
+Une fois l’URL corrigée (cron Vercel ou test curl), la 404 doit disparaître.
 
 ## Test manuel
 
-Pour tester sans n8n (avec curl) :
+Pour tester à la main (curl) :
 
 ```bash
-# Avec secret en query
-curl "https://TON_DOMAINE/api/cron/launch-scheduled-campaigns?secret=TON_CRON_SECRET"
+# Avec secret en query (utiliser https://www.pipeshark.io si le domaine redirige)
+curl "https://www.pipeshark.io/api/cron/launch-scheduled-campaigns?secret=TON_CRON_SECRET"
 
 # Avec header
-curl -H "Authorization: Bearer TON_CRON_SECRET" "https://TON_DOMAINE/api/cron/launch-scheduled-campaigns"
+curl -H "Authorization: Bearer TON_CRON_SECRET" "https://www.pipeshark.io/api/cron/launch-scheduled-campaigns?simulateTime=14:00"
 ```
 
 Une réponse 200 avec un JSON `{ success: true, ... }` indique que l’endpoint fonctionne.
