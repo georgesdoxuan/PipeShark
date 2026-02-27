@@ -2,7 +2,7 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Supabase Setup
 
-Hellooooooooooooooooooooodskjdkkj
+Hellooooooooooooooooooooodskjdkkjkl
 If you haven't already, run the migrations in Supabase:
 j
 1. Go to your Supabase project → SQL Editor
@@ -10,7 +10,7 @@ j
 ki
 This creates the `campaigns` table so your campaigns persist between sessions.
 ki
-## Getting Startedkj
+## Getting Started
 
 First, run the development server:
 i
