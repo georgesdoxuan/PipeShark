@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Mail, X, Briefcase, MapPin, MessageCircle, Globe, FileEdit, FolderOpen, RefreshCw, CheckSquare, Square, Pencil, Save } from 'lucide-react';
+import { Search, Mail, X, Briefcase, MapPin, MessageCircle, FolderOpen, RefreshCw, CheckSquare, Square, Pencil, Save } from 'lucide-react';
+import Image from 'next/image';
 
 interface Lead {
   id: string;
@@ -36,25 +37,6 @@ const TONE_LABELS: Record<string, string> = {
   direct: 'Direct / Bold',
   empathetic: 'Empathetic / Understanding',
 };
-
-/** Minimal blue hourglass icon for "Pending" reply status */
-function PendingHourglassIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className ?? 'w-3.5 h-3.5 text-sky-500 shrink-0'}
-      aria-hidden
-    >
-      <path d="M5 2h14l-7 10 7 10H5l7-10-7-10z" />
-    </svg>
-  );
-}
 
 interface LeadsTableProps {
   leads: Lead[];
@@ -326,9 +308,9 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
       {/* Table - min-width + auto layout so columns don't overlap and horizontal scroll works */}
       <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-sky-700/40">
         <table className="w-full min-w-[1100px]" style={{ tableLayout: 'auto' }}>
-          <thead className="bg-sky-500/90 dark:bg-sky-600/90 border-b border-sky-500/80 dark:border-sky-600/80">
+          <thead className="bg-sky-500/75 dark:bg-sky-600/75 border-b border-sky-500/60 dark:border-sky-600/60">
             <tr>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0 rounded-tl-xl">
                 Business Type
               </th>
               <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
@@ -364,7 +346,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
               <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ minWidth: 145 }}>
                 Date
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ minWidth: 100 }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap rounded-tr-xl" style={{ minWidth: 100 }}>
                 Campaign
               </th>
             </tr>
@@ -427,11 +409,11 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                       href={lead.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center p-2 text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 transition-colors rounded-lg hover:bg-sky-50 dark:hover:bg-sky-500/10"
+                      className="inline-flex items-center justify-center p-2 w-9 h-9 rounded-lg transition-colors hover:bg-sky-50 dark:hover:bg-sky-500/10"
                       title={lead.url}
                       aria-label="Open URL"
                     >
-                      <Globe className="w-4 h-4" />
+                      <Image src="/url.png" alt="URL" width={20} height={20} className="object-contain w-5 h-5 [filter:brightness(0)_saturate(100%)_invert(52%)_sepia(89%)_saturate(1500%)_hue-rotate(186deg)] dark:[filter:brightness(0)_saturate(100%)_invert(65%)_sepia(60%)_saturate(800%)_hue-rotate(186deg)]" />
                     </a>
                   ) : (
                     <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
@@ -463,10 +445,10 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                           setDraftModal({ content: text, lead });
                           onDraftModalOpenChange?.(true);
                         }}
-                        className="inline-flex items-center justify-center p-2 rounded-lg bg-sky-100 dark:bg-sky-500/20 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-500/30 w-fit cursor-pointer hover:bg-sky-200 dark:hover:bg-sky-500/30 transition-colors shadow-sm"
+                        className="inline-flex items-center justify-center p-2 w-10 h-10 rounded-lg cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-500/10 transition-colors"
                         title="Draft"
                       >
-                        <FileEdit className="w-4 h-4" />
+                        <Image src="/draft.png" alt="Draft" width={24} height={24} className="object-contain w-6 h-6 [filter:brightness(0)_saturate(100%)_invert(52%)_sepia(89%)_saturate(1500%)_hue-rotate(186deg)] dark:[filter:brightness(0)_saturate(100%)_invert(65%)_sepia(60%)_saturate(800%)_hue-rotate(186deg)]" />
                       </button>
                     </div>
                   ) : (
@@ -486,7 +468,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap">
                   {lead.deliveryType === 'draft' ? (
-                    <span className="text-xs font-medium text-amber-700 dark:text-amber-300">Draft</span>
+                    <span className="text-xs font-medium text-sky-700 dark:text-sky-300">Draft</span>
                   ) : lead.deliveryType === 'send' ? (
                     <span className="text-xs font-medium text-sky-700 dark:text-sky-300">Send</span>
                   ) : (
@@ -506,8 +488,8 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                       ✅ Replied
                     </span>
                   ) : (
-                    <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-500/30" title="Pending">
-                      <PendingHourglassIcon />
+                    <span className="inline-flex items-center justify-center p-2 w-10 h-10 rounded-lg" title="Pending">
+                      <Image src="/hourglass.png" alt="Pending" width={24} height={24} className="object-contain w-6 h-6 [filter:brightness(0)_saturate(100%)_invert(58%)] dark:[filter:brightness(0)_saturate(100%)_invert(70%)]" />
                     </span>
                   )}
                 </td>

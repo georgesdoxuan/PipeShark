@@ -3,7 +3,8 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { LogOut, User, Settings, Sun, Moon, Menu, X, LayoutDashboard, ListTodo, FileText, Mail, Bell, Sparkles, MessageCircle, HelpCircle, ArrowLeft } from 'lucide-react';
+import Image from 'next/image';
+import { LogOut, User, Settings, Sun, Moon, Menu, X, ListTodo, FileText, Mail, Bell, Sparkles, MessageCircle, HelpCircle, ArrowLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import ViperLogo from '@/components/ViperLogo';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -69,6 +70,15 @@ export default function Header(props?: HeaderProps) {
   const [notifications, setNotifications] = useState<NotificationData | null>(null);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notifSeenToday, setNotifSeenToday] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onScroll = () => setScrolled(window.scrollY > 60);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   // Fermer le sidebar à chaque changement de route (au cas où le même Header resterait monté)
   useEffect(() => {
@@ -154,38 +164,45 @@ export default function Header(props?: HeaderProps) {
       <header className="bg-transparent sticky top-0 z-50">
         <div className="w-full px-4 sm:px-6 lg:px-8 py-1.5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Open menu"
-                className="p-1.5 text-zinc-800 dark:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors"
-              >
-                <Menu className="w-5 h-5" strokeWidth={2} />
-              </button>
-              <Link href="/dashboard" className="flex items-center gap-2">
-                <ViperLogo className="h-12 w-auto flex-shrink-0 min-w-12 self-center" />
-                <h1 className="text-lg font-brand font-bold tracking-wide text-zinc-900 dark:text-white">Pipeshark</h1>
-              </Link>
-              {backHref && (
-                <Link
-                  href={backHref}
-                  aria-label="Retour"
-                  className="p-1.5 text-zinc-800 dark:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors"
+            <div className="flex items-center justify-between w-full gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(true)}
+                  aria-label="Open menu"
+                  className="p-1.5 text-zinc-800 dark:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors shrink-0"
                 >
-                  <ArrowLeft className="w-5 h-5" strokeWidth={2} />
-                </Link>
-              )}
-            </div>
-            {user && (
-              <div className="flex items-center gap-0.5">
-                <Link
-                      href="/messages"
-                      aria-label="Messagerie"
-                      className="p-1.5 text-zinc-800 dark:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors"
-                    >
-                      <MessageCircle className="w-5 h-5" strokeWidth={2} />
+                  <Menu className="w-5 h-5" strokeWidth={2} />
+                </button>
+                {!scrolled && (
+                  <>
+                    <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
+                      <ViperLogo className="h-12 w-auto flex-shrink-0 min-w-12 self-center" />
+                      <h1 className="text-lg font-brand font-bold tracking-wide text-zinc-900 dark:text-white">Pipeshark</h1>
                     </Link>
+                    {backHref && (
+                      <Link
+                        href={backHref}
+                        aria-label="Retour"
+                        className="p-1.5 text-zinc-800 dark:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors"
+                      >
+                        <ArrowLeft className="w-5 h-5" strokeWidth={2} />
+                      </Link>
+                    )}
+                  </>
+                )}
+              </div>
+            {user && (
+              <div className="flex items-center gap-0.5 shrink-0">
+                {!scrolled && (
+                  <Link
+                    href="/messages"
+                    aria-label="Messagerie"
+                    className="p-1.5 text-zinc-800 dark:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors"
+                  >
+                    <MessageCircle className="w-5 h-5" strokeWidth={2} />
+                  </Link>
+                )}
                     <div className="relative" ref={notificationsRef}>
                       <button
                         type="button"
@@ -288,6 +305,7 @@ export default function Header(props?: HeaderProps) {
                     </div>
               </div>
             )}
+            </div>
           </div>
         </div>
       </header>
@@ -326,7 +344,7 @@ export default function Header(props?: HeaderProps) {
             <nav className="flex-1 py-4 flex flex-col min-h-0">
               <div className="flex flex-col">
                 <Link href="/dashboard" onClick={closeSidebar} className={navLinkClass}>
-                  <LayoutDashboard className="w-5 h-5 shrink-0" />
+                  <Image src="/dashboard.png" alt="" width={20} height={20} className="w-5 h-5 shrink-0 object-contain [filter:brightness(0)_saturate(100%)_invert(35%)] dark:[filter:brightness(0)_saturate(100%)_invert(75%)]" />
                   Dashboard
                 </Link>
                 <Link href="/messages" onClick={closeSidebar} className={navLinkClass}>

@@ -130,12 +130,16 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({
+    const payload: { success: true; currentTimeUtc: string; runsProcessed: number; results: typeof results; hint?: string } = {
       success: true,
       currentTimeUtc,
       runsProcessed: runs.length,
       results,
-    });
+    };
+    if (runs.length === 0) {
+      payload.hint = 'No scheduled runs for this time slot. Check dashboard: launch time, timezone, at least one campaign in Daily launch, and Gmail connected. Test with ?simulateTime=13:00 (HH:MM in your local hour).';
+    }
+    return NextResponse.json(payload);
   } catch (error: any) {
     console.error('Cron launch-scheduled-campaigns error:', error);
     return NextResponse.json(

@@ -29,6 +29,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-montserrat);
   --font-display: var(--font-montserrat);
+  --font-brand: var(--font-montserrat);
 }
 
 body {

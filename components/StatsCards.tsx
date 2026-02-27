@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { Users, TrendingUp, Send } from 'lucide-react';
 
-const TARGETS_ICON_SRC = '/Icône de groupe de personnes.png';
+const TARGETS_ICON_SRC = '/customer.png';
 
 /** Logo blue (sky-400) for Targets image – light blue like the shark */
 const LOGO_BLUE_FILTER =

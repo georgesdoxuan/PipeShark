@@ -954,7 +954,7 @@ export default function CampaignsPage() {
                       
                       <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-white/10">
                         <div className="flex items-center gap-2">
-                          <Image src="/Icône de groupe de personnes.png" alt="" width={16} height={16} className="w-4 h-4 object-contain [filter:brightness(0)_saturate(100%)_invert(68%)_sepia(60%)_saturate(1200%)_hue-rotate(180deg)] dark:[filter:brightness(0)_invert(1)] opacity-90" />
+                          <Image src="/customer.png" alt="" width={16} height={16} className="w-4 h-4 object-contain [filter:brightness(0)_saturate(100%)_invert(68%)_sepia(60%)_saturate(1200%)_hue-rotate(180deg)] dark:[filter:brightness(0)_invert(1)] opacity-90" />
                           <span className="text-sm font-medium text-zinc-900 dark:text-white">{leadsCount} lead{leadsCount !== 1 ? 's' : ''}</span>
                         </div>
                       </div>
@@ -1148,7 +1148,7 @@ export default function CampaignsPage() {
           <div ref={leadsSectionRef} className="mt-4">
             <h2 className="text-2xl font-display font-bold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
               <Image
-                src="/Icône de groupe de personnes.png"
+                src="/customer.png"
                 alt=""
                 width={28}
                 height={28}
