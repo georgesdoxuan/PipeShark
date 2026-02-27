@@ -7,7 +7,7 @@ If you haven't already, run the migrations in Supabase:
 j
 1. Go to your Supabase project → SQL Editor
 2. Run the SQL from `supabase-migrations/001_create_campaigns_table.sql`
-
+ki
 This creates the `campaigns` table so your campaigns persist between sessions.
 
 ## Getting Started
