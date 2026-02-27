@@ -100,7 +100,12 @@ function decodeBody(data: string | undefined): string {
 /**
  * Extract plain text body from a message payload (body or first text part).
  */
-function getMessageBody(payload: GmailThreadMessage['payload'] & { body?: { data?: string }; parts?: Array<{ mimeType?: string; body?: { data?: string } }> }): string {
+function getMessageBody(
+  payload?: GmailThreadMessage['payload'] & {
+    body?: { data?: string };
+    parts?: Array<{ mimeType?: string; body?: { data?: string } }>;
+  }
+): string {
   if (!payload) return '';
   if (payload.body?.data) return decodeBody(payload.body.data);
   const parts = payload.parts;
