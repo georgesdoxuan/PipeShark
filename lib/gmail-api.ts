@@ -250,7 +250,7 @@ export async function createGmailDraft(
   to: string,
   subject: string,
   body: string
-): Promise<{ id: string; messageId: string } | null> {
+): Promise<{ id: string; messageId: string; threadId?: string | null } | null> {
   const raw = buildRawMessage(to, subject, body);
   const url = 'https://gmail.googleapis.com/gmail/v1/users/me/drafts';
   const res = await fetch(url, {
@@ -267,9 +267,9 @@ export async function createGmailDraft(
     return null;
   }
   const data = await res.json();
-  const draftId = data.id;
-  const messageId = data.message?.id;
-  const threadId = data.message?.threadId ?? null;
+  const draftId = data.id as string | undefined;
+  const messageId = data.message?.id as string | undefined;
+  const threadId = (data.message?.threadId ?? null) as string | null;
   return draftId && messageId ? { id: draftId, messageId, threadId } : null;
 }
 
