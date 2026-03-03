@@ -5,6 +5,7 @@ import Header from '@/components/Header';
 import { User, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface UserProfile {
   email: string | null;
@@ -17,7 +18,8 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
+    supabase.auth.getUser().then((result: { data: { user: SupabaseUser | null } }) => {
+      const authUser = result.data?.user;
       if (authUser) {
         setUser({
           email: authUser.email || null,

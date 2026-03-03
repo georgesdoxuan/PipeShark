@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { LogOut, User, Settings, Sun, Moon, Menu, X, ListTodo, FileText, Mail, Bell, Sparkles, MessageCircle, HelpCircle, ArrowLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 import ViperLogo from '@/components/ViperLogo';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -87,7 +88,8 @@ export default function Header(props?: HeaderProps) {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user: authUser } }) => {
+    supabase.auth.getUser().then((result: { data: { user: SupabaseUser | null } }) => {
+      const authUser = result.data?.user;
       if (authUser) {
         setUser({
           email: authUser.email || null,

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import type { User } from '@supabase/supabase-js';
 
 // Fish component with different shapes
 function SwimmingFish({ delay, duration, top, size, direction, shapeIndex }: { delay: number; duration: number; top: string; size: string; direction: 'left' | 'right'; shapeIndex: number }) {
@@ -68,7 +69,8 @@ export default function LandingPage() {
   // Redirect to dashboard if user is logged in
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then((result: { data: { user: User | null } }) => {
+      const user = result.data?.user;
       if (user) {
         router.replace('/dashboard');
       }
