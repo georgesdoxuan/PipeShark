@@ -1,4 +1,4 @@
-# Configuration à faire toi‑même
+# Configuration à faire toi‑même.
 
 Ce document liste tout ce que tu dois configurer pour que PipeShark fonctionne de bout en bout (sans n8n).defd
 
