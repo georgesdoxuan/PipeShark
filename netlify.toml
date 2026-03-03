@@ -2,10 +2,9 @@
   command = "npm run build"
   publish = ".next"
 
-# Let Netlify auto-detect Next.js (do NOT add [[plugins]] @netlify/plugin-nextjs here:
-# it triggers "publish directory cannot be same as base" when publish is unset,
-# and with publish = ".next" the site was served as raw static and CSS broke).
-# Netlify detects Next.js from package.json and applies the adapter automatically.
+# Required: plugin runs Next.js runtime so routes and assets (CSS/JS) work. Without it you get 404 or unstyled pages.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
 
 # Scheduled functions (cron)
 [functions]
