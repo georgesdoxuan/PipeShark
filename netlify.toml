@@ -2,7 +2,12 @@
   command = "npm run build"
   publish = ".next"
 
-# Scheduled function: calls /api/cron/launch-scheduled-campaigns every 15 minutes (UTC)
+# Let Netlify auto-detect Next.js (do NOT add [[plugins]] @netlify/plugin-nextjs here:
+# it triggers "publish directory cannot be same as base" when publish is unset,
+# and with publish = ".next" the site was served as raw static and CSS broke).
+# Netlify detects Next.js from package.json and applies the adapter automatically.
+
+# Scheduled functions (cron)
 [functions]
   node_bundler = "esbuild"
 
@@ -11,6 +16,3 @@
 
 [functions.cron-process-queue]
   schedule = "* * * * *"
-
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
