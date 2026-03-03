@@ -1,6 +1,6 @@
 /**
  * Netlify Scheduled Function: calls the app cron API every 15 minutes.
- * Schedule: */15 * * * * (configured in netlify.toml).
+ * Schedule: every 15 min (configured in netlify.toml).
  * Requires env: CRON_SECRET, URL (set by Netlify at deploy time).
  */
 const CRON_PATH = '/api/cron/launch-scheduled-campaigns';

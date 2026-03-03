@@ -35,7 +35,8 @@ export async function GET(request: Request) {
     const items = await getPendingQueueItemsAdmin(PROCESS_LIMIT);
     const origin = getOrigin(request);
     const secret = process.env.CRON_SECRET || process.env.N8N_SECRET || '';
-    const authHeader = secret ? { Authorization: `Bearer ${secret}` } : {};
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (secret) headers.Authorization = `Bearer ${secret}`;
     let processed = 0;
     const errors: string[] = [];
 
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
         if (item.delivery_type === 'send') {
           const res = await fetch(`${origin}/api/n8n/send-email`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...authHeader },
+            headers,
             body: JSON.stringify({
               sender_account_id: item.sender_account_id,
               recipient: item.recipient,
@@ -59,7 +60,7 @@ export async function GET(request: Request) {
         } else {
           const res = await fetch(`${origin}/api/n8n/create-draft`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...authHeader },
+            headers,
             body: JSON.stringify({ queue_id: item.id }),
           });
           if (res.ok) processed++;

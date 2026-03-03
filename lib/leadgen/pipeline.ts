@@ -31,7 +31,10 @@ export interface LeadgenPayload {
   magicLink?: string;
   exampleEmail?: string;
   businessLinkText?: string;
+  /** 'local_businesses' (HasData) or other modes. Default local_businesses. */
+  mode?: string;
   gmailAccessToken: string;
+  gmailRefreshToken?: string;
   gmailEmail?: string;
 }
 
