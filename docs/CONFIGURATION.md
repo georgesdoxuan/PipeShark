@@ -154,7 +154,7 @@ Les migrations créent les tables et les politiques RLS. Vérifier dans **Authen
 ### 6.1 Déploiement
 
 - Connecter le dépôt Git (GitHub/GitLab) au site Netlify.
-- **Build command :** `npm run build`
+- **Build command :** `npx next build --webpack` (défini dans `netlify.toml` ; le flag `--webpack` évite les 404 sur les chunks JS/CSS avec le plugin Next.js).
 - **Publish directory :** `.next` (géré par le plugin `@netlify/plugin-nextjs`)
 - **Node version :** 18 ou 20 (définir en **Environment variables** : `NODE_VERSION=20` si besoin)
 

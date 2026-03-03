@@ -1,5 +1,6 @@
 [build]
-  command = "npm run build"
+  # --webpack: Netlify plugin can 404 on Turbopack chunks; Webpack output is better supported.
+  command = "npx next build --webpack"
   publish = ".next"
 
 # Required: plugin runs Next.js runtime so routes and assets (CSS/JS) work. Without it you get 404 or unstyled pages.
