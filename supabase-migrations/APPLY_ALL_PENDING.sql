@@ -51,9 +51,13 @@ CREATE TABLE IF NOT EXISTS todos (
 
 ALTER TABLE todos ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own todos" ON todos;
 CREATE POLICY "Users can view own todos" ON todos FOR SELECT USING (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can insert own todos" ON todos;
 CREATE POLICY "Users can insert own todos" ON todos FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can update own todos" ON todos;
 CREATE POLICY "Users can update own todos" ON todos FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "Users can delete own todos" ON todos;
 CREATE POLICY "Users can delete own todos" ON todos FOR DELETE USING (auth.uid() = user_id);
 
 CREATE INDEX IF NOT EXISTS todos_user_id_idx ON todos(user_id);
@@ -101,3 +105,28 @@ ALTER TABLE email_queue ADD CONSTRAINT chk_email_queue_delivery_type
 
 -- 026: Campaign title color (dashboard card)
 ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS title_color TEXT;
+
+-- 027: Mail connection type (SMTP vs Gmail for queue)
+ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS mail_connection_type TEXT NOT NULL DEFAULT 'smtp';
+ALTER TABLE user_profiles DROP CONSTRAINT IF EXISTS chk_user_profiles_mail_connection_type;
+ALTER TABLE user_profiles ADD CONSTRAINT chk_user_profiles_mail_connection_type
+  CHECK (mail_connection_type IN ('smtp', 'gmail'));
+ALTER TABLE email_queue ADD COLUMN IF NOT EXISTS connection_type TEXT NOT NULL DEFAULT 'smtp';
+ALTER TABLE email_queue DROP CONSTRAINT IF EXISTS chk_email_queue_connection_type;
+ALTER TABLE email_queue ADD CONSTRAINT chk_email_queue_connection_type
+  CHECK (connection_type IN ('smtp', 'gmail'));
+ALTER TABLE email_queue DROP CONSTRAINT IF EXISTS email_queue_status_check;
+ALTER TABLE email_queue ADD CONSTRAINT email_queue_status_check
+  CHECK (status IN ('pending', 'sent', 'failed', 'cancelled', 'draft'));
+
+-- 028: Daily launch log (cron n8n → app: avoid re-triggering same campaign same day)
+CREATE TABLE IF NOT EXISTS daily_launch_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+  launched_date DATE NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(user_id, campaign_id, launched_date)
+);
+CREATE INDEX IF NOT EXISTS daily_launch_log_user_campaign_date_idx
+  ON daily_launch_log(user_id, campaign_id, launched_date);
