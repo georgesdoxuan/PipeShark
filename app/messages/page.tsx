@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import Header from '@/components/Header';
 import Link from 'next/link';
-import { Mail, MessageCircle, ChevronRight, Clock, Pencil, Check, X } from 'lucide-react';
+import Image from 'next/image';
+import { Mail, ChevronRight, Clock, Pencil, Check, X } from 'lucide-react';
 
 interface Conversation {
   id: string;
@@ -146,30 +147,30 @@ export default function MessagesPage() {
             <aside className="w-full sm:w-72 flex-shrink-0 border-b sm:border-b-0 sm:border-r border-zinc-200 dark:border-neutral-800">
               <div className="p-4 border-b border-zinc-100 dark:border-neutral-800">
                 <h1 className="text-lg font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
-                  <MessageCircle className="w-5 h-5 text-sky-500" />
-                  Messagerie
+                  <Image src="/mail.png" alt="" width={20} height={20} className="w-5 h-5 object-contain [filter:brightness(0)] dark:[filter:brightness(0)_invert(1)]" />
+                  Messages
                 </h1>
                 <p className="text-sm text-zinc-500 dark:text-neutral-400 mt-0.5">
-                  Conversations avec vos prospects
+                  Conversations with your prospects
                 </p>
               </div>
               <div className="overflow-y-auto max-h-[50vh] sm:max-h-[calc(100vh-8rem)]">
                 {loading ? (
                   <div className="p-6 text-center text-sm text-zinc-500 dark:text-neutral-400">
-                    Chargement…
+                    Loading…
                   </div>
                 ) : conversations.length === 0 ? (
                   <div className="p-6 text-center text-sm text-zinc-500 dark:text-neutral-400">
                     <Mail className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                    <p>Aucune conversation pour l’instant.</p>
+                    <p>No conversations yet.</p>
                     <p className="mt-2">
-                      Envoyez des brouillons Gmail depuis vos campagnes pour voir les échanges ici.
+                      Send Gmail drafts from your campaigns to see exchanges here.
                     </p>
                     <Link
                       href="/preferences"
                       className="inline-block mt-4 text-sky-600 dark:text-sky-400 hover:underline text-sm"
                     >
-                      Connecter Gmail
+                      Connect Gmail
                     </Link>
                   </div>
                 ) : (
@@ -187,7 +188,7 @@ export default function MessagesPage() {
                         >
                           <div className="flex-1 min-w-0">
                             <p className="font-medium truncate">
-                              {c.email || 'Sans email'}
+                              {c.email || 'No email'}
                             </p>
                             {c.campaignName && (
                               <p className="text-xs text-zinc-500 dark:text-neutral-400 truncate">
@@ -198,7 +199,7 @@ export default function MessagesPage() {
                           <div className="flex items-center gap-2 shrink-0">
                             {c.replied && (
                               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                                Répondu
+                                Replied
                               </span>
                             )}
                             <span className="text-xs text-zinc-400 dark:text-neutral-500">
@@ -219,17 +220,17 @@ export default function MessagesPage() {
               {!selectedLeadId ? (
                 <div className="flex-1 flex items-center justify-center p-8 text-center text-zinc-500 dark:text-neutral-400">
                   <Mail className="w-12 h-12 mx-auto mb-4 opacity-40" />
-                  <p>Sélectionnez une conversation pour afficher les messages.</p>
+                  <p>Select a conversation to view messages.</p>
                 </div>
               ) : threadLoading ? (
                 <div className="flex-1 flex items-center justify-center p-8">
-                  <p className="text-sm text-zinc-500 dark:text-neutral-400">Chargement…</p>
+                  <p className="text-sm text-zinc-500 dark:text-neutral-400">Loading…</p>
                 </div>
               ) : thread ? (
                 <>
                   <div className="px-4 py-2.5 border-b border-zinc-200 dark:border-neutral-800 bg-zinc-50/50 dark:bg-neutral-800/30 shrink-0">
                     <h2 className="font-semibold text-zinc-900 dark:text-white text-sm sm:text-base">
-                      {thread.email || selectedConv?.email || 'Prospect'}
+                      {thread.email || selectedConv?.email || 'Lead'}
                     </h2>
                     {selectedConv?.campaignName && (
                       <p className="text-xs text-zinc-500 dark:text-neutral-400 mt-0.5">
@@ -240,7 +241,7 @@ export default function MessagesPage() {
                   <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-0">
                     {thread.messages.length === 0 && (!thread.pendingQueueItems?.length) ? (
                       <p className="text-sm text-zinc-500 dark:text-neutral-400">
-                        Aucun message dans ce fil.
+                        No messages in this thread.
                       </p>
                     ) : (
                       <>
@@ -252,12 +253,12 @@ export default function MessagesPage() {
                             <div
                               className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
                                 msg.isFromUser
-                                  ? 'bg-sky-600 text-white dark:bg-sky-500'
+                                  ? 'bg-sky-500 text-white dark:bg-sky-400'
                                   : 'bg-zinc-100 dark:bg-neutral-700 text-zinc-900 dark:text-neutral-100'
                               }`}
                             >
                               <p className="text-xs opacity-80 mb-1">
-                                {msg.isFromUser ? 'Vous' : (msg.from || 'Prospect')} · {formatDate(msg.date)}
+                                {msg.isFromUser ? 'You' : (msg.from || 'Lead')} · {formatDate(msg.date)}
                               </p>
                               <div className="text-sm whitespace-pre-wrap break-words">
                                 {msg.body || msg.snippet}
@@ -270,7 +271,7 @@ export default function MessagesPage() {
                           <div className="mt-6 pt-4 border-t border-zinc-200 dark:border-neutral-700">
                             <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-neutral-400 mb-3 flex items-center gap-2">
                               <Clock className="w-4 h-4" />
-                              Envois programmés
+                              Scheduled sends
                             </p>
                             <div className="space-y-4">
                               {thread.pendingQueueItems.map((item) => (
@@ -284,7 +285,7 @@ export default function MessagesPage() {
                                         type="text"
                                         value={editSubject}
                                         onChange={(e) => setEditSubject(e.target.value)}
-                                        placeholder="Sujet"
+                                        placeholder="Subject"
                                         className="w-full rounded-lg border border-zinc-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-zinc-900 dark:text-white"
                                       />
                                       <textarea
@@ -302,7 +303,7 @@ export default function MessagesPage() {
                                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 text-white text-sm font-medium hover:bg-sky-500 disabled:opacity-50"
                                         >
                                           <Check className="w-4 h-4" />
-                                          {savingQueueId === item.id ? 'Enregistrement…' : 'Enregistrer'}
+                                          {savingQueueId === item.id ? 'Saving…' : 'Save'}
                                         </button>
                                         <button
                                           type="button"
@@ -310,7 +311,7 @@ export default function MessagesPage() {
                                           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-200 dark:bg-neutral-600 text-zinc-800 dark:text-neutral-200 text-sm font-medium hover:bg-zinc-300 dark:hover:bg-neutral-500"
                                         >
                                           <X className="w-4 h-4" />
-                                          Annuler
+                                          Cancel
                                         </button>
                                       </div>
                                     </div>
@@ -318,12 +319,12 @@ export default function MessagesPage() {
                                     <>
                                       <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 mb-2 flex items-center gap-2">
                                         <Clock className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                                        <span>Heure de programmation :</span>
+                                        <span>Scheduled at:</span>
                                         <span className="text-amber-800 dark:text-amber-200">
                                           {formatScheduledAt(item.scheduled_at) || item.scheduled_at || '—'}
                                         </span>
                                       </p>
-                                      <p className="font-medium text-zinc-900 dark:text-white text-sm mb-1">{item.subject || '(Sans objet)'}</p>
+                                      <p className="font-medium text-zinc-900 dark:text-white text-sm mb-1">{item.subject || '(No subject)'}</p>
                                       <p className="text-sm text-zinc-600 dark:text-neutral-300 whitespace-pre-wrap line-clamp-3">{item.body || '—'}</p>
                                       <button
                                         type="button"
@@ -335,7 +336,7 @@ export default function MessagesPage() {
                                         className="mt-2 inline-flex items-center gap-1.5 text-sm text-sky-600 dark:text-sky-400 hover:underline"
                                       >
                                         <Pencil className="w-4 h-4" />
-                                        Modifier
+                                        Edit
                                       </button>
                                     </>
                                   )}
@@ -350,8 +351,8 @@ export default function MessagesPage() {
                 </>
               ) : (
                 <div className="flex-1 flex items-center justify-center p-8 text-center text-zinc-500 dark:text-neutral-400">
-                  <p>Impossible de charger la conversation.</p>
-                  <p className="text-sm mt-2">Vérifiez que Gmail est connecté dans les préférences.</p>
+                  <p>Unable to load the conversation.</p>
+                  <p className="text-sm mt-2">Make sure Gmail is connected in preferences.</p>
                 </div>
               )}
             </main>

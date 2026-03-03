@@ -1,8 +1,8 @@
 import { createAdminClient } from './supabase-server';
 
-/** Standard (and trial) plan: 30 credits/day. Pro: 90/day. */
-export const DAILY_LIMIT_STANDARD = 30;
-export const DAILY_LIMIT_PRO = 90;
+/** Standard (and trial) plan: 300 credits/day. Pro: 300/day. */
+export const DAILY_LIMIT_STANDARD = 300;
+export const DAILY_LIMIT_PRO = 300;
 
 const PROMO_STANDARD_FREE = 'RBXNHGOP';
 const PROMO_PRO_FREE = 'OHDKJGRA';
@@ -17,10 +17,10 @@ export interface UserPlanInfo {
 
 /**
  * Returns the daily credit limit for a user based on plan and promo_code.
- * - promo_code = RBXNHGOP → Standard for free → 30/day
- * - plan = 'standard' → 30/day
- * - plan = 'trial' → 30/day until trial_ends_at, then 0 until they upgrade
- * - plan = 'pro' → 90/day. business or null (legacy) → 90 for now
+ * - promo_code = RBXNHGOP → Standard for free → 300/day
+ * - plan = 'standard' → 300/day
+ * - plan = 'trial' → 300/day until trial_ends_at, then 0 until they upgrade
+ * - plan = 'pro' → 300/day. business or null (legacy) → 300 for now
  */
 export async function getDailyLimitForUser(userId: string): Promise<number> {
   const info = await getUserPlanInfo(userId);

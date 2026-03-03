@@ -1,0 +1,744 @@
+{
+  "name": "Pipeshark Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.hasdata.com/scrape/google-maps/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $('Query Creator').first().json.business }} in {{ $('Query Creator').first().json.city }}"
+            },
+            {}
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "6450129f-06da-472f-abb0-0dde17bf4639"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2272,
+        1648
+      ],
+      "id": "b9e827d0-6eef-4a4c-be73-eb910b34fbac",
+      "name": "Find Website"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.website }}",
+        "options": {
+          "allowUnauthorizedCerts": true,
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        2704,
+        1456
+      ],
+      "id": "49ae7c33-325a-4ea2-90d9-8130c664dcbd",
+      "name": "Extract Web HTML",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * n8n Code node – à coller après le node Webhook.\n *\n * Les villes viennent du tableau Supabase (villes anglophones 100k+ habitants).\n * L'app envoie soit une seule ville (city + cities avec 1 élément) quand elle a tiré\n * au sort côté app → on utilise cette ville telle quelle (pas de tirage ici).\n * Soit une liste de villes (cities) → on en tire une au hasard.\n *\n * Le webhook reçoit : businessType, cities (array), city (optionnel), country (optionnel),\n * companyDescription, toneOfVoice, campaignGoal, magicLink, searchMode, targetCount,\n * exampleEmail, businessLinkText (optionnel), campaignId (optionnel, pour re-run).\n *\n * businessLinkText : texte saisi par l'utilisateur décrivant le lien entre son entreprise\n * et celle du prospect. Repassé tel quel dans l'output pour que le prompt IA l'utilise.\n *\n * Génère un offset de pagination aléatoire pour éviter les doublons.\n */\n\n// Récupère les paramètres du webhook\nconst webhookData = $('Webhook').first().json.body || {};\n\nconst businessType = webhookData.businessType || \"plumber\";\nconst companyDescription = webhookData.companyDescription || \"\";\nconst country = webhookData.country || null;\n\nconst targetCount = typeof webhookData.targetCount === 'number' && webhookData.targetCount >= 1\n  ? Math.min(20, Math.max(1, Math.round(webhookData.targetCount)))\n  : 10;\n\nconst toneOfVoice = webhookData.toneOfVoice || \"professional\";\nconst campaignGoal = webhookData.campaignGoal || \"book_call\";\nconst magicLink = webhookData.magicLink || \"\";\nconst searchMode = webhookData.searchMode || \"standard\";\nconst exampleEmail = webhookData.exampleEmail || \"\";\nconst businessLinkText = typeof webhookData.businessLinkText === 'string' ? webhookData.businessLinkText.trim() : '';\n\n// Liste des villes envoyée par l'app\nconst cities = Array.isArray(webhookData.cities) ? webhookData.cities : [];\n\n// Ville à utiliser : si l'app envoie une seule ville (city ou cities avec 1 élément), on la prend telle quelle.\n// Sinon on tire une ville au hasard dans la liste (ou fallback si vide).\nlet city;\nif (typeof webhookData.city === 'string' && webhookData.city.trim()) {\n  // L'app a déjà tiré une ville (ex. Toronto) → on utilise celle-là uniquement\n  city = webhookData.city.trim();\n} else if (cities.length === 1) {\n  city = cities[0];\n} else if (cities.length > 1) {\n  city = cities[Math.floor(Math.random() * cities.length)];\n} else {\n  city = \"New York\";\n}\n\n// Offset de pagination aléatoire\nconst maxOffset = 100;\nconst startOffset = Math.floor(Math.random() * maxOffset);\n\nconst output = {\n  business: businessType,\n  city: city,\n  companyDescription: companyDescription,\n  toneOfVoice: toneOfVoice,\n  campaignGoal: campaignGoal,\n  magicLink: magicLink,\n  searchMode: searchMode,\n  targetCount: targetCount,\n  exampleEmail: exampleEmail,\n  businessLinkText: businessLinkText,\n  startOffset: startOffset,\n};\n\nif (country && typeof country === 'string' && country.trim()) {\n  output.country = country.trim();\n}\nif (webhookData.campaignId) {\n  output.campaignId = webhookData.campaignId;\n}\n\nreturn [{ json: output }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        1856
+      ],
+      "id": "0a4533e5-7baf-41dd-81b7-2b616c0db744",
+      "name": "Query Creator"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.all()) {\n  const html = item.binary?.data?.data || item.json.data || \"\";\n  const url = item.json.url || item.json.link || item.json.id || \"unknown\";\n  let email = \"No email found\";\n\n  if (typeof html === \"string\") {\n    const matches = html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/gi);\n\n    if (matches) {\n      const filtered = matches.filter(e => {\n        const lowerEmail = e.toLowerCase();\n        return (\n          !e.endsWith(\".js\") &&\n          !e.includes(\"module.\") &&\n          !e.includes(\".svg\") &&\n          !e.includes(\".png\") &&\n          !e.includes(\".jpg\") &&\n          // Bloque les emails de tracking/monitoring\n          !lowerEmail.includes(\"sentry.io\") &&\n          !lowerEmail.includes(\"ingest.\") &&\n          !lowerEmail.includes(\"analytics\") &&\n          !lowerEmail.includes(\"tracking\") &&\n          !lowerEmail.includes(\"@o\") && // Emails Sentry type: xxx@o284669.ingest\n          // Bloque les emails trop longs/hashs\n          e.length < 50 &&\n          // Bloque les emails avec trop de chiffres (hash-like)\n          !/^[a-f0-9]{20,}@/.test(lowerEmail)\n        );\n      });\n\n      if (filtered.length > 0) {\n        email = filtered[0].toLowerCase();\n      }\n    }\n  }\n\n  results.push({\n    json: {\n      email,\n      url,\n      html\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2864,
+        1360
+      ],
+      "id": "80af045d-09c4-4123-8e45-e15a2dd02421",
+      "name": "Extract Email (from HTML)"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# n8n – Prompt IA pour emails de prospection\n\nÀ coller dans le node de type **Message a model** (ou équivalent) qui génère le corps et le sujet de l’email. Les données viennent du node **Query Creator** (sortie du Code node après Webhook).\n\n---\n\nYou are the founder of a company that generates personnalised outreach emails to potential clients with the best sales skills that exists.\n\nWHAT OUR COMPANY DOES:\n{{ $('Query Creator').item.json.companyDescription }}\n\nYOUR JOB:\nWrite cold emails that sound like you're writing to a colleague, not a prospect.\n\n{{ $('Query Creator').item.json.exampleEmail ? '===== STYLE REFERENCE =====\\n\\nIMPORTANT: Use this email as a style guide. Match its tone, structure, length, and approach while personalizing for the target company:\\n\\n---\\n' + $('Query Creator').item.json.exampleEmail + '\\n---\\n\\nAdapt this style to the specifics of the lead below.\\n\\n' : '' }}===== EMAIL CONFIGURATION =====\n\nTONE OF VOICE: {{ $('Query Creator').item.json.toneOfVoice }}\n\n{% if $('Query Creator').item.json.toneOfVoice === \"casual\" %}\nTONE INSTRUCTIONS:\n- Be friendly and approachable\n- Conversational language, lots of contractions\n- Warm and relatable, like texting a friend\n- Can be slightly playful but still professional\n- Example: \"Hey! Saw you're based in {{ $('Query Creator').item.json.city }}...\"\n{% elif $('Query Creator').item.json.toneOfVoice === \"professional\" %}\nTONE INSTRUCTIONS:\n- Professional but not stuffy\n- Polished business language\n- Respectful and courteous\n- Example: \"I noticed your business in {{ $('Query Creator').item.json.city }}...\"\n{% elif $('Query Creator').item.json.toneOfVoice === \"direct\" %}\nTONE INSTRUCTIONS:\n- Straight to the point, no fluff\n- Bold and confident tone\n- Skip the pleasantries, get to business\n- Action-oriented language\n- Example: \"Quick question about your {{ $('Query Creator').item.json.business }} business...\"\n{% elif $('Query Creator').item.json.toneOfVoice === \"empathetic\" %}\nTONE INSTRUCTIONS:\n- Understanding and supportive tone\n- Focus on recipient's pain points with empathy\n- Helpful and caring language\n- Show you understand their challenges\n- Example: \"Running a {{ $('Query Creator').item.json.business }} business in {{ $('Query Creator').item.json.city }} can't be easy...\"\n{% endif %}\n\nCAMPAIGN GOAL: {{ $('Query Creator').item.json.campaignGoal }}\n\n{% if $('Query Creator').item.json.campaignGoal === \"book_call\" %}\nCALL TO ACTION:\n- Goal: Schedule a phone call or meeting\n- Keep it low-pressure and time-specific\n- Examples:\n  * \"Free for a 15-minute call this week?\"\n  * \"Want to hop on a quick call to discuss?\"\n  * \"Can I grab 10 minutes of your time?\"\n{% elif $('Query Creator').item.json.campaignGoal === \"free_audit\" %}\nCALL TO ACTION:\n- Goal: Offer a free audit, quote, or assessment\n- Emphasize \"no obligation\" and \"free\"\n- Examples:\n  * \"I'd love to send you a free audit of [specific thing]\"\n  * \"Want a complimentary assessment? No strings attached\"\n  * \"Happy to provide a quick quote if you're interested\"\n{% elif $('Query Creator').item.json.campaignGoal === \"send_brochure\" %}\nCALL TO ACTION:\n- Goal: Send portfolio, brochure, or more information\n- Make it easy and non-committal\n- Examples:\n  * \"Can I send over our portfolio?\"\n  * \"Want me to share some case studies?\"\n  * \"I can send you our pricing guide if helpful\"\n{% endif %}\n\n{% if $('Query Creator').item.json.businessLinkText %}\n===== LINK BETWEEN OUR COMPANY AND THE PROSPECT (MANDATORY) =====\n\nThe user provided this description of the link between their company and the prospect. You MUST weave it naturally into the email (early or mid-body, not as a separate block).\n\nUSER'S DESCRIPTION OF THE LINK:\n\"{{ $('Query Creator').item.json.businessLinkText }}\"\n\n- Use this idea in your own words; do not copy-paste. Integrate it into the flow (e.g. after the hook or with the solution) so the prospect sees why we are relevant to them.\n{% endif %}\n\n{% if $('Query Creator').item.json.magicLink %}\nMAGIC LINK TO INTEGRATE:\n{{ $('Query Creator').item.json.magicLink }}\n\nINSTRUCTIONS FOR MAGIC LINK:\n- DO NOT just paste the link at the end without context\n- Integrate it naturally into the email body\n- Add context around what they'll find\n- Examples of natural integration:\n  * \"You can see examples of our work here: {{ $('Query Creator').item.json.magicLink }}\"\n  * \"I put together some case studies you might find helpful: {{ $('Query Creator').item.json.magicLink }}\"\n  * \"Feel free to check out our portfolio: {{ $('Query Creator').item.json.magicLink }}\"\n  * \"You can book a time directly here if interested: {{ $('Query Creator').item.json.magicLink }}\"\n- Place it in the body, not as a separate line at the end\n{% endif %}\n\n===== SALES TECHNIQUES =====\n\n1. Pain point first: Start with a concrete problem they experience \n2. Curiosity gap: Ask a question that makes them think\n3. Subtle social proof: Briefly mention others in their industry using the solution\n4. Specificity: Use precise numbers \n5. Pattern interrupt: Avoid classic cold email formulas\n\n===== WRITING STYLE (CRUCIAL) =====\n\n- Write like you're talking to a friend (adjust formality based on tone setting above)\n- Use contractions (I'm, it's, you've, doesn't) - especially for casual/empathetic tones\n- Short, punchy sentences\n- Natural and conversational\n- No unnecessary technical jargon\n- Zero buzzwords (solutions, innovative, revolutionary, optimize)\n- Real emotions, no corporate speak\n- Vary sentence length for natural rhythm\n\n===== STRUCTURE (150 words MAX) =====\n\n1. Personalized hook based on their website (2-3 sentences)\n2. Specific pain point relevant to their business (1 sentence)\n{% if $('Query Creator').item.json.businessLinkText %}\n3. The link the user described (see above), woven in naturally (1-2 sentences)\n4. Our solution in simple terms (1 sentence)\n{% else %}\n3. Our solution in simple terms (1 sentence)\n{% endif %}\n{% if $('Query Creator').item.json.magicLink %}\n{% if $('Query Creator').item.json.businessLinkText %}\n5. Magic link integrated naturally with context\n6. Light social proof (optional, 1 sentence)\n7. CTA matching the campaign goal\n{% else %}\n4. Magic link integrated naturally with context\n5. Light social proof (optional, 1 sentence)\n6. CTA matching the campaign goal\n{% endif %}\n{% else %}\n{% if $('Query Creator').item.json.businessLinkText %}\n5. Light social proof (optional, 1 sentence)\n6. CTA matching the campaign goal\n{% else %}\n4. Light social proof (optional, 1 sentence)\n5. CTA matching the campaign goal\n{% endif %}\n{% endif %}\n\n===== ABSOLUTE PROHIBITIONS =====\n\n❌ \"I am reaching out to you\"\n❌ \"Innovative solutions\"\n❌ \"Market leader\"\n❌ \"Optimize your business\"\n❌ \"Hope this email finds you well\"\n❌ Sentences longer than 20 words\n❌ Paragraphs longer than 3 lines\n❌ Never use hyphens or dashes in any form (As if the key \"-\" didn't exist on your imaginary keyboard). example : \"That's where Pennio comes in—we help plumbers\". Never write \"-\" in any shape of form in any sentence.\n❌ Generic phrases that could apply to any business\n\n===== SIGNATURE =====\n\nJust your first name (no title, no corporate signature)\n\n===== LEAD INFORMATION =====\n\nBusiness Type: {{ $('Query Creator').item.json.business }}\nCity: {{ $('Query Creator').item.json.city }}\nWebsite URL: {{ $('Filter').item.json.fields.URL }}\n\nWEBSITE CONTENT (analyze this to personalize):\n{{ $('Message a model').item.json.output[0].content[0].text }}\n\n===== YOUR TASK =====\n\n1. Read their website content carefully : {{ $('Message a model').item.json.output[0].content[0].text }} \n2. Pick specific details about their business (services, tagline, approach, etc.)\n3. Use these details to personalize your opening hook\n4. Apply the tone of voice specified ({{ $('Query Creator').item.json.toneOfVoice }})\n{% if $('Query Creator').item.json.businessLinkText %}\n5. Weave the user's \"link\" description (see section above) into the email naturally.\n6. End with the CTA matching the goal ({{ $('Query Creator').item.json.campaignGoal }})\n{% else %}\n5. End with the CTA matching the goal ({{ $('Query Creator').item.json.campaignGoal }})\n{% endif %}\n{% if $('Query Creator').item.json.magicLink %}\n{% if $('Query Creator').item.json.businessLinkText %}\n7. Integrate the magic link naturally with context\n{% else %}\n6. Integrate the magic link naturally with context\n{% endif %}\n{% endif %}\n\nCreate an email that makes them want to reply, not delete.\n\n**IMPORTANT: Return ONLY valid JSON in this exact format:**\n\n{\n  \"subject\": \"Your subject line here (max 6 words, no buzzwords)\",\n  \"body\": \"Your email body here\"\n}\n\nDo not include any text before or after the JSON. No markdown code blocks. Pure JSON only.\n",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        4064,
+        1824
+      ],
+      "id": "db0ba381-8f28-45df-9e26-f8bae1b7862e",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        4016,
+        2048
+      ],
+      "id": "1dca5a85-8af1-4f35-b844-8510d7a3ff50",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "cO2QVVePVEe4MGys",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pour chaque item\nfor (const item of $input.all()) {\n  let html = '';\n\n  // Extraire le HTML de différentes structures possibles\n  if (item.json.data) {\n    html = item.json.data;\n  } else if (item.json.html) {\n    html = item.json.html;\n  } else if (item.json.body) {\n    html = item.json.body;\n  } else {\n    // Si c'est du JSON, convertir en string\n    html = JSON.stringify(item.json);\n  }\n\n  if (!html || html.length < 100) {\n    item.json.phone = \"No phone found\";\n    item.json.linkedin = \"No LinkedIn found\";\n    continue;\n  }\n\n  // Extraction du téléphone\n  const phonePatterns = [\n    /(\\+\\d{1,3}[-.\\s]?)?\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}/g,\n    /\\+?\\d{1,4}[-.\\s]?\\d{1,4}[-.\\s]?\\d{1,4}[-.\\s]?\\d{1,9}/g,\n  ];\n\n  let phone = \"No phone found\";\n  for (const pattern of phonePatterns) {\n    const match = html.match(pattern);\n    if (match && match[0].length >= 10) {\n      phone = match[0].trim();\n      break;\n    }\n  }\n\n  // Normalisation du numéro de téléphone\n  if (phone !== \"No phone found\") {\n    // Enlève tous les caractères non-numériques sauf le +\n    let cleaned = phone.replace(/[^\\d+]/g, '');\n    \n    // Si ça commence pas par +, détecte le pays et ajoute le code\n    if (!cleaned.startsWith('+')) {\n      // Détermine le pays depuis item.json.city ou business location\n      const city = (item.json.city || '').toLowerCase();\n      \n      // USA/Canada\n      if (city.includes('new york') || city.includes('los angeles') || \n          city.includes('chicago') || city.includes('houston') ||\n          city.includes('toronto') || city.includes('montreal') ||\n          cleaned.length === 10) {\n        cleaned = '+1' + cleaned;\n      }\n      // UK\n      else if (city.includes('london') || city.includes('manchester') || \n               city.includes('birmingham')) {\n        cleaned = '+44' + cleaned;\n      }\n      // Australia\n      else if (city.includes('sydney') || city.includes('melbourne') || \n               city.includes('brisbane')) {\n        cleaned = '+61' + cleaned;\n      }\n      // Ireland\n      else if (city.includes('dublin')) {\n        cleaned = '+353' + cleaned;\n      }\n      // New Zealand\n      else if (city.includes('auckland')) {\n        cleaned = '+64' + cleaned;\n      }\n      // Par défaut, assume USA si 10 chiffres\n      else if (cleaned.length === 10) {\n        cleaned = '+1' + cleaned;\n      }\n    }\n    \n    // Formate joliment: +1 (555) 123-4567 ou +44 20 1234 5678\n    if (cleaned.startsWith('+1') && cleaned.length === 12) {\n      // Format USA/Canada: +1 (555) 123-4567\n      phone = `+1 (${cleaned.slice(2, 5)}) ${cleaned.slice(5, 8)}-${cleaned.slice(8)}`;\n    } else if (cleaned.startsWith('+44')) {\n      // Format UK: +44 20 1234 5678\n      phone = `+44 ${cleaned.slice(3, 5)} ${cleaned.slice(5, 9)} ${cleaned.slice(9)}`;\n    } else if (cleaned.startsWith('+61')) {\n      // Format Australia: +61 2 1234 5678\n      phone = `+61 ${cleaned.slice(3, 4)} ${cleaned.slice(4, 8)} ${cleaned.slice(8)}`;\n    } else {\n      // Format générique: +XX XXXXXXXXXX\n      phone = cleaned;\n    }\n  }\n\n  // LinkedIn - Cherche PARTOUT dans le contenu (même dans JSON)\n  let linkedin = \"No LinkedIn found\";\n  const linkedinMatch = html.match(/https?:\\/\\/(?:www\\.)?linkedin\\.com\\/[a-zA-Z0-9\\-_\\/\\\\]+/g);\n\n  if (linkedinMatch && linkedinMatch.length > 0) {\n    // Nettoie les backslashes échappés (\\\\/)\n    linkedin = linkedinMatch[0].replace(/\\\\\\//g, '/');\n  }\n\n  item.json.phone = phone;\n  item.json.linkedin = linkedin;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3296,
+        1376
+      ],
+      "id": "e46b282e-3ce2-48a8-8625-33ff1e78bf69",
+      "name": "Phone & LK",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c7ce2b68-0f62-44f4-8bde-2cabad783025",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "No email found",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "3728e639-16ee-4b05-82ea-b46cfdbda578",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "user@domain.com",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "9118e38f-9225-4ef6-b4b6-4cc37c9cc1c7",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "example@example.com",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "3d3a0418-c7a4-408a-8c43-e0d3f41d71c7",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "shutterstock",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "a257a3fc-d36b-47a9-896e-e72425191969",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "2x.webp",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        3472,
+        1392
+      ],
+      "id": "e0ef330e-aada-4d59-928d-3a84b8ed0ded",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Analyze this website content and Google Maps content and extract key information in 3-4 short sentences:\n\n{{ $('Clean HTML Text').item.json.cleanText }}\n\n{{ $('Split Out').item.json.serviceOptions }}\n{{ $('Split Out').item.json.description }}\n{{ $('Split Out').item.json.price }}\n{{ $('Split Out').item.json.priceDescription }}\n{{ $('Split Out').item.json.extensions }}\n\nFocus on:\n- Company name and what makes them unique\n- Main services they offer\n- Any specific details\n\nBe specific and factual."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        3920,
+        1408
+      ],
+      "id": "761a47c0-6ff6-4cee-a177-c515bc6c21cd",
+      "name": "Message a model",
+      "alwaysOutputData": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "cO2QVVePVEe4MGys",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e445e2ad-c66a-45c4-8d3a-4af8acdcb691",
+              "name": "output",
+              "value": "={{ $json.output }}",
+              "type": "array"
+            },
+            {
+              "id": "476c1988-7990-413e-ab24-7c5110766bc5",
+              "name": "id",
+              "value": "={{ $('Filter').item.json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "9ad3ed12-2f29-419b-8778-d6fe0bad826c",
+              "name": "fields",
+              "value": "={{ $('Filter').item.json.fields }}",
+              "type": "object"
+            },
+            {
+              "id": "52cdfc38-a456-4113-964d-1bd05b14bfdb",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4192,
+        1552
+      ],
+      "id": "55bb0af4-9961-449e-b73a-acfa0c19a783",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Traite TOUS les items de la boucle\nconst items = $input.all();\n\nreturn items.map(item => {\n  // Cherche le HTML pour cet item\n  const htmlData = item.json.html || item.json.data || '';\n  \n  // Si pas de HTML valide, skip\n  if (!htmlData || htmlData.length < 100) {\n    return {\n      json: {\n        ...item.json,\n        cleanText: \"No valid website content available\"\n      }\n    };\n  }\n  \n  // Nettoie le HTML\n  const cleanText = htmlData\n    .replace(/<script[^>]*>[\\s\\S]*?<\\/script>/gi, '')\n    .replace(/<style[^>]*>[\\s\\S]*?<\\/style>/gi, '')\n    .replace(/<head[^>]*>[\\s\\S]*?<\\/head>/gi, '')\n    .replace(/<nav[^>]*>[\\s\\S]*?<\\/nav>/gi, '')\n    .replace(/<footer[^>]*>[\\s\\S]*?<\\/footer>/gi, '')\n    .replace(/<svg[^>]*>[\\s\\S]*?<\\/svg>/gi, '')\n    .replace(/<!--[\\s\\S]*?-->/g, '')\n    .replace(/<[^>]+>/g, ' ')\n    .replace(/&nbsp;/g, ' ')\n    .replace(/&[a-z]+;/gi, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim()\n    .substring(0, 2000);\n  \n  return {\n    json: {\n      ...item.json,\n      cleanText: cleanText\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3088,
+        1360
+      ],
+      "id": "f7a17c17-ac51-40e0-986d-1450d17a3bce",
+      "name": "Clean HTML Text"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupère les données du webhook\nconst webhookData = $('Webhook').item.json.body || {};\nconst targetCount = webhookData.targetCount || 10;\n\n// Compte combien de drafts ont été créés lors de CETTE exécution\nconst draftsCreated = $('Create a draft').all().length;\n\n// Pour simplifier : on suppose qu'on relance toujours\n// (Le frontend arrêtera quand le quota sera atteint)\nreturn [{\n  json: {\n    draftsCreated: draftsCreated,\n    targetCount: targetCount,\n    shouldRetry: true, // Toujours relancer (le frontend gère le stop)\n    webhookData: webhookData\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        -64
+      ],
+      "id": "c4211d04-66ac-4de7-91c4-b06970c1647d",
+      "name": "Check Quota & Retry"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "=localResults",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2448,
+        1536
+      ],
+      "id": "826d7c6d-8e8c-4a46-8ce3-6e4e369f9e20",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "3b7949d1-3698-4de5-b755-56cbb323b6f1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1600,
+        1920
+      ],
+      "id": "bda37d80-a67d-4985-8bfc-ee0ccb25552d",
+      "name": "Webhook",
+      "webhookId": "3b7949d1-3698-4de5-b755-56cbb323b6f1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/gmail/v1/users/me/drafts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.gmailAccessToken }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"message\": {\n    \"raw\": \"{{ $json.base64Email }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        4912,
+        1584
+      ],
+      "id": "0e1787a1-0f99-4400-9b4a-b0dbdcceed8f",
+      "name": "Create Gmail Draft (OAuth)"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const text = $input.item.json.output;\n\nlet parsedOutput;\n\ntry {\n  const cleanedText = text.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  parsedOutput = JSON.parse(cleanedText);\n  \n  return {\n    json: {\n      subject: parsedOutput.subject,\n      body: parsedOutput.body\n    }\n  };\n  \n} catch (error) {\n  return {\n    json: {\n      subject: \"Error parsing subject\",\n      body: text\n    }\n  };\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4512,
+        2000
+      ],
+      "id": "f483a06e-e7fe-469e-be42-645461f6f71a",
+      "name": "Parse AI Output"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Données pour le lead (email, draft = sujet + corps)\nconst emailTo = $('Extract Email (from HTML)').item.json.email || $('Split Out').item.json.email;\nconst emailSubject = $json.subject || 'Nouveau message';\nconst emailBody = $json.body || '';\n\nreturn {\n  json: {\n    emailTo,\n    emailSubject,\n    emailBody,\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4752,
+        2032
+      ],
+      "id": "0b50060d-cd90-43cb-9ead-2c4858e82fb8",
+      "name": "Format Email for Gmail"
+    },
+    {
+      "parameters": {
+        "tableId": "leads",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "business_type",
+              "fieldValue": "={{ $('Query Creator').first().json.business }}"
+            },
+            {
+              "fieldId": "city",
+              "fieldValue": "={{ $('Query Creator').first().json.city }}"
+            },
+            {
+              "fieldId": "url",
+              "fieldValue": "={{ $('Split Out').item.json.website }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $('Format Email for Gmail').item.json.emailTo }}"
+            },
+            {
+              "fieldId": "phone",
+              "fieldValue": "={{ $('Phone & LK').item.json.phone }}"
+            },
+            {
+              "fieldId": "linkedin",
+              "fieldValue": "={{ $('Phone & LK').item.json.linkedin }}"
+            },
+            {
+              "fieldId": "user_id",
+              "fieldValue": "={{ $('Webhook').first().json.body.userId }}"
+            },
+            {
+              "fieldId": "draft",
+              "fieldValue": "={{ $('Format Email for Gmail').item.json.emailSubject }}\n\n{{ $('Format Email for Gmail').item.json.emailBody }}"
+            },
+            {
+              "fieldId": "gmail_thread_id",
+              "fieldValue": "={{ $json.message.threadId }}"
+            },
+            {
+              "fieldId": "campaign_id",
+              "fieldValue": "={{ $('Webhook').item.json.body.campaignId }}"
+            },
+            {
+              "fieldId": "Name",
+              "fieldValue": "={{ $('Split Out').item.json.title }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        5376,
+        2016
+      ],
+      "id": "1b65ac8b-5e9f-4f6f-a093-253d1612a00c",
+      "name": "Create a row1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "HQRADv4oA8xVxPog",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        5056,
+        2032
+      ],
+      "id": "1ac10d0f-2c11-4f30-9466-03fda5255ae9",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "maxItems": "={{ $('Query Creator').item.json.targetCount }}"
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        3696,
+        1392
+      ],
+      "id": "35c3453e-95dd-48bb-82f6-58afb12c1f7f",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "cities",
+        "limit": "={{ $json.targetCount }}",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "name",
+              "condition": "eq",
+              "keyValue": "={{ $('Query Creator').item.json.city }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        1856
+      ],
+      "id": "e12ec651-6670-4751-a883-39b0295ef44a",
+      "name": "Get City Coordinates",
+      "credentials": {
+        "supabaseApi": {
+          "id": "HQRADv4oA8xVxPog",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Find Website": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Web HTML": {
+      "main": [
+        [
+          {
+            "node": "Extract Email (from HTML)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Creator": {
+      "main": [
+        [
+          {
+            "node": "Get City Coordinates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Email (from HTML)": {
+      "main": [
+        [
+          {
+            "node": "Clean HTML Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Phone & LK": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean HTML Text": {
+      "main": [
+        [
+          {
+            "node": "Phone & LK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Extract Web HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Query Creator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Output": {
+      "main": [
+        [
+          {
+            "node": "Format Email for Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Email for Gmail": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Create a row1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get City Coordinates": {
+      "main": [
+        [
+          {
+            "node": "Find Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "1db9f89a-c521-4bfa-9e91-a9ab0e3a86c8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b5914f9856bcd3bd902ba329221d89dbc5a86282b035121aa1c164414b37560d"
+  },
+  "id": "l4WX7bKjxIJfujj5",
+  "tags": []
+}

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { triggerN8nWorkflow } from '@/lib/n8n';
+import { runLeadgenPipeline } from '@/lib/leadgen/pipeline';
 import { createCampaign, getCampaignById, updateCampaign, unlinkLeadsFromCampaign } from '@/lib/supabase-campaigns';
 import { countTodayLeadsForUser } from '@/lib/supabase-leads';
 import { getCitiesFromSupabase, getRandomCityFromSupabase } from '@/lib/supabase-cities';
@@ -374,15 +374,16 @@ export async function POST(request: Request) {
       console.log('   - Unlinked previous leads from campaign so only this run’s leads will show');
     }
 
-    // Trigger n8n workflow with parameters
-    console.log('🚀 Triggering n8n workflow...');
+    // Run leadgen pipeline (replaces n8n workflow)
+    console.log('🚀 Running leadgen pipeline...');
     try {
-      await triggerN8nWorkflow(payload);
-      console.log('✅ N8N workflow triggered successfully');
-    } catch (error: any) {
-      console.error('⚠️ Error triggering workflow:', error);
-      // Don't fail the request if workflow trigger fails, but log it
-      // The workflow might still work even if there's a timeout
+      const result = await runLeadgenPipeline(payload);
+      console.log(`✅ Leadgen pipeline finished: ${result.leadsCreated} leads created`);
+      if (result.errors.length > 0) {
+        console.warn('Pipeline warnings:', result.errors);
+      }
+    } catch (error: unknown) {
+      console.error('⚠️ Leadgen pipeline error:', error);
     }
 
     // Save company description to reusable library (if valid)

@@ -197,10 +197,10 @@ export default function Header(props?: HeaderProps) {
                 {!scrolled && (
                   <Link
                     href="/messages"
-                    aria-label="Messagerie"
+                    aria-label="Messages"
                     className="p-1.5 text-zinc-800 dark:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors"
                   >
-                    <MessageCircle className="w-5 h-5" strokeWidth={2} />
+                    <Image src="/mail.png" alt="" width={20} height={20} className="w-5 h-5 object-contain [filter:brightness(0)] dark:[filter:brightness(0)_invert(1)]" />
                   </Link>
                 )}
                     <div className="relative" ref={notificationsRef}>
@@ -348,8 +348,8 @@ export default function Header(props?: HeaderProps) {
                   Dashboard
                 </Link>
                 <Link href="/messages" onClick={closeSidebar} className={navLinkClass}>
-                  <MessageCircle className="w-5 h-5 shrink-0" />
-                  Messagerie
+                  <Image src="/mail.png" alt="" width={20} height={20} className="w-5 h-5 shrink-0 object-contain [filter:brightness(0)] dark:[filter:brightness(0)_invert(1)]" />
+                  Messages
                 </Link>
                 <Link href="/todo" onClick={closeSidebar} className={navLinkClass}>
                   <ListTodo className="w-5 h-5 shrink-0" />

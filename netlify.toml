@@ -2,5 +2,15 @@
   command = "npm run build"
   publish = ".next"
 
+# Scheduled function: calls /api/cron/launch-scheduled-campaigns every 15 minutes (UTC)
+[functions]
+  node_bundler = "esbuild"
+
+[functions.cron-launch]
+  schedule = "*/15 * * * *"
+
+[functions.cron-process-queue]
+  schedule = "* * * * *"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"

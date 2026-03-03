@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
-import { getScheduledCampaignRunsNow } from '@/lib/supabase-schedule';
+import { getScheduledCampaignRunsNow, getAlreadyLaunchedToday, recordDailyLaunch } from '@/lib/supabase-schedule';
 import { getCampaignsByIdsAdmin } from '@/lib/supabase-campaigns';
 import { getRandomCityFromSupabase } from '@/lib/supabase-cities';
 import { countLeadsForCampaignAdmin } from '@/lib/supabase-leads';
 import { getValidGmailAccessToken } from '@/lib/gmail';
-import { triggerN8nWorkflow } from '@/lib/n8n';
+import { runLeadgenPipeline } from '@/lib/leadgen/pipeline';
 import { getGmailTokensForEmail } from '@/lib/supabase-gmail-accounts';
 
 const POLL_LEADS_INTERVAL_MS = 15_000; // poll every 15s
 const WAIT_FOR_LEADS_TIMEOUT_MS = 2 * 60 * 1000; // max 2 min per campaign so cron can launch several within serverless timeout
+const MAX_SUPPLEMENT_RUNS = 2; // max extra n8n triggers when first run doesn't find enough leads
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -50,9 +51,13 @@ export async function GET(request: Request) {
 
   try {
     const { runs, currentTimeUtc } = await getScheduledCampaignRunsNow(simulateTime);
+    const alreadyLaunched = await getAlreadyLaunchedToday();
+    const runsToProcess = runs.filter(
+      (r) => !alreadyLaunched.has(`${r.userId}:${r.campaignId}`)
+    );
     const results: { userId: string; campaignId: string; slotIndex: number; launched: boolean; error?: string }[] = [];
 
-    for (const run of runs) {
+    for (const run of runsToProcess) {
       const { userId, campaignId, slotIndex } = run;
 
       try {
@@ -89,7 +94,7 @@ export async function GET(request: Request) {
           continue;
         }
 
-        const payload: Parameters<typeof triggerN8nWorkflow>[0] = {
+        const payload: Parameters<typeof runLeadgenPipeline>[0] = {
           userId,
           campaignId: campaign.id,
           businessType: campaign.businessType,
@@ -118,9 +123,27 @@ export async function GET(request: Request) {
           }
         }
 
+        // Record immediately so any re-entry (e.g. n8n calling this API again at workflow end) won't re-trigger this campaign today
+        const recorded = await recordDailyLaunch(userId, campaign.id);
+        if (!recorded) {
+          results.push({ userId, campaignId, slotIndex, launched: false, error: 'Already launched today (skip duplicate)' });
+          continue;
+        }
+
         console.log(`[cron] Launching campaign slot ${slotIndex + 1}: ${campaign.businessType} (${payload.cities?.[0] ?? payload.citySize}) for user ${userId}`);
-        await triggerN8nWorkflow(payload);
+        await runLeadgenPipeline(payload);
         await waitForCampaignLeads(userId, campaign.id, targetCount);
+        let currentCount = await countLeadsForCampaignAdmin(userId, campaign.id);
+        let supplementRuns = 0;
+        while (currentCount < targetCount && supplementRuns < MAX_SUPPLEMENT_RUNS) {
+          const remaining = targetCount - currentCount;
+          console.log(`[cron] Campaign ${campaignId} has ${currentCount}/${targetCount} leads; triggering supplement run for ${remaining} more`);
+          const supplementPayload = { ...payload, targetCount: remaining };
+          await runLeadgenPipeline(supplementPayload);
+          await waitForCampaignLeads(userId, campaign.id, targetCount);
+          currentCount = await countLeadsForCampaignAdmin(userId, campaign.id);
+          supplementRuns++;
+        }
         // Pas d’enqueue ici : l’utilisateur doit cliquer « Add to send queue » pour ajouter les leads à la file.
         // Le workflow n8n « Schedule + send queue » enverra ensuite les mails aux heures programmées.
         results.push({ userId, campaignId, slotIndex, launched: true });
@@ -133,11 +156,13 @@ export async function GET(request: Request) {
     const payload: { success: true; currentTimeUtc: string; runsProcessed: number; results: typeof results; hint?: string } = {
       success: true,
       currentTimeUtc,
-      runsProcessed: runs.length,
+      runsProcessed: runsToProcess.length,
       results,
     };
     if (runs.length === 0) {
       payload.hint = 'No scheduled runs for this time slot. Check dashboard: launch time, timezone, at least one campaign in Daily launch, and Gmail connected. Test with ?simulateTime=13:00 (HH:MM in your local hour).';
+    } else if (runsToProcess.length === 0) {
+      payload.hint = 'All runs for this slot were already launched today (idempotence).';
     }
     return NextResponse.json(payload);
   } catch (error: any) {

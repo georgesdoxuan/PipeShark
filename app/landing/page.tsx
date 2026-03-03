@@ -238,7 +238,7 @@ export default function LandingPage() {
             <div className="group bg-white dark:bg-neutral-800/60 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col items-center text-center">
               <div className="h-12 flex items-center justify-center mb-4 w-full">
                 <span className="flex items-center justify-center w-8 h-8" style={{ filter: 'brightness(0) saturate(100%) invert(42%) sepia(93%) saturate(935%) hue-rotate(121deg) brightness(96%) contrast(90%)' }}>
-                  <Image src="/email.png" alt="" width={32} height={32} className="w-8 h-8 object-contain dark:opacity-90" />
+                  <Image src="/mail.png" alt="" width={32} height={32} className="w-8 h-8 object-contain dark:opacity-90" />
                 </span>
               </div>
               <h4 className="text-lg font-display font-bold text-zinc-900 dark:text-white mb-2 leading-snug">Up to 3,000 AI-personalized emails per month</h4>

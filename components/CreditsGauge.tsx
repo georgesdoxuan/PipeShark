@@ -66,7 +66,7 @@ export default function CreditsGauge({ campaignId, leadsWithEmail, compact = fal
       <div className="flex items-center gap-2">
         <div className="flex-1 bg-zinc-200 dark:bg-neutral-800 rounded-full h-2 overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-sky-600 to-sky-500 transition-all duration-300"
+            className="h-full bg-sky-500 dark:bg-sky-400 transition-all duration-300"
             style={{ width: `${Math.min(percentage, 100)}%` }}
           />
         </div>
@@ -89,10 +89,10 @@ export default function CreditsGauge({ campaignId, leadsWithEmail, compact = fal
         <div
           className={`h-full transition-all duration-300 ${
             percentage >= 100
-              ? 'bg-gradient-to-r from-rose-500 to-rose-400'
+              ? 'bg-rose-500 dark:bg-rose-400'
               : percentage >= 80
-              ? 'bg-gradient-to-r from-amber-500 to-amber-400'
-              : 'bg-gradient-to-r from-sky-600 to-sky-500'
+              ? 'bg-amber-500 dark:bg-amber-400'
+              : 'bg-sky-500 dark:bg-sky-400'
           }`}
           style={{ width: `${Math.min(percentage, 100)}%` }}
         />

@@ -209,3 +209,58 @@ export async function getScheduledCampaignRunsNow(
 
   return { runs, currentTimeUtc: matchTime };
 }
+
+const DAILY_LAUNCH_LOG_TABLE = 'daily_launch_log';
+
+/** UTC date string YYYY-MM-DD for today */
+function getTodayUtcDate(): string {
+  const now = new Date();
+  return now.toISOString().slice(0, 10);
+}
+
+/**
+ * Returns (userId, campaignId) pairs already launched today (UTC).
+ * Used to avoid re-triggering the same campaign when n8n calls the API again at workflow end.
+ */
+export async function getAlreadyLaunchedToday(): Promise<Set<string>> {
+  const admin = createAdminClient();
+  const today = getTodayUtcDate();
+  const { data, error } = await admin
+    .from(DAILY_LAUNCH_LOG_TABLE)
+    .select('user_id, campaign_id')
+    .eq('launched_date', today);
+
+  if (error || !data?.length) {
+    return new Set();
+  }
+  const set = new Set<string>();
+  for (const row of data) {
+    if (row.user_id && row.campaign_id) {
+      set.add(`${row.user_id}:${row.campaign_id}`);
+    }
+  }
+  return set;
+}
+
+/**
+ * Record that we are launching this (userId, campaignId) today.
+ * Returns true if inserted, false if already present (duplicate for today).
+ */
+export async function recordDailyLaunch(userId: string, campaignId: string): Promise<boolean> {
+  const admin = createAdminClient();
+  const today = getTodayUtcDate();
+  const { error } = await admin.from(DAILY_LAUNCH_LOG_TABLE).insert({
+    user_id: userId,
+    campaign_id: campaignId,
+    launched_date: today,
+  });
+
+  if (error) {
+    if (error.code === '23505') {
+      // unique violation = already launched today
+      return false;
+    }
+    throw error;
+  }
+  return true;
+}

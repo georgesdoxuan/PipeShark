@@ -3,6 +3,7 @@ import { createServerSupabaseClient, createAdminClient } from './supabase-server
 export interface Lead {
   id: string;
   user_id: string;
+  name: string | null;
   business_type: string | null;
   city: string | null;
   country: string | null;
@@ -22,6 +23,7 @@ function mapLeadRecord(record: any) {
   return {
     id: record.id,
     campaignId: record.campaign_id ?? null,
+    name: record.name ?? record.Name ?? null,
     businessType: record.business_type,
     city: record.city,
     country: record.country ?? null,

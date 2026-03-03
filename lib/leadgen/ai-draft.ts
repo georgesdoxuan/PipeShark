@@ -1,0 +1,145 @@
+/**
+ * OpenAI calls for leadgen: summarize website, then generate cold email (subject + body).
+ * Replaces n8n "Message a model" and "AI Agent" nodes.
+ */
+
+const OPENAI_CHAT_URL = 'https://api.openai.com/v1/chat/completions';
+const MODEL = 'gpt-4o-mini';
+
+async function chat(
+  apiKey: string,
+  systemContent: string | null,
+  userContent: string,
+  jsonMode: boolean = false
+): Promise<string> {
+  const messages: Array<{ role: string; content: string }> = [];
+  if (systemContent) messages.push({ role: 'system', content: systemContent });
+  messages.push({ role: 'user', content: userContent });
+
+  const body: Record<string, unknown> = {
+    model: MODEL,
+    messages,
+  };
+  if (jsonMode) {
+    body.response_format = { type: 'json_object' };
+  }
+
+  const res = await fetch(OPENAI_CHAT_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`OpenAI ${res.status}: ${err.slice(0, 400)}`);
+  }
+  const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const content = data.choices?.[0]?.message?.content ?? '';
+  return content.trim();
+}
+
+export async function summarizeWebsite(
+  apiKey: string,
+  cleanText: string,
+  extraFields: string
+): Promise<string> {
+  const userContent = `Analyze this website content and Google Maps content and extract key information in 3-4 short sentences:
+
+${cleanText}
+
+${extraFields}
+
+Focus on:
+- Company name and what makes them unique
+- Main services they offer
+- Any specific details
+
+Be specific and factual.`;
+  return chat(apiKey, null, userContent);
+}
+
+export interface DraftEmailInput {
+  companyDescription: string;
+  toneOfVoice: string;
+  campaignGoal: string;
+  magicLink: string;
+  exampleEmail: string;
+  businessLinkText: string;
+  business: string;
+  city: string;
+  websiteUrl: string;
+  websiteSummary: string;
+}
+
+export async function generateDraftEmail(apiKey: string, input: DraftEmailInput): Promise<{ subject: string; body: string }> {
+  const toneInstructions: Record<string, string> = {
+    casual: '- Be friendly and approachable\n- Conversational language, lots of contractions\n- Warm and relatable',
+    professional: '- Professional but not stuffy\n- Polished business language\n- Respectful and courteous',
+    direct: '- Straight to the point, no fluff\n- Bold and confident tone\n- Action-oriented language',
+    empathetic: '- Understanding and supportive tone\n- Focus on recipient\'s pain points with empathy',
+  };
+  const ctaByGoal: Record<string, string> = {
+    book_call: 'Goal: Schedule a phone call or meeting. Keep it low-pressure. E.g. "Free for a 15-minute call this week?"',
+    free_audit: 'Goal: Offer a free audit/quote. Emphasize "no obligation" and "free".',
+    send_brochure: 'Goal: Send portfolio, brochure, or more information. Make it easy and non-committal.',
+  };
+
+  const toneBlock = toneInstructions[input.toneOfVoice] || toneInstructions.professional;
+  const ctaBlock = ctaByGoal[input.campaignGoal] || ctaByGoal.book_call;
+  const exampleBlock = input.exampleEmail
+    ? `===== STYLE REFERENCE =====\nUse this email as a style guide. Match its tone, structure, length:\n\n---\n${input.exampleEmail}\n---\n\n`
+    : '';
+  const linkBlock = input.businessLinkText
+    ? `===== LINK BETWEEN OUR COMPANY AND THE PROSPECT =====\nThe user provided this description. Weave it naturally into the email:\n"${input.businessLinkText}"\n\n`
+    : '';
+  const magicBlock = input.magicLink
+    ? `MAGIC LINK TO INTEGRATE (place naturally in body with context): ${input.magicLink}\n\n`
+    : '';
+
+  const systemContent = `You are the founder of a company that generates personalised outreach emails. Return ONLY valid JSON in this exact format:
+{"subject": "Your subject line here (max 6 words, no buzzwords)", "body": "Your email body here"}
+
+No markdown, no text before or after. Pure JSON only.`;
+
+  const userContent = `WHAT OUR COMPANY DOES:
+${input.companyDescription}
+
+${exampleBlock}===== EMAIL CONFIGURATION =====
+TONE: ${input.toneOfVoice}
+${toneBlock}
+
+CAMPAIGN GOAL: ${input.campaignGoal}
+${ctaBlock}
+
+${linkBlock}${magicBlock}===== RULES =====
+- 150 words MAX for body
+- Pain point first, then solution, then CTA
+- Short punchy sentences. Use contractions.
+- No buzzwords (solutions, innovative, optimize). No "I am reaching out". No hyphens or dashes.
+- Signature: just first name, no title.
+
+===== LEAD INFO =====
+Business Type: ${input.business}
+City: ${input.city}
+Website URL: ${input.websiteUrl}
+
+WEBSITE SUMMARY (use to personalize the hook):
+${input.websiteSummary}
+
+Write a cold email that makes them want to reply. Return only the JSON object.`;
+
+  const raw = await chat(apiKey, systemContent, userContent, true);
+  try {
+    const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const parsed = JSON.parse(cleaned) as { subject?: string; body?: string };
+    return {
+      subject: typeof parsed.subject === 'string' ? parsed.subject : 'Follow up',
+      body: typeof parsed.body === 'string' ? parsed.body : raw,
+    };
+  } catch {
+    return { subject: 'Follow up', body: raw };
+  }
+}

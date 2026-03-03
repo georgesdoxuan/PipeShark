@@ -2,12 +2,13 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Mail, X, Briefcase, MapPin, MessageCircle, FolderOpen, RefreshCw, CheckSquare, Square, Pencil, Save } from 'lucide-react';
+import { Search, Mail, X, Briefcase, MapPin, MessageCircle, FolderOpen, RefreshCw, Pencil, Save } from 'lucide-react';
 import Image from 'next/image';
 
 interface Lead {
   id: string;
   campaignId?: string | null;
+  name?: string | null;
   businessType: string | null;
   city: string | null;
   country?: string | null;
@@ -216,11 +217,10 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                   type="button"
                   onClick={onRefresh}
                   disabled={loading}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-700 dark:text-sky-200 hover:bg-zinc-50 dark:hover:bg-neutral-800 hover:border-zinc-300 dark:hover:border-sky-600 transition-colors disabled:opacity-50 shadow-sm"
+                  className="inline-flex items-center justify-center p-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-700 dark:text-sky-200 hover:bg-zinc-50 dark:hover:bg-neutral-800 hover:border-zinc-300 dark:hover:border-sky-600 transition-colors disabled:opacity-50 shadow-sm"
                   title="Refresh leads"
                 >
                   <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                  <span className="text-sm font-medium">Refresh</span>
                 </button>
               )}
             </div>
@@ -310,7 +310,10 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
         <table className="w-full min-w-[1100px]" style={{ tableLayout: 'auto' }}>
           <thead className="bg-sky-500/75 dark:bg-sky-600/75 border-b border-sky-500/60 dark:border-sky-600/60">
             <tr>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0 rounded-tl-xl">
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap rounded-tl-xl" style={{ minWidth: 120 }}>
+                Name
+              </th>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
                 Business Type
               </th>
               <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
@@ -324,9 +327,6 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
               </th>
               <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
                 URL
-              </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ maxWidth: 100, width: 100 }}>
-                LinkedIn
               </th>
               <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
                 Draft
@@ -346,15 +346,18 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
               <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ minWidth: 145 }}>
                 Date
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap rounded-tr-xl" style={{ minWidth: 100 }}>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ minWidth: 100 }}>
                 Campaign
+              </th>
+              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap rounded-tr-xl" style={{ maxWidth: 100, width: 100 }}>
+                LinkedIn
               </th>
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-neutral-900/95 divide-y divide-zinc-200 dark:divide-sky-800/30">
             {paginatedLeads.length === 0 ? (
               <tr>
-                <td colSpan={13} className="px-6 py-12 text-center">
+                <td colSpan={14} className="px-6 py-12 text-center">
                   <p className="text-zinc-600 dark:text-sky-200">
                     {searchQuery.trim() 
                       ? `No results for "${searchQuery}"` 
@@ -368,6 +371,11 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                 key={lead.id}
                 className="hover:bg-zinc-50 dark:hover:bg-neutral-800/80 transition-colors"
               >
+                <td className="px-4 py-4">
+                  <div className="text-sm font-medium text-zinc-900 dark:text-white truncate" title={lead.name || undefined}>
+                    {lead.name || '-'}
+                  </div>
+                </td>
                 <td className="px-4 py-4">
                   <div className="text-sm font-semibold text-zinc-900 dark:text-white truncate" title={lead.businessType || undefined}>
                     {lead.businessType || '-'}
@@ -413,22 +421,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                       title={lead.url}
                       aria-label="Open URL"
                     >
-                      <Image src="/url.png" alt="URL" width={20} height={20} className="object-contain w-5 h-5 [filter:brightness(0)_saturate(100%)_invert(52%)_sepia(89%)_saturate(1500%)_hue-rotate(186deg)] dark:[filter:brightness(0)_saturate(100%)_invert(65%)_sepia(60%)_saturate(800%)_hue-rotate(186deg)]" />
-                    </a>
-                  ) : (
-                    <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
-                  )}
-                </td>
-                <td className="px-4 py-4 max-w-[100px] w-[100px]" style={{ maxWidth: 100 }}>
-                  {lead.linkedin && lead.linkedin.trim() !== '' && lead.linkedin.toLowerCase() !== 'no linkedin found' ? (
-                    <a
-                      href={lead.linkedin}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:underline transition-colors block truncate"
-                      title={lead.linkedin}
-                    >
-                      <span className="truncate block font-semibold text-sky-600 dark:text-sky-400">LK</span>
+                      <Image src="/link.png" alt="URL" width={20} height={20} className="object-contain w-5 h-5 [filter:brightness(0)_saturate(100%)_invert(52%)_sepia(89%)_saturate(1500%)_hue-rotate(186deg)] dark:[filter:brightness(0)_saturate(100%)_invert(65%)_sepia(60%)_saturate(800%)_hue-rotate(186deg)]" />
                     </a>
                   ) : (
                     <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
@@ -445,10 +438,10 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                           setDraftModal({ content: text, lead });
                           onDraftModalOpenChange?.(true);
                         }}
-                        className="inline-flex items-center justify-center p-2 w-10 h-10 rounded-lg cursor-pointer hover:bg-sky-50 dark:hover:bg-sky-500/10 transition-colors"
+                        className="inline-flex items-center justify-center p-2 w-10 h-10 rounded-lg cursor-pointer bg-sky-50 dark:bg-sky-500/10 hover:bg-sky-100 dark:hover:bg-sky-500/20 transition-colors"
                         title="Draft"
                       >
-                        <Image src="/draft.png" alt="Draft" width={24} height={24} className="object-contain w-6 h-6 [filter:brightness(0)_saturate(100%)_invert(52%)_sepia(89%)_saturate(1500%)_hue-rotate(186deg)] dark:[filter:brightness(0)_saturate(100%)_invert(65%)_sepia(60%)_saturate(800%)_hue-rotate(186deg)]" />
+                        <Image src="/draft.png" alt="Draft" width={24} height={24} className="object-contain w-6 h-6 [filter:brightness(0)_saturate(100%)_invert(65%)_sepia(90%)_saturate(1200%)_hue-rotate(186deg)] dark:[filter:brightness(0)_saturate(100%)_invert(55%)_sepia(85%)_saturate(1100%)_hue-rotate(186deg)]" />
                       </button>
                     </div>
                   ) : (
@@ -458,13 +451,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                   )}
                 </td>
                 <td className="px-4 py-4 w-0">
-                  <span className="inline-flex items-center justify-center" title={lead.emailSent ? 'Email sent' : 'Not sent yet'}>
-                    {lead.emailSent ? (
-                      <CheckSquare className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0" aria-hidden />
-                    ) : (
-                      <Square className="w-5 h-5 text-zinc-300 dark:text-zinc-500 shrink-0" aria-hidden />
-                    )}
-                  </span>
+                  <span className="text-sm text-zinc-500 dark:text-sky-400/90">–</span>
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap">
                   {lead.deliveryType === 'draft' ? (
@@ -482,15 +469,11 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
                   )}
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-4 py-4 text-center">
                   {lead.replied ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-500/20 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-500/30">
-                      ✅ Replied
-                    </span>
+                    <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-green-500 dark:bg-green-400 shrink-0" title="Replied" aria-label="Replied" />
                   ) : (
-                    <span className="inline-flex items-center justify-center p-2 w-10 h-10 rounded-lg" title="Pending">
-                      <Image src="/hourglass.png" alt="Pending" width={24} height={24} className="object-contain w-6 h-6 [filter:brightness(0)_saturate(100%)_invert(58%)] dark:[filter:brightness(0)_saturate(100%)_invert(70%)]" />
-                    </span>
+                    <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-zinc-200 dark:bg-zinc-600 shrink-0" title="Pending" aria-label="Pending" />
                   )}
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap" style={{ minWidth: 145 }}>
@@ -502,12 +485,27 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                   {lead.campaignId && (campaignIdToName?.[lead.campaignId] != null) ? (
                     <Link
                       href={`/campaigns/${lead.campaignId}`}
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 hover:underline truncate"
+                      className="inline-flex items-center gap-1.5 text-sm font-medium text-sky-500 dark:text-sky-300 hover:text-sky-600 dark:hover:text-sky-400 hover:underline truncate"
                       title={campaignIdToName[lead.campaignId]}
                     >
                       <FolderOpen className="w-3.5 h-3.5 shrink-0" />
                       <span className="truncate">{campaignIdToName[lead.campaignId]}</span>
                     </Link>
+                  ) : (
+                    <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
+                  )}
+                </td>
+                <td className="px-4 py-4 max-w-[100px] w-[100px]" style={{ maxWidth: 100 }}>
+                  {lead.linkedin && lead.linkedin.trim() !== '' && lead.linkedin.toLowerCase() !== 'no linkedin found' ? (
+                    <a
+                      href={lead.linkedin}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:underline transition-colors block truncate"
+                      title={lead.linkedin}
+                    >
+                      <span className="truncate block font-semibold text-sky-600 dark:text-sky-400">LK</span>
+                    </a>
                   ) : (
                     <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
                   )}
