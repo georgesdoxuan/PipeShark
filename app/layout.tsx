@@ -35,14 +35,14 @@ export default function RootLayout({
       >
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var t=localStorage.getItem('pipeshark-theme');var d=document.documentElement;d.classList.remove('light','dark');d.classList.add(t==='light'||t==='dark'?t:(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'));})();`,
+            __html: `(function(){try{var t=localStorage.getItem('pipeshark-theme');var d=document.documentElement;d.classList.remove('light','dark');d.classList.add(t==='light'||t==='dark'?t:(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'));}catch(e){document.documentElement.classList.add('dark');}})();`,
           }}
         />
         <ThemeProvider>
           <ApiPauseProvider>
             <CampaignLoadingProvider>
               <AppBackgroundWrapper>{children}</AppBackgroundWrapper>
-              <Analytics />
+              {process.env.NEXT_PUBLIC_VERCEL === '1' ? <Analytics /> : null}
             </CampaignLoadingProvider>
           </ApiPauseProvider>
         </ThemeProvider>
