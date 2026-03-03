@@ -1,6 +1,8 @@
 [build]
   command = "npm run build"
-  publish = ".next"
+
+# Do NOT set publish when using @netlify/plugin-nextjs — the plugin deploys Next.js correctly (CSS, JS, serverless).
+# Setting publish = ".next" was serving raw build output and broke CSS/JS loading.
 
 # Scheduled function: calls /api/cron/launch-scheduled-campaigns every 15 minutes (UTC)
 [functions]
