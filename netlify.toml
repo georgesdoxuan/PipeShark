@@ -7,6 +7,20 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+# Force correct MIME types for Next.js static assets (Netlify was serving them as text/plain → app error)
+[[headers]]
+  for = "/_next/static/chunks/*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+[[headers]]
+  for = "/_next/static/chunks/*.css"
+  [headers.values]
+    Content-Type = "text/css"
+[[headers]]
+  for = "/_next/static/media/*"
+  [headers.values]
+    Content-Type = "font/woff2"
+
 # Scheduled functions (cron)
 [functions]
   node_bundler = "esbuild"
