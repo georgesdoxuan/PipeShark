@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createServerSupabaseClient } from '@/lib/supabase-server';
+import { createServerSupabaseClient, createAdminClient } from '@/lib/supabase-server';
 import { getCampaignById } from '@/lib/supabase-campaigns';
-import { getSchedule } from '@/lib/supabase-schedule';
 import { enqueueCampaignLeadsForUser } from '@/lib/supabase-email-queue';
 
 /**
@@ -30,8 +29,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const schedule = await getSchedule(user.id);
-    const deliveryType = schedule.launchDeliveryMode === 'drafts' ? 'draft' : 'send';
+    const admin = createAdminClient();
+    const { data: scheduleData } = await admin
+      .from('user_schedule')
+      .select('launch_delivery_mode')
+      .eq('user_id', user.id)
+      .single();
+    const deliveryType = scheduleData?.launch_delivery_mode === 'drafts' ? 'draft' : 'send';
 
     const perCampaign: Record<string, number> = {};
     let totalEnqueued = 0;
