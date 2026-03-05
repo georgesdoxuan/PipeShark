@@ -1,0 +1,7 @@
+# Force MIME types for Next.js static assets (Netlify les sert en text/plain sinon)
+/_next/static/chunks/*.js
+  Content-Type: application/javascript
+/_next/static/chunks/*.css
+  Content-Type: text/css
+/_next/static/media/*
+  Content-Type: font/woff2
