@@ -187,21 +187,6 @@ export async function POST(request: Request) {
     console.log('   - citySize:', citySize || 'none');
 
     const campaignMode = mode === 'local_businesses' ? 'local_businesses' : 'standard';
-    const webhookEnvVar = campaignMode === 'local_businesses' ? 'N8N_WEBHOOK_URL_LOCAL_BUSINESSES' : 'N8N_WEBHOOK_URL';
-    const webhookUrl = campaignMode === 'local_businesses'
-      ? process.env.N8N_WEBHOOK_URL_LOCAL_BUSINESSES
-      : process.env.N8N_WEBHOOK_URL;
-
-    if (!webhookUrl) {
-      console.error(`❌ ${webhookEnvVar} is not configured`);
-      return NextResponse.json(
-        {
-          error: `${webhookEnvVar} is not configured`,
-          hint: 'Check your .env.local file',
-        },
-        { status: 500 }
-      );
-    }
 
     const dailyLimit = await getDailyLimitForUser(user.id);
     const maxPerCampaign = Math.min(MAX_PER_CAMPAIGN_ABSOLUTE, dailyLimit);
