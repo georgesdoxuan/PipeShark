@@ -353,6 +353,10 @@ export default function Header(props?: HeaderProps) {
                   <Image src="/mail.png" alt="" width={20} height={20} className="w-5 h-5 shrink-0 object-contain [filter:brightness(0)] dark:[filter:brightness(0)_invert(1)]" />
                   Messages
                 </Link>
+                <Link href="/call-center" onClick={closeSidebar} className={navLinkClass}>
+                  <Image src="/phone-receiver-silhouette.png" alt="" width={20} height={20} className="w-5 h-5 shrink-0 object-contain brightness-0 dark:brightness-0 dark:invert" />
+                  Call Center
+                </Link>
                 <Link href="/todo" onClick={closeSidebar} className={navLinkClass}>
                   <ListTodo className="w-5 h-5 shrink-0" />
                   To-Do list

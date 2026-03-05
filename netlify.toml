@@ -8,9 +8,6 @@
 [functions]
   node_bundler = "esbuild"
 
-[functions.cron-launch]
-  schedule = "*/15 * * * *"
-
 # Email queue: run on Scaleway every minute (see scripts/cron-process-queue-scaleway.sh)
 # [functions.cron-process-queue]
 #   schedule = "* * * * *"

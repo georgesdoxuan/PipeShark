@@ -17,6 +17,12 @@ export interface Lead {
   replied: boolean;
   replied_at: string | null;
   gmail_thread_id: string | null;
+  /** Call Center: synthèse entreprise (site + Maps) */
+  preparation_summary?: string | null;
+  call_notes?: string | null;
+  called?: boolean;
+  comments?: string | null;
+  folder_id?: string | null;
 }
 
 function mapLeadRecord(record: any) {
@@ -39,6 +45,11 @@ function mapLeadRecord(record: any) {
     repliedAt: record.replied_at ?? null,
     gmailThreadId: record.gmail_thread_id ?? null,
     emailSent: !!record.email_sent,
+    preparationSummary: record.preparation_summary ?? null,
+    callNotes: record.call_notes ?? null,
+    called: !!record.called,
+    comments: record.comments ?? null,
+    folderId: record.folder_id ?? null,
   };
 }
 
@@ -422,6 +433,27 @@ export async function updateLeadDraft(
   const { error } = await supabase
     .from('leads')
     .update({ draft: draftContent.trim() || null })
+    .eq('id', leadId)
+    .eq('user_id', userId);
+  return !error;
+}
+
+/** Call Center: update call_notes, called, comments, folder_id for a lead. */
+export async function updateLeadCallCenter(
+  userId: string,
+  leadId: string,
+  updates: { call_notes?: string | null; called?: boolean; comments?: string | null; folder_id?: string | null }
+): Promise<boolean> {
+  const supabase = await createServerSupabaseClient();
+  const payload: Record<string, unknown> = {};
+  if (updates.call_notes !== undefined) payload.call_notes = updates.call_notes;
+  if (updates.called !== undefined) payload.called = updates.called;
+  if (updates.comments !== undefined) payload.comments = updates.comments;
+  if (updates.folder_id !== undefined) payload.folder_id = updates.folder_id;
+  if (Object.keys(payload).length === 0) return true;
+  const { error } = await supabase
+    .from('leads')
+    .update(payload)
     .eq('id', leadId)
     .eq('user_id', userId);
   return !error;

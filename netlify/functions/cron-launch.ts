@@ -1,21 +1,24 @@
 /**
- * Netlify Scheduled Function: calls the app cron API every 15 minutes.
- * Schedule: every 15 min (configured in netlify.toml).
+ * Netlify Scheduled Function (v2): calls the app cron API every 15 minutes.
  * Requires env: CRON_SECRET, URL (set by Netlify at deploy time).
  */
 const CRON_PATH = '/api/cron/launch-scheduled-campaigns';
 
-export const handler = async (): Promise<{ statusCode: number; body: string }> => {
+export const config = {
+  schedule: '*/15 * * * *',
+};
+
+export default async (): Promise<Response> => {
   const baseUrl = process.env.URL || process.env.DEPLOY_PRIME_URL;
   const secret = process.env.CRON_SECRET;
 
   if (!baseUrl) {
     console.error('[cron-launch] Missing URL / DEPLOY_PRIME_URL');
-    return { statusCode: 500, body: 'Missing URL' };
+    return new Response('Missing URL', { status: 500 });
   }
   if (!secret) {
     console.error('[cron-launch] Missing CRON_SECRET');
-    return { statusCode: 500, body: 'Missing CRON_SECRET' };
+    return new Response('Missing CRON_SECRET', { status: 500 });
   }
 
   const url = baseUrl.replace(/\/$/, '') + CRON_PATH;
@@ -27,12 +30,12 @@ export const handler = async (): Promise<{ statusCode: number; body: string }> =
     const text = await res.text();
     if (!res.ok) {
       console.error('[cron-launch] API error', res.status, text);
-      return { statusCode: res.status, body: text };
+      return new Response(text, { status: res.status });
     }
     console.log('[cron-launch] OK', res.status);
-    return { statusCode: 200, body: text };
+    return new Response(text, { status: 200 });
   } catch (err: unknown) {
     console.error('[cron-launch] Fetch error', err);
-    return { statusCode: 500, body: err instanceof Error ? err.message : 'Unknown error' };
+    return new Response(err instanceof Error ? err.message : 'Unknown error', { status: 500 });
   }
 };
