@@ -346,7 +346,7 @@ export default function Header(props?: HeaderProps) {
             <nav className="flex-1 py-4 flex flex-col min-h-0">
               <div className="flex flex-col">
                 <Link href="/dashboard" onClick={closeSidebar} className={navLinkClass}>
-                  <Image src="/dashboard.png" alt="" width={20} height={20} className="w-5 h-5 shrink-0 object-contain [filter:brightness(0)_saturate(100%)_invert(35%)] dark:[filter:brightness(0)_saturate(100%)_invert(75%)]" />
+                  <Image src="/dashboard.png" alt="" width={20} height={20} className="w-5 h-5 shrink-0 object-contain brightness-0" />
                   Dashboard
                 </Link>
                 <Link href="/messages" onClick={closeSidebar} className={navLinkClass}>

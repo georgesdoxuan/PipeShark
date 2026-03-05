@@ -964,9 +964,15 @@ export default function CampaignsPage() {
                       </div>
                       
                       <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-white/10">
-                        <div className="flex items-center gap-2">
-                          <Image src="/customer.png" alt="" width={16} height={16} className="w-4 h-4 object-contain [filter:brightness(0)_saturate(100%)_invert(68%)_sepia(60%)_saturate(1200%)_hue-rotate(180deg)] dark:[filter:brightness(0)_invert(1)] opacity-90" />
-                          <span className="text-sm font-medium text-zinc-900 dark:text-white">{leadsCount} lead{leadsCount !== 1 ? 's' : ''}</span>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                          <div className="flex items-center gap-2">
+                            <Image src="/customer.png" alt="" width={16} height={16} className="w-4 h-4 object-contain [filter:brightness(0)_saturate(100%)_invert(68%)_sepia(60%)_saturate(1200%)_hue-rotate(180deg)] dark:[filter:brightness(0)_invert(1)] opacity-90" />
+                            <span className="text-sm font-medium text-zinc-900 dark:text-white">{leadsCount} lead{leadsCount !== 1 ? 's' : ''}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                            <span className="font-medium text-zinc-700 dark:text-zinc-300">{campaign.numberCreditsUsed ?? 0}</span>
+                            <span>credits used</span>
+                          </div>
                         </div>
                       </div>
                     </Link>

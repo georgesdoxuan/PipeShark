@@ -11,5 +11,6 @@
 [functions.cron-launch]
   schedule = "*/15 * * * *"
 
-[functions.cron-process-queue]
-  schedule = "* * * * *"
+# Email queue: run on Scaleway every minute (see scripts/cron-process-queue-scaleway.sh)
+# [functions.cron-process-queue]
+#   schedule = "* * * * *"
