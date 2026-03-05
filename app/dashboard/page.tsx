@@ -528,6 +528,7 @@ export default function CampaignsPage() {
               <Link
                 href="/campaigns/new"
                 className="inline-flex items-center gap-2 bg-sky-400 hover:bg-sky-300 text-white px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 w-fit"
+                title="Create a new prospection campaign"
               >
                 <Plus className="w-4 h-4" />
                 New Campaign
@@ -622,6 +623,7 @@ export default function CampaignsPage() {
                       ? 'bg-zinc-100 dark:bg-neutral-700/50 text-zinc-600 dark:text-sky-300 border border-zinc-200 dark:border-sky-700/50 hover:bg-zinc-200 dark:hover:bg-neutral-700'
                       : 'bg-sky-500 text-white hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-500'
                   }`}
+                  title="Choose which campaigns run at Daily launch time"
                 >
                   <CheckSquare className="w-4 h-4 shrink-0" />
                   {scheduledCampaignIds.length === 0 ? 'Choose campaigns' : `${scheduledCampaignIds.length} selected`}
@@ -697,6 +699,7 @@ export default function CampaignsPage() {
               <Link
                 href="/campaigns/new"
                 className="inline-flex items-center gap-2 bg-sky-400 hover:bg-sky-300 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200"
+                title="Create your first prospection campaign"
               >
                 <Plus className="w-5 h-5" />
                 Create your first campaign
@@ -709,6 +712,7 @@ export default function CampaignsPage() {
                   <button
                     onClick={() => setSelectMode(true)}
                     className="px-2 py-1 text-xs bg-sky-100 dark:bg-[#051a28] text-zinc-800 dark:text-white rounded-lg hover:opacity-90 transition-opacity"
+                    title="Select campaigns to delete in bulk"
                   >
                     Select
                   </button>
@@ -717,6 +721,7 @@ export default function CampaignsPage() {
                     <button
                       onClick={exitSelectMode}
                       className="px-2 py-1 text-xs bg-sky-100 dark:bg-[#051a28] text-zinc-800 dark:text-white rounded-lg hover:opacity-90 transition-opacity"
+                      title="Cancel selection"
                     >
                       Cancel
                     </button>
@@ -724,6 +729,7 @@ export default function CampaignsPage() {
                       onClick={() => setBulkDeleteConfirm(true)}
                       disabled={selectedCampaignIds.size === 0}
                       className="flex items-center gap-2 px-3 py-1.5 text-sm bg-red-600/80 border border-red-500/50 rounded-lg text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      title="Delete selected campaigns"
                     >
                       <Trash2 className="w-4 h-4" />
                       Delete ({selectedCampaignIds.size})
@@ -822,6 +828,7 @@ export default function CampaignsPage() {
                                   toggleCampaignSelection(campaign.id);
                                 }}
                                 className="shrink-0 p-0.5 text-sky-500 hover:text-sky-400"
+                                title={isSelected ? 'Deselect this campaign' : 'Select this campaign'}
                               >
                                 {isSelected ? (
                                   <CheckSquare className="w-5 h-5" />
@@ -902,6 +909,7 @@ export default function CampaignsPage() {
                                               setOpenMenuCampaignId(null);
                                             }}
                                             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-neutral-200 hover:bg-neutral-700 hover:text-white transition-colors"
+                                            title="Edit campaign name"
                                           >
                                             <Pencil className="w-4 h-4 shrink-0" />
                                             Edit name
@@ -918,6 +926,7 @@ export default function CampaignsPage() {
                                               setOpenMenuCampaignId(null);
                                             }}
                                             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-600 dark:text-red-300 hover:bg-zinc-100 dark:hover:bg-neutral-700 hover:text-red-700 dark:hover:text-red-200 transition-colors"
+                                            title="Delete this campaign"
                                           >
                                             <Trash2 className="w-4 h-4 shrink-0" />
                                             Delete
@@ -968,6 +977,7 @@ export default function CampaignsPage() {
                   <button
                     onClick={() => setShowAllCampaigns((prev) => !prev)}
                     className="text-sm text-sky-500 hover:text-sky-400 font-medium transition-colors"
+                    title={showAllCampaigns ? 'Show fewer campaigns' : 'Show all campaigns'}
                   >
                     {showAllCampaigns
                       ? 'Show less'
@@ -1000,6 +1010,7 @@ export default function CampaignsPage() {
                     onClick={() => setDeleteConfirm(null)}
                     disabled={deleting}
                     className="flex-1 px-4 py-2 bg-zinc-200 dark:bg-neutral-700 hover:bg-zinc-300 dark:hover:bg-neutral-600 text-zinc-900 dark:text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                    title="Cancel and keep the campaign"
                   >
                     Cancel
                   </button>
@@ -1007,6 +1018,7 @@ export default function CampaignsPage() {
                     onClick={() => handleDeleteCampaign(deleteConfirm.campaignId, deleteConfirm.campaignName)}
                     disabled={deleting}
                     className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    title="Permanently delete this campaign and its leads"
                   >
                     {deleting ? (
                       <>
@@ -1047,6 +1059,7 @@ export default function CampaignsPage() {
                     onClick={() => setBulkDeleteConfirm(false)}
                     disabled={deleting}
                     className="flex-1 px-4 py-2 bg-zinc-200 dark:bg-neutral-700 hover:bg-zinc-300 dark:hover:bg-neutral-600 text-zinc-900 dark:text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                    title="Cancel and keep the selected campaigns"
                   >
                     Cancel
                   </button>
@@ -1054,6 +1067,7 @@ export default function CampaignsPage() {
                     onClick={handleBulkDeleteCampaigns}
                     disabled={deleting}
                     className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    title="Permanently delete all selected campaigns"
                   >
                     {deleting ? (
                       <>
@@ -1124,6 +1138,7 @@ export default function CampaignsPage() {
                     type="button"
                     onClick={() => setShowScheduleCampaignsModal(false)}
                     className="flex-1 px-4 py-2 bg-zinc-200 dark:bg-neutral-700 hover:bg-zinc-300 dark:hover:bg-neutral-600 text-zinc-900 dark:text-white rounded-xl font-semibold transition-colors"
+                    title="Close without saving"
                   >
                     Cancel
                   </button>
@@ -1136,6 +1151,7 @@ export default function CampaignsPage() {
                     }}
                     disabled={scheduleSaving}
                     className="flex-1 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
+                    title="Save selected campaigns for Daily launch"
                   >
                     {scheduleSaving ? 'Saving…' : 'Save'}
                   </button>
