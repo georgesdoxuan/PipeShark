@@ -1,25 +1,8 @@
-[build]
-  # --webpack: Netlify plugin can 404 on Turbopack chunks; Webpack output is better supported.
-  command = "npx next build --webpack"
-  publish = ".next"
+# Build: défini dans l’UI Netlify (Build command: npx next build --webpack, Publish: .next)
+# pour éviter les conflits avec le plugin. Voir https://www.reddit.com/r/nextjs/comments/1479v97/
 
-# Required: plugin runs Next.js runtime so routes and assets (CSS/JS) work. Without it you get 404 or unstyled pages.
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-
-# Force correct MIME types for Next.js static assets (Netlify was serving them as text/plain → app error)
-[[headers]]
-  for = "/_next/static/chunks/*.js"
-  [headers.values]
-    Content-Type = "application/javascript"
-[[headers]]
-  for = "/_next/static/chunks/*.css"
-  [headers.values]
-    Content-Type = "text/css"
-[[headers]]
-  for = "/_next/static/media/*"
-  [headers.values]
-    Content-Type = "font/woff2"
 
 # Scheduled functions (cron)
 [functions]
