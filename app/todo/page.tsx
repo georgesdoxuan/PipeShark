@@ -148,7 +148,7 @@ export default function TodoPage() {
                   type="text"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="Ajouter une tâche..."
+                  placeholder="Add a task..."
                   className="flex-1 px-4 py-3 bg-white dark:bg-neutral-900/80 border border-zinc-300 dark:border-neutral-600 rounded-xl text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                   disabled={adding}
                 />
@@ -162,7 +162,7 @@ export default function TodoPage() {
                   ) : (
                     <Plus className="w-5 h-5" />
                   )}
-                  <span className="hidden sm:inline">Ajouter</span>
+                  <span className="hidden sm:inline">Add</span>
                 </button>
               </div>
             </form>
@@ -215,7 +215,7 @@ export default function TodoPage() {
                                   }
                                   disabled={movingId === todo.id}
                                   className="p-1.5 text-zinc-500 dark:text-neutral-400 hover:text-sky-600 dark:hover:text-sky-400 rounded transition-colors disabled:opacity-50"
-                                  title={status === 'done' ? 'Revenir à Doing' : 'Revenir à To Do'}
+                                  title={status === 'done' ? 'Move back to Doing' : 'Move back to To Do'}
                                 >
                                   <ChevronLeft className="w-4 h-4" />
                                 </button>
@@ -231,7 +231,7 @@ export default function TodoPage() {
                                   }
                                   disabled={movingId === todo.id}
                                   className="p-1.5 text-zinc-500 dark:text-neutral-400 hover:text-sky-600 dark:hover:text-sky-400 rounded transition-colors disabled:opacity-50"
-                                  title={status === 'todo' ? 'Passer à Doing' : 'Passer à Done'}
+                                  title={status === 'todo' ? 'Move to Doing' : 'Move to Done'}
                                 >
                                   <ChevronRight className="w-4 h-4" />
                                 </button>
@@ -241,7 +241,7 @@ export default function TodoPage() {
                                 onClick={() => handleDelete(todo.id)}
                                 disabled={deletingId === todo.id}
                                 className="p-1.5 text-zinc-500 dark:text-neutral-400 hover:text-red-500 dark:hover:text-red-400 rounded transition-colors disabled:opacity-50"
-                                title="Supprimer"
+                                title="Delete"
                               >
                                 {deletingId === todo.id ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -254,7 +254,7 @@ export default function TodoPage() {
                         ))}
                         {(!todosByStatus[status] || todosByStatus[status].length === 0) && (
                           <p className="text-sm text-zinc-500 dark:text-neutral-500 text-center py-6">
-                            Aucune tâche
+                            No tasks
                           </p>
                         )}
                       </div>

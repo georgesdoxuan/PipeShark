@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     if (!added) {
       const descriptions = await getCompanyDescriptions(user.id);
       return NextResponse.json(
-        { error: 'Cette description existe déjà (doublon).', descriptions },
+        { error: 'This description already exists (duplicate).', descriptions },
         { status: 409 }
       );
     }

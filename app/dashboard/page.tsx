@@ -5,6 +5,7 @@ import Header from '@/components/Header';
 import LeadsTable from '@/components/LeadsTable';
 import StatsCards from '@/components/StatsCards';
 import CreditsGauge from '@/components/CreditsGauge';
+import CardCurves from '@/components/CardCurves';
 import { useApiPause } from '@/contexts/ApiPauseContext';
 import Image from 'next/image';
 import { Plus, Calendar, MapPin, Trash2, X, AlertTriangle, Mail, Clock, Pencil, MailCheck, MailX, CheckSquare, Square, MoreVertical } from 'lucide-react';
@@ -284,7 +285,7 @@ export default function CampaignsPage() {
     try {
       const res = await fetch('/api/stats/replies-by-day');
       const data = await (res.ok ? res.json() : []);
-      const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       setRepliesByDay(
         (Array.isArray(data) ? data : []).map(({ date, count }: { date: string; count: number }) => {
           const d = new Date(date + 'T12:00:00');
@@ -454,13 +455,13 @@ export default function CampaignsPage() {
       const failed = results.filter((r) => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.ok));
       if (failed.length > 0) {
         console.error('Some campaigns failed to delete:', failed);
-        alert(`${failed.length} campagne(s) n'ont pas pu être supprimée(s).`);
+        alert(`${failed.length} campaign(s) could not be deleted.`);
       }
       await fetchCampaigns();
       exitSelectMode();
     } catch (error: any) {
       console.error('Error bulk deleting campaigns:', error);
-      alert(`Erreur: ${error.message}`);
+      alert(`Error: ${error.message}`);
     } finally {
       setDeleting(false);
     }
@@ -584,7 +585,7 @@ export default function CampaignsPage() {
                   saveSchedule(t, scheduledCampaignIds);
                 }}
                 className="rounded-md border border-zinc-200 dark:border-sky-700/50 bg-zinc-50 dark:bg-neutral-800 text-sm text-zinc-800 dark:text-neutral-100 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
-                title="Lancement à l'heure choisie (ton fuseau)."
+                title="Launch at the chosen time (your timezone)."
               >
                 {Array.from({ length: 24 }, (_, i) => {
                   const h = String(i).padStart(2, '0');
@@ -606,7 +607,7 @@ export default function CampaignsPage() {
                   saveSchedule(scheduleTime, undefined, mode);
                 }}
                 className="rounded-md border border-zinc-200 dark:border-sky-700/50 bg-zinc-50 dark:bg-neutral-800 text-sm text-zinc-800 dark:text-neutral-100 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
-                title="Brouillons = créer des brouillons Gmail à l'heure du lancement. File = ajouter à la file d'envoi (envoi SMTP aux heures planifiées)."
+                title="Drafts = create Gmail drafts at launch time. Queue = add to send queue (SMTP at scheduled times)."
               >
                 <option value="queue">Send via queue</option>
                 <option value="drafts">Drafts only</option>
@@ -797,7 +798,7 @@ export default function CampaignsPage() {
                 return (
                   <div
                     key={campaign.id}
-                    className={`rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-200 group relative ${cardClass} ${selectMode && isSelected ? 'ring-2 ring-sky-500' : ''}`}
+                    className={`rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-200 group relative overflow-hidden ${cardClass} ${selectMode && isSelected ? 'ring-2 ring-sky-500' : ''}`}
                     onClick={
                       selectMode
                         ? (e) => {
@@ -809,9 +810,10 @@ export default function CampaignsPage() {
                           : undefined
                     }
                   >
+                    <CardCurves />
                     <Link
                       href={editingCampaignId === campaign.id || selectMode ? '#' : `/campaigns/${campaign.id}`}
-                      className="block"
+                      className="block relative z-10"
                       onClick={(e) => {
                         if (selectMode || editingCampaignId === campaign.id) e.preventDefault();
                       }}

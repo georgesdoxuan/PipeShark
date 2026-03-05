@@ -43,16 +43,16 @@ function formatDate(iso: string) {
   return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
-/** Date + heure pour l’envoi programmé (ex. "26 févr. 2026 à 14:30") */
+/** Date and time for scheduled send (e.g. l’envoi programmé (ex. "26 févr. 2026 à 14:30") */
 function formatScheduledAt(iso: string | undefined | null): string {
   if (iso == null || typeof iso !== 'string') return '';
   const trimmed = String(iso).trim();
   if (!trimmed) return '';
   const d = new Date(trimmed);
   if (Number.isNaN(d.getTime())) return trimmed;
-  const dateStr = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-  const timeStr = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  return `${dateStr} à ${timeStr}`;
+  const dateStr = d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+  const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `${dateStr} at ${timeStr}`;
 }
 
 export default function MessagesPage() {

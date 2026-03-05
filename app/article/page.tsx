@@ -56,7 +56,7 @@ export default function ArticlePage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
             src={ARTICLE_IMAGE_URL}
-            alt="Automation et plomberie : l’IA au service des métiers manuels"
+            alt="Automation and plumbing: AI at the service of manual trades"
             className="w-full h-auto block object-contain"
             style={{ maxHeight: 'none' }}
               width={640}

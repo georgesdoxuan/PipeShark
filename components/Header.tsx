@@ -227,7 +227,7 @@ export default function Header(props?: HeaderProps) {
                     </div>
                     <div className="max-h-[70vh] overflow-y-auto">
                       {notificationsLoading ? (
-                        <div className="p-6 text-center text-sm text-zinc-500 dark:text-sky-400">Chargement…</div>
+                        <div className="p-6 text-center text-sm text-zinc-500 dark:text-sky-400">Loading…</div>
                       ) : notifications ? (
                         <>
                           <div className="p-4 border-b border-zinc-100 dark:border-sky-900/50">
@@ -397,7 +397,7 @@ export default function Header(props?: HeaderProps) {
                   type="button"
                   onClick={() => { toggleTheme(); }}
                   className={navLinkClass + ' w-full'}
-                  title={theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
+                  title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
                 >
                   {theme === 'dark' ? <Sun className="w-5 h-5 shrink-0" /> : <Moon className="w-5 h-5 shrink-0" />}
                   <span>{theme === 'dark' ? 'Light theme' : 'Dark theme'}</span>
