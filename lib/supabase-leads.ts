@@ -50,6 +50,7 @@ function mapLeadRecord(record: any) {
     called: !!record.called,
     comments: record.comments ?? null,
     folderId: record.folder_id ?? null,
+    isTrashed: !!record.is_trashed,
   };
 }
 
@@ -60,6 +61,7 @@ export async function getLeadsForUser(userId: string, campaignId?: string) {
     .from('leads')
     .select('*')
     .eq('user_id', userId)
+    .neq('is_trashed', true)
     .order('date', { ascending: false });
 
   if (campaignId) {
@@ -442,7 +444,7 @@ export async function updateLeadDraft(
 export async function updateLeadCallCenter(
   userId: string,
   leadId: string,
-  updates: { call_notes?: string | null; called?: boolean; comments?: string | null; folder_id?: string | null }
+  updates: { call_notes?: string | null; called?: boolean; comments?: string | null; folder_id?: string | null; preparation_summary?: string | null }
 ): Promise<boolean> {
   const supabase = await createServerSupabaseClient();
   const payload: Record<string, unknown> = {};
@@ -450,6 +452,7 @@ export async function updateLeadCallCenter(
   if (updates.called !== undefined) payload.called = updates.called;
   if (updates.comments !== undefined) payload.comments = updates.comments;
   if (updates.folder_id !== undefined) payload.folder_id = updates.folder_id;
+  if (updates.preparation_summary !== undefined) payload.preparation_summary = updates.preparation_summary;
   if (Object.keys(payload).length === 0) return true;
   const { error } = await supabase
     .from('leads')
@@ -537,6 +540,42 @@ export async function getNotificationsForUser(userId: string): Promise<Notificat
     todayLeads,
     recentReplies,
   };
+}
+
+/** Get trashed leads for a user. */
+export async function getTrashedLeadsForUser(userId: string): Promise<ReturnType<typeof mapLeadRecord>[]> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase
+    .from('leads')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('is_trashed', true)
+    .order('date', { ascending: false });
+  if (error) throw error;
+  return (data || []).map(mapLeadRecord);
+}
+
+/** Set is_trashed on multiple leads (trash or restore). */
+export async function setLeadsTrashed(userId: string, leadIds: string[], trashed: boolean): Promise<boolean> {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase
+    .from('leads')
+    .update({ is_trashed: trashed })
+    .in('id', leadIds)
+    .eq('user_id', userId);
+  return !error;
+}
+
+/** Permanently delete trashed leads. */
+export async function deleteTrashedLeads(userId: string, leadIds: string[]): Promise<boolean> {
+  const supabase = await createServerSupabaseClient();
+  const { error } = await supabase
+    .from('leads')
+    .delete()
+    .in('id', leadIds)
+    .eq('user_id', userId)
+    .eq('is_trashed', true);
+  return !error;
 }
 
 /** Reply count per day for the last N days (for dashboard chart). Returns [{ date: 'YYYY-MM-DD', count }]. */

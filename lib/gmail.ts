@@ -72,8 +72,12 @@ export async function refreshGmailToken(
   const data = await response.json();
 
   if (!response.ok) {
-    console.error('Gmail token refresh failed:', data);
-    throw new Error(data.error_description || data.error || 'Failed to refresh Gmail token');
+    if (data.error !== 'invalid_grant') {
+      console.error('Gmail token refresh failed:', data);
+    }
+    const err = new Error(data.error_description || data.error || 'Failed to refresh Gmail token') as Error & { code?: string };
+    err.code = data.error;
+    throw err;
   }
 
   const expiresAt = new Date(Date.now() + (data.expires_in || 3600) * 1000);

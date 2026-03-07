@@ -15,11 +15,12 @@ export async function PATCH(
     if (!leadId) return NextResponse.json({ error: 'leadId required' }, { status: 400 });
 
     const body = await request.json().catch(() => ({}));
-    const updates: { call_notes?: string | null; called?: boolean; comments?: string | null; folder_id?: string | null } = {};
+    const updates: { call_notes?: string | null; called?: boolean; comments?: string | null; folder_id?: string | null; preparation_summary?: string | null } = {};
     if (body.call_notes !== undefined) updates.call_notes = body.call_notes == null ? null : String(body.call_notes);
     if (body.called !== undefined) updates.called = Boolean(body.called);
     if (body.comments !== undefined) updates.comments = body.comments == null ? null : String(body.comments);
     if (body.folder_id !== undefined) updates.folder_id = body.folder_id == null || body.folder_id === '' ? null : body.folder_id;
+    if (body.preparation_summary !== undefined) updates.preparation_summary = body.preparation_summary == null ? null : String(body.preparation_summary);
 
     const ok = await updateLeadCallCenter(user.id, leadId, updates);
     if (!ok) return NextResponse.json({ error: 'Update failed' }, { status: 500 });

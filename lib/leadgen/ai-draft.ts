@@ -61,6 +61,51 @@ Be specific and factual.`;
   return chat(apiKey, null, userContent);
 }
 
+export async function generateCallPrep(
+  apiKey: string,
+  cleanText: string,
+  businessName: string,
+  businessType: string,
+  city: string,
+  url: string
+): Promise<string> {
+  const userContent = `You are preparing a cold call briefing sheet. Extract and list ALL relevant facts from this website content. No prose, no filler sentences. Use short bullet points grouped by category. Be exhaustive and specific.
+
+BUSINESS: ${businessName} (${businessType}, ${city})
+URL: ${url}
+
+WEBSITE CONTENT:
+${cleanText.slice(0, 6000)}
+
+Output format (only include sections where you found data):
+**Services**
+- [list each service/product specifically]
+
+**Team & Size**
+- [number of employees if mentioned, founders, key staff]
+
+**Clients / Target market**
+- [who they serve, notable clients, sectors]
+
+**Tech / Tools**
+- [software, platforms, equipment mentioned]
+
+**Pricing / Offers**
+- [pricing tiers, packages, promotions if mentioned]
+
+**Certifications / Awards**
+- [any credentials, labels, certifications]
+
+**Pain points / Challenges**
+- [problems they mention, needs they express]
+
+**Key facts**
+- [founding year, address, hours, anything else relevant]
+
+Be factual. If a section has no data, skip it entirely.`;
+  return chat(apiKey, null, userContent);
+}
+
 export interface DraftEmailInput {
   companyDescription: string;
   toneOfVoice: string;

@@ -158,7 +158,7 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
         gmail_thread_id: gmailThreadId,
         campaign_id: payload.campaignId ?? null,
         name: lead.title ?? null,
-        preparation_summary: websiteSummary ?? null,
+        preparation_summary: null,
         date: new Date().toISOString(),
       });
       if (error) {

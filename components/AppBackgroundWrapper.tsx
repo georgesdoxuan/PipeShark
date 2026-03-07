@@ -2,19 +2,20 @@
 
 import { usePathname } from 'next/navigation';
 import BackgroundCurves from '@/components/BackgroundCurves';
+import { useSidebar } from '@/contexts/SidebarContext';
 
-const LANDING_PATHS = ['/', '/landing'];
+const NO_SIDEBAR_PATHS = ['/', '/landing', '/login', '/signup', '/contact', '/pricing', '/onboarding'];
 
-/**
- * Wraps app content: shows blue curves background on all pages except landing (/) and /landing.
- */
 export default function AppBackgroundWrapper({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isLanding = LANDING_PATHS.includes(pathname ?? '');
+  const { sidebarOpen } = useSidebar();
+
+  const isLanding = ['/', '/landing'].includes(pathname ?? '');
+  const hasSidebar = !NO_SIDEBAR_PATHS.includes(pathname ?? '') && !pathname?.startsWith('/legal') && !pathname?.startsWith('/article');
 
   if (isLanding) {
     return <div className="relative z-10 min-h-screen">{children}</div>;
@@ -23,7 +24,11 @@ export default function AppBackgroundWrapper({
   return (
     <div className="min-h-screen relative" style={{ background: 'var(--background)' }}>
       <BackgroundCurves />
-      <div className="relative z-10">{children}</div>
+      <div
+        className={`relative z-10 transition-all duration-300 ease-in-out ${hasSidebar ? (sidebarOpen ? 'ml-52' : 'ml-14') : ''}`}
+      >
+        {children}
+      </div>
     </div>
   );
 }

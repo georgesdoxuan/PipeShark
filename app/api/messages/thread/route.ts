@@ -68,8 +68,9 @@ export async function GET(request: Request) {
       profile.gmail_email
     );
   } catch (err: any) {
+    const code = err.code === 'invalid_grant' ? 'GMAIL_TOKEN_REVOKED' : 'GMAIL_TOKEN_ERROR';
     return NextResponse.json(
-      { error: 'Gmail token expired. Reconnect Gmail in Preferences.' },
+      { error: 'Gmail token expired. Reconnect Gmail in Preferences.', code },
       { status: 400 }
     );
   }

@@ -4,7 +4,9 @@ import { useEffect, useState, useCallback } from 'react';
 import Header from '@/components/Header';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Mail, ChevronRight, Clock, Pencil, Check, X } from 'lucide-react';
+import { Mail, ChevronRight, Clock, Pencil, Check, X, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+
+type Sentiment = 'positive' | 'neutral' | 'negative';
 
 interface Conversation {
   id: string;
@@ -66,10 +68,13 @@ export default function MessagesPage() {
     pendingQueueItems: PendingQueueItem[];
   } | null>(null);
   const [threadLoading, setThreadLoading] = useState(false);
+  const [threadErrorCode, setThreadErrorCode] = useState<string | null>(null);
   const [editingQueueId, setEditingQueueId] = useState<string | null>(null);
   const [editSubject, setEditSubject] = useState('');
   const [editBody, setEditBody] = useState('');
   const [savingQueueId, setSavingQueueId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'all' | 'replies'>('all');
+  const [sentimentCache, setSentimentCache] = useState<Record<string, Sentiment>>({});
 
   useEffect(() => {
     fetch('/api/messages/conversations', { credentials: 'include' })
@@ -89,11 +94,16 @@ export default function MessagesPage() {
   const fetchThread = useCallback(() => {
     if (!selectedLeadId) return;
     setThreadLoading(true);
+    setThreadErrorCode(null);
     fetch(`/api/messages/thread?leadId=${encodeURIComponent(selectedLeadId)}`, {
       credentials: 'include',
     })
-      .then((r) => {
-        if (!r.ok) throw new Error('Failed to load thread');
+      .then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          setThreadErrorCode(body.code ?? 'ERROR');
+          throw new Error('Failed to load thread');
+        }
         return r.json();
       })
       .then((d) => {
@@ -117,6 +127,29 @@ export default function MessagesPage() {
     fetchThread();
   }, [selectedLeadId, fetchThread]);
 
+  // Analyze sentiment of incoming replies when thread changes
+  useEffect(() => {
+    if (!thread) return;
+    const replies = thread.messages.filter(m => !m.isFromUser && m.body);
+    if (replies.length === 0) return;
+    // Analyze the most recent reply for the thread's lead
+    const latest = replies[replies.length - 1];
+    const cacheKey = latest.id;
+    if (sentimentCache[cacheKey]) return;
+    fetch('/api/messages/sentiment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: latest.body }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.sentiment) {
+          setSentimentCache(prev => ({ ...prev, [cacheKey]: d.sentiment, [thread.leadId]: d.sentiment }));
+        }
+      })
+      .catch(() => {});
+  }, [thread]);
+
   async function saveQueueItemEdit(queueId: string) {
     setSavingQueueId(queueId);
     try {
@@ -136,23 +169,56 @@ export default function MessagesPage() {
   }
 
   const selectedConv = conversations.find((c) => c.id === selectedLeadId);
+  const displayedConversations = activeTab === 'replies' ? conversations.filter(c => c.replied) : conversations;
+
+  function SentimentBadge({ sentiment, size = 'sm' }: { sentiment: Sentiment; size?: 'sm' | 'xs' }) {
+    const sz = size === 'xs' ? 'w-3 h-3' : 'w-3.5 h-3.5';
+    if (sentiment === 'positive') return (
+      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 text-xs font-medium shrink-0">
+        <TrendingUp className={sz} />
+      </span>
+    );
+    if (sentiment === 'negative') return (
+      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 text-xs font-medium shrink-0">
+        <TrendingDown className={sz} />
+      </span>
+    );
+    return (
+      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-zinc-100 dark:bg-neutral-700 text-zinc-500 dark:text-zinc-400 text-xs font-medium shrink-0">
+        <Minus className={sz} />
+      </span>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white/60 dark:bg-black/70 relative">
       <div className="relative z-10">
-        <Header backHref="/dashboard" />
+        <Header />
         <div className="w-full max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6 pt-0 pb-0">
           <div className="flex flex-col sm:flex-row gap-0 sm:gap-4 rounded-none sm:rounded-xl border-0 sm:border border-zinc-200 dark:border-neutral-800 border-t border-zinc-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 overflow-hidden min-h-[calc(100vh-4rem)]">
             {/* Liste des conversations */}
             <aside className="w-full sm:w-72 flex-shrink-0 border-b sm:border-b-0 sm:border-r border-zinc-200 dark:border-neutral-800">
               <div className="p-4 border-b border-zinc-100 dark:border-neutral-800">
-                <h1 className="text-lg font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
+                <h1 className="text-lg font-semibold text-zinc-900 dark:text-white flex items-center gap-2 mb-3">
                   <Image src="/mail.png" alt="" width={20} height={20} className="w-5 h-5 object-contain [filter:brightness(0)] dark:[filter:brightness(0)_invert(1)]" />
                   Messages
                 </h1>
-                <p className="text-sm text-zinc-500 dark:text-neutral-400 mt-0.5">
-                  Conversations with your prospects
-                </p>
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('all')}
+                    className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${activeTab === 'all' ? 'bg-zinc-100 dark:bg-neutral-700 text-zinc-900 dark:text-white' : 'text-zinc-500 dark:text-neutral-400 hover:bg-zinc-50 dark:hover:bg-neutral-800'}`}
+                  >
+                    All ({conversations.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('replies')}
+                    className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${activeTab === 'replies' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 'text-zinc-500 dark:text-neutral-400 hover:bg-zinc-50 dark:hover:bg-neutral-800'}`}
+                  >
+                    Replies ({conversations.filter(c => c.replied).length})
+                  </button>
+                </div>
               </div>
               <div className="overflow-y-auto max-h-[50vh] sm:max-h-[calc(100vh-8rem)]">
                 {loading ? (
@@ -173,9 +239,13 @@ export default function MessagesPage() {
                       Connect Gmail
                     </Link>
                   </div>
+                ) : displayedConversations.length === 0 ? (
+                  <div className="p-6 text-center text-sm text-zinc-500 dark:text-neutral-400">
+                    No replies yet.
+                  </div>
                 ) : (
                   <ul className="divide-y divide-zinc-100 dark:divide-neutral-800">
-                    {conversations.map((c) => (
+                    {displayedConversations.map((c) => (
                       <li key={c.id}>
                         <button
                           type="button"
@@ -196,8 +266,11 @@ export default function MessagesPage() {
                               </p>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            {c.replied && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {c.replied && sentimentCache[c.id] && (
+                              <SentimentBadge sentiment={sentimentCache[c.id]} size="xs" />
+                            )}
+                            {c.replied && !sentimentCache[c.id] && (
                               <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
                                 Replied
                               </span>
@@ -245,27 +318,35 @@ export default function MessagesPage() {
                       </p>
                     ) : (
                       <>
-                        {thread.messages.map((msg) => (
+                        {thread.messages.map((msg) => {
+                          const sentiment = !msg.isFromUser ? (sentimentCache[msg.id] ?? sentimentCache[thread.leadId]) : null;
+                          return (
                           <div
                             key={msg.id}
                             className={`flex ${msg.isFromUser ? 'justify-end' : 'justify-start'}`}
                           >
-                            <div
-                              className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
-                                msg.isFromUser
-                                  ? 'bg-sky-500 text-white dark:bg-sky-400'
-                                  : 'bg-zinc-100 dark:bg-neutral-700 text-zinc-900 dark:text-neutral-100'
-                              }`}
-                            >
-                              <p className="text-xs opacity-80 mb-1">
-                                {msg.isFromUser ? 'You' : (msg.from || 'Lead')} · {formatDate(msg.date)}
-                              </p>
-                              <div className="text-sm whitespace-pre-wrap break-words">
-                                {msg.body || msg.snippet}
+                            <div className={`max-w-[85%] flex flex-col gap-1.5 ${msg.isFromUser ? 'items-end' : 'items-start'}`}>
+                              <div
+                                className={`rounded-2xl px-4 py-2.5 ${
+                                  msg.isFromUser
+                                    ? 'bg-sky-500 text-white dark:bg-sky-400'
+                                    : 'bg-zinc-100 dark:bg-neutral-700 text-zinc-900 dark:text-neutral-100'
+                                }`}
+                              >
+                                <p className="text-xs opacity-80 mb-1">
+                                  {msg.isFromUser ? 'You' : (msg.from || 'Lead')} · {formatDate(msg.date)}
+                                </p>
+                                <div className="text-sm whitespace-pre-wrap break-words">
+                                  {msg.body || msg.snippet}
+                                </div>
                               </div>
+                              {!msg.isFromUser && sentiment && (
+                                <SentimentBadge sentiment={sentiment} />
+                              )}
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                         {/* Envois programmés — éditables avant l'envoi */}
                         {(thread.pendingQueueItems?.length ?? 0) > 0 && (
                           <div className="mt-6 pt-4 border-t border-zinc-200 dark:border-neutral-700">
@@ -350,9 +431,21 @@ export default function MessagesPage() {
                   </div>
                 </>
               ) : (
-                <div className="flex-1 flex items-center justify-center p-8 text-center text-zinc-500 dark:text-neutral-400">
-                  <p>Unable to load the conversation.</p>
-                  <p className="text-sm mt-2">Make sure Gmail is connected in preferences.</p>
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-zinc-500 dark:text-neutral-400 gap-3">
+                  {threadErrorCode === 'GMAIL_TOKEN_REVOKED' ? (
+                    <>
+                      <p className="font-medium text-zinc-700 dark:text-zinc-300">Your Gmail session has expired.</p>
+                      <p className="text-sm">You need to reconnect your Gmail account to view messages.</p>
+                      <Link href="/preferences" className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium rounded-lg transition-colors">
+                        Reconnect Gmail
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <p>Unable to load the conversation.</p>
+                      <p className="text-sm">Make sure Gmail is connected in <Link href="/preferences" className="text-sky-500 hover:underline">preferences</Link>.</p>
+                    </>
+                  )}
                 </div>
               )}
             </main>

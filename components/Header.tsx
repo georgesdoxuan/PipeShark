@@ -3,12 +3,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
-import { LogOut, User, Settings, Sun, Moon, Menu, X, ListTodo, FileText, Mail, Bell, Sparkles, MessageCircle, HelpCircle, ArrowLeft } from 'lucide-react';
+import { LogOut, Settings, Sun, Moon, PanelLeft, ListTodo, FileText, Mail, Bell, Sparkles, MessageCircle, HelpCircle, ChevronDown, Zap, LayoutDashboard, Phone, BarChart2, SlidersHorizontal } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import ViperLogo from '@/components/ViperLogo';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useSidebar } from '@/contexts/SidebarContext';
 
 interface UserProfile {
   email: string | null;
@@ -21,7 +21,6 @@ interface NotificationData {
   todayLeadsCount: number;
   todayLeads: Array<{ id: string; created_at: string }>;
   todayCampaignName?: string | null;
-  /** Fallback when campaign_id is null (e.g. business type) */
   todayLeadLabel?: string | null;
   recentReplies: Array<{
     id: string;
@@ -32,7 +31,7 @@ interface NotificationData {
   }>;
 }
 
-const navLinkClass = "flex w-full items-center gap-3 px-4 py-3 text-sm text-zinc-700 dark:text-sky-200 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 transition-colors";
+const navLinkClass = "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 hover:bg-slate-200/80 dark:hover:bg-neutral-800 transition-colors w-full";
 
 function formatLeadTime(iso: string) {
   return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -52,39 +51,25 @@ function formatRelativeTime(iso: string) {
   return d.toLocaleDateString();
 }
 
-interface HeaderProps {
-  /** When set, shows a back (arrow) icon on the right side of the header linking to this href */
-  backHref?: string;
-}
-
-export default function Header(props?: HeaderProps) {
-  const { backHref } = props ?? {};
+export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggleTheme } = useTheme();
+  const { sidebarOpen, setSidebarOpen } = useSidebar();
   const [user, setUser] = useState<UserProfile | null>(null);
-  // Toujours fermé au montage : chaque page rend son propre Header, donc à chaque navigation le sidebar reviendrait ouvert si on initialisait à true
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const [notifications, setNotifications] = useState<NotificationData | null>(null);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [notifSeenToday, setNotifSeenToday] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
+  const [configsOpen, setConfigsOpen] = useState(false);
+  const configsRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const onScroll = () => setScrolled(window.scrollY > 60);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-
-  // Fermer le sidebar à chaque changement de route (au cas où le même Header resterait monté)
+  // Close sidebar on navigation
   useEffect(() => {
     setSidebarOpen(false);
-  }, [pathname]);
+  }, [pathname, setSidebarOpen]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -104,10 +89,7 @@ export default function Header(props?: HeaderProps) {
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
-        const target = e.target as HTMLElement;
-        if (!target.closest('button[aria-label="Open menu"]')) {
-          setSidebarOpen(false);
-        }
+        setSidebarOpen(false);
       }
       if (notificationsRef.current && !notificationsRef.current.contains(e.target as Node)) {
         const target = e.target as HTMLElement;
@@ -115,16 +97,13 @@ export default function Header(props?: HeaderProps) {
           setNotificationsOpen(false);
         }
       }
+      if (configsRef.current && !configsRef.current.contains(e.target as Node)) {
+        setConfigsOpen(false);
+      }
     }
-    if (sidebarOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.body.style.overflow = '';
-    };
-  }, [sidebarOpen, notificationsOpen]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [setSidebarOpen]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -161,266 +140,318 @@ export default function Header(props?: HeaderProps) {
     setSidebarOpen(false);
   }
 
+  const isActive = (href: string) => pathname === href || pathname?.startsWith(href + '/');
+  const isConfigs = pathname?.startsWith('/dashboard/business-descriptions') || pathname?.startsWith('/dashboard/exemple-mails');
+
+  const bannerNavClass = (active: boolean) =>
+    `flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+      active
+        ? 'bg-zinc-100 dark:bg-neutral-800 text-zinc-900 dark:text-white'
+        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-neutral-800/60'
+    }`;
+
   return (
     <>
-      <header className="bg-transparent sticky top-0 z-50">
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-1.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center justify-between w-full gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <button
-                  type="button"
-                  onClick={() => setSidebarOpen(true)}
-                  aria-label="Open menu"
-                  className="p-1.5 text-zinc-800 dark:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors shrink-0"
-                >
-                  <Menu className="w-5 h-5" strokeWidth={2} />
-                </button>
-                {!scrolled && (
-                  <>
-                    <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
-                      <ViperLogo className="h-12 w-auto flex-shrink-0 min-w-12 self-center" />
-                      <h1 className="text-lg font-brand font-bold tracking-wide text-zinc-900 dark:text-white">Pipeshark</h1>
-                    </Link>
-                    {backHref && (
-                      <Link
-                        href={backHref}
-                        aria-label="Retour"
-                        className="p-1.5 text-zinc-800 dark:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors"
-                      >
-                        <ArrowLeft className="w-5 h-5" strokeWidth={2} />
-                      </Link>
-                    )}
-                  </>
-                )}
-              </div>
-            {user && (
-              <div className="flex items-center gap-0.5 shrink-0">
-                {!scrolled && (
+      {/* ── White top banner ───────────────────────────────────────────── */}
+      <header className="sticky top-0 z-50 bg-white/90 dark:bg-neutral-950/90 backdrop-blur border-b border-zinc-200 dark:border-neutral-800">
+        <div className="flex items-center justify-between px-4 py-2 gap-4">
+          {/* Left: logo (visible when sidebar collapsed) */}
+          <div className="flex items-center gap-2 shrink-0 min-w-[120px]">
+            <Link href="/dashboard" className="flex items-center gap-2">
+              <ViperLogo className="h-8 w-auto" />
+              <span className="font-brand font-bold text-zinc-900 dark:text-white text-sm hidden sm:block">Pipeshark</span>
+            </Link>
+          </div>
+
+          {/* Center: nav tabs */}
+          <nav className="flex items-center gap-1 flex-1 justify-center">
+            <Link href="/dashboard" className={bannerNavClass(isActive('/dashboard'))}>
+              <LayoutDashboard className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+              Dashboard
+            </Link>
+            <Link href="/messages" className={bannerNavClass(isActive('/messages'))}>
+              <MessageCircle className="w-4 h-4 text-orange-400" />
+              Messages
+            </Link>
+            <Link href="/call-center" className={bannerNavClass(isActive('/call-center'))}>
+              <Phone className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+              Call Center
+            </Link>
+            {/* Configurations dropdown */}
+            <div ref={configsRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setConfigsOpen((o) => !o)}
+                className={bannerNavClass(isConfigs ?? false)}
+              >
+                <SlidersHorizontal className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+                Configurations
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${configsOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {configsOpen && (
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 w-52 rounded-xl border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-xl z-[60] overflow-hidden py-1">
                   <Link
-                    href="/messages"
-                    aria-label="Messages"
-                    className="p-1.5 text-zinc-800 dark:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors"
+                    href="/dashboard/business-descriptions"
+                    onClick={() => setConfigsOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
                   >
-                    <Image src="/mail.png" alt="" width={20} height={20} className="w-5 h-5 object-contain [filter:brightness(0)] dark:[filter:brightness(0)_invert(1)]" />
+                    <FileText className="w-4 h-4 shrink-0" />
+                    Business description
                   </Link>
-                )}
-                    <div className="relative" ref={notificationsRef}>
-                      <button
-                        type="button"
-                        onClick={() => setNotificationsOpen((o) => !o)}
-                        aria-label="Notifications"
-                        className="p-1.5 text-zinc-800 dark:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors relative"
-                      >
-                        <Bell className="w-5 h-5" strokeWidth={2} />
-                        {notifications && ((notifications.todayLeadsCount > 0 && !notifSeenToday) || notifications.recentReplies.length > 0) && (
-                          <span className="absolute top-1 right-1 w-2 h-2 bg-sky-500 rounded-full" aria-hidden />
-                        )}
-                      </button>
-                      {notificationsOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-[min(90vw,380px)] rounded-2xl border border-zinc-200 dark:border-sky-800/50 bg-white dark:bg-neutral-900 shadow-2xl shadow-black/10 dark:shadow-black/40 z-[60] overflow-hidden">
-                    <div className="px-4 py-3.5 bg-zinc-50 dark:bg-neutral-800/50 border-b border-zinc-100 dark:border-sky-900/50">
-                      <h3 className="font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
-                        <Bell className="w-4 h-4 text-sky-500" />
-                        Notifications
-                      </h3>
-                    </div>
-                    <div className="max-h-[70vh] overflow-y-auto">
-                      {notificationsLoading ? (
-                        <div className="p-6 text-center text-sm text-zinc-500 dark:text-sky-400">Loading…</div>
-                      ) : notifications ? (
-                        <>
-                          <div className="p-4 border-b border-zinc-100 dark:border-sky-900/50">
-                            <div className="flex items-center justify-between gap-2 mb-3">
-                              <div className="flex items-center gap-2">
-                                <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/50">
-                                  <Sparkles className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-                                </span>
-                                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-sky-500">New leads</span>
+                  <Link
+                    href="/dashboard/exemple-mails"
+                    onClick={() => setConfigsOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
+                  >
+                    <Mail className="w-4 h-4 shrink-0" />
+                    Exemple mails
+                  </Link>
+                </div>
+              )}
+            </div>
+            <Link href="/analytics" className={bannerNavClass(isActive('/analytics'))}>
+              <BarChart2 className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+              Analytics
+            </Link>
+          </nav>
+
+          {/* Right: notifications + user */}
+          <div className="flex items-center gap-1 shrink-0 min-w-[120px] justify-end">
+            {user && (
+              <>
+                <div className="relative" ref={notificationsRef}>
+                  <button
+                    type="button"
+                    onClick={() => setNotificationsOpen((o) => !o)}
+                    aria-label="Notifications"
+                    className="p-1.5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-neutral-800 rounded-lg transition-colors relative"
+                  >
+                    <Bell className="w-[18px] h-[18px]" strokeWidth={2} />
+                    {notifications && ((notifications.todayLeadsCount > 0 && !notifSeenToday) || notifications.recentReplies.length > 0) && (
+                      <span className="absolute top-1 right-1 w-2 h-2 bg-sky-500 rounded-full" aria-hidden />
+                    )}
+                  </button>
+                  {notificationsOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-[min(90vw,380px)] rounded-2xl border border-zinc-200 dark:border-sky-800/50 bg-white dark:bg-neutral-900 shadow-2xl shadow-black/10 dark:shadow-black/40 z-[60] overflow-hidden">
+                      <div className="px-4 py-3.5 bg-zinc-50 dark:bg-neutral-800/50 border-b border-zinc-100 dark:border-sky-900/50">
+                        <h3 className="font-semibold text-zinc-900 dark:text-white flex items-center gap-2">
+                          <Bell className="w-4 h-4 text-sky-500" />
+                          Notifications
+                        </h3>
+                      </div>
+                      <div className="max-h-[70vh] overflow-y-auto">
+                        {notificationsLoading ? (
+                          <div className="p-6 text-center text-sm text-zinc-500 dark:text-sky-400">Loading…</div>
+                        ) : notifications ? (
+                          <>
+                            <div className="p-4 border-b border-zinc-100 dark:border-sky-900/50">
+                              <div className="flex items-center justify-between gap-2 mb-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-900/50">
+                                    <Sparkles className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                                  </span>
+                                  <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-sky-500">New leads</span>
+                                </div>
+                                {(notifications.todayCampaignName ?? notifications.todayLeadLabel) && (
+                                  <span className="text-xs text-zinc-400 dark:text-sky-500 truncate max-w-[160px]">
+                                    {notifications.todayCampaignName ?? notifications.todayLeadLabel}
+                                  </span>
+                                )}
                               </div>
-                              {(notifications.todayCampaignName ?? notifications.todayLeadLabel) && (
-                                <span className="text-xs text-zinc-400 dark:text-sky-500 truncate max-w-[160px]" title={notifications.todayCampaignName ?? notifications.todayLeadLabel ?? ''}>
-                                  {notifications.todayCampaignName ?? notifications.todayLeadLabel}
-                                </span>
+                              <button
+                                type="button"
+                                onClick={() => { markNewLeadsSeen(); router.push('/dashboard?leads=today'); }}
+                                className="block w-full text-left rounded-xl p-3 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/40 border border-sky-100 dark:border-sky-800/50 transition-colors cursor-pointer"
+                              >
+                                <p className="text-lg font-bold text-zinc-900 dark:text-white">
+                                  {notifications.todayLeadsCount} New lead{notifications.todayLeadsCount !== 1 ? 's' : ''}
+                                </p>
+                                <p className="text-xs text-zinc-500 dark:text-sky-400 mt-0.5">View leads table</p>
+                              </button>
+                              {notifications.todayLeads.length > 0 && (
+                                <p className="mt-3 text-sm text-zinc-600 dark:text-sky-300 flex items-center gap-2">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400 shrink-0" />
+                                  {formatLeadTime(notifications.todayLeads[0].created_at)}
+                                </p>
                               )}
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                markNewLeadsSeen();
-                                router.push('/dashboard?leads=today');
-                              }}
-                              className="block w-full text-left rounded-xl p-3 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/40 border border-sky-100 dark:border-sky-800/50 transition-colors cursor-pointer"
-                            >
-                              <p className="text-lg font-bold text-zinc-900 dark:text-white">
-                                {notifications.todayLeadsCount} New lead{notifications.todayLeadsCount !== 1 ? 's' : ''}
-                              </p>
-                              <p className="text-xs text-zinc-500 dark:text-sky-400 mt-0.5">Voir le tableau des leads</p>
-                            </button>
-                            {notifications.todayLeads.length > 0 && (
-                              <p className="mt-3 text-sm text-zinc-600 dark:text-sky-300 flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 shrink-0" />
-                                {formatLeadTime(notifications.todayLeads[0].created_at)}
-                              </p>
-                            )}
-                          </div>
-                          <div className="p-4">
-                            <div className="flex items-center gap-2 mb-3">
-                              <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
-                                <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                              </span>
-                              <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-sky-500">Recent replies</span>
+                            <div className="p-4">
+                              <div className="flex items-center gap-2 mb-3">
+                                <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                                  <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                </span>
+                                <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-sky-500">Recent replies</span>
+                              </div>
+                              {notifications.recentReplies.length === 0 ? (
+                                <p className="text-sm text-zinc-500 dark:text-sky-400 py-2">No replies yet</p>
+                              ) : (
+                                <ul className="space-y-1.5">
+                                  {notifications.recentReplies.map((r) => (
+                                    <li key={r.id} className="text-sm">
+                                      <Link
+                                        href={r.campaign_id ? `/campaigns/${r.campaign_id}` : '/dashboard'}
+                                        onClick={() => setNotificationsOpen(false)}
+                                        className="flex flex-col rounded-xl p-3 hover:bg-zinc-100 dark:hover:bg-sky-900/30 text-zinc-700 dark:text-sky-200 transition-colors"
+                                      >
+                                        <span className="font-medium text-zinc-900 dark:text-white truncate">{r.email || 'Unknown'}</span>
+                                        {r.campaignName && <span className="text-xs text-zinc-500 dark:text-sky-500 truncate">{r.campaignName}</span>}
+                                        <span className="text-xs text-zinc-400 dark:text-sky-600 mt-0.5">{formatRelativeTime(r.replied_at)}</span>
+                                      </Link>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
                             </div>
-                            {notifications.recentReplies.length === 0 ? (
-                              <p className="text-sm text-zinc-500 dark:text-sky-400 py-2">No replies yet</p>
-                            ) : (
-                              <ul className="space-y-1.5">
-                                {notifications.recentReplies.map((r) => (
-                                  <li key={r.id} className="text-sm">
-                                    <Link
-                                      href={r.campaign_id ? `/campaigns/${r.campaign_id}` : '/dashboard'}
-                                      onClick={() => setNotificationsOpen(false)}
-                                      className="flex flex-col rounded-xl p-3 hover:bg-zinc-100 dark:hover:bg-sky-900/30 text-zinc-700 dark:text-sky-200 transition-colors"
-                                    >
-                                      <span className="font-medium text-zinc-900 dark:text-white truncate">
-                                        {r.email || 'Unknown'}
-                                      </span>
-                                      {r.campaignName && (
-                                        <span className="text-xs text-zinc-500 dark:text-sky-500 truncate">{r.campaignName}</span>
-                                      )}
-                                      <span className="text-xs text-zinc-400 dark:text-sky-600 mt-0.5">
-                                        {formatRelativeTime(r.replied_at)}
-                                      </span>
-                                    </Link>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        </>
-                      ) : (
-                        <div className="p-6 text-center text-sm text-zinc-500 dark:text-sky-400">Impossible de charger les notifications</div>
-                      )}
+                          </>
+                        ) : (
+                          <div className="p-6 text-center text-sm text-zinc-500 dark:text-sky-400">Unable to load notifications</div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                      )}
-                    </div>
-              </div>
+                  )}
+                </div>
+              </>
             )}
-            </div>
           </div>
         </div>
       </header>
 
-      {/* Sidebar overlay + panel — ouvert/fermé dynamiquement avec transition */}
+      {/* ── Sidebar rail ───────────────────────────────────────────────── */}
       <div
-        className={`fixed inset-0 z-[100] flex transition-[visibility] duration-300 ${sidebarOpen ? 'visible' : 'invisible pointer-events-none'}`}
-        role="dialog"
-        aria-modal="true"
-        aria-hidden={!sidebarOpen}
-        aria-label="Navigation menu"
+        ref={sidebarRef}
+        className={`fixed left-0 top-0 h-screen z-40 bg-slate-50 dark:bg-neutral-900 border-r border-slate-200 dark:border-neutral-800 shadow-sm flex flex-col transition-all duration-300 ease-in-out overflow-hidden ${sidebarOpen ? 'w-52' : 'w-14'}`}
       >
-        <div
-          className={`absolute inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm transition-opacity duration-300 ${sidebarOpen ? 'opacity-100' : 'opacity-0'}`}
-          onClick={closeSidebar}
-          aria-hidden
-        />
-        <div
-          ref={sidebarRef}
-          className={`relative w-72 max-w-[85vw] bg-white dark:bg-neutral-900 border-r border-zinc-200 dark:border-sky-800/50 shadow-xl flex flex-col transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
-        >
-            <div className="flex items-center justify-between p-4 border-b border-zinc-200 dark:border-sky-800/50">
-              <div className="flex items-center gap-2">
-                <ViperLogo className="h-10 w-auto" />
-                <span className="font-brand font-bold text-zinc-900 dark:text-white">Pipeshark</span>
-              </div>
+        {/* Toggle / logo */}
+        <div className={`flex items-center h-14 shrink-0 border-b border-slate-200 dark:border-neutral-800 ${sidebarOpen ? 'px-4 justify-between' : 'justify-center'}`}>
+          {sidebarOpen ? (
+            <>
+              <Link href="/dashboard" onClick={closeSidebar} className="flex items-center gap-2 min-w-0">
+                <ViperLogo className="h-8 w-auto shrink-0" />
+                <span className="font-brand font-bold text-zinc-900 dark:text-white whitespace-nowrap">Pipeshark</span>
+              </Link>
               <button
                 type="button"
                 onClick={closeSidebar}
-                className="p-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-sky-900/40 rounded-lg transition-colors"
+                className="p-1.5 text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-neutral-800 rounded-lg transition-colors shrink-0 ml-2"
                 aria-label="Close menu"
               >
-                <X className="w-5 h-5" />
+                <PanelLeft className="w-5 h-5" />
               </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open menu"
+              className="p-1.5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+            >
+              <PanelLeft className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+
+        {/* User account — expanded only */}
+        {sidebarOpen && user && (
+          <div className="px-3 py-3 border-b border-slate-200 dark:border-neutral-800">
+            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-slate-200/60 dark:bg-neutral-800">
+              <div className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-white font-semibold text-sm shrink-0">
+                {(user.fullName?.[0] || user.email?.[0] || 'U').toUpperCase()}
+              </div>
+              <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate whitespace-nowrap">
+                {user.fullName || user.email}
+              </span>
             </div>
-            <nav className="flex-1 py-4 flex flex-col min-h-0">
-              <div className="flex flex-col">
-                <Link href="/dashboard" onClick={closeSidebar} className={navLinkClass}>
-                  <Image src="/dashboard.png" alt="" width={20} height={20} className="w-5 h-5 shrink-0 object-contain brightness-0" />
-                  Dashboard
-                </Link>
-                <Link href="/messages" onClick={closeSidebar} className={navLinkClass}>
-                  <Image src="/mail.png" alt="" width={20} height={20} className="w-5 h-5 shrink-0 object-contain [filter:brightness(0)] dark:[filter:brightness(0)_invert(1)]" />
-                  Messages
-                </Link>
-                <Link href="/call-center" onClick={closeSidebar} className={navLinkClass}>
-                  <Image src="/phone-receiver-silhouette.png" alt="" width={20} height={20} className="w-5 h-5 shrink-0 object-contain brightness-0 dark:brightness-0 dark:invert" />
-                  Call Center
-                </Link>
-                <Link href="/todo" onClick={closeSidebar} className={navLinkClass}>
-                  <ListTodo className="w-5 h-5 shrink-0" />
-                  To-Do list
-                </Link>
-                {user && (
-                  <Link href="/profile" onClick={closeSidebar} className={navLinkClass}>
-                    <User className="w-5 h-5 shrink-0" />
-                    Profile
-                  </Link>
-                )}
-              </div>
-              <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-sky-800/50">
-                <p className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-sky-500">
-                  Templates
-                </p>
-                <Link href="/dashboard/business-descriptions" onClick={closeSidebar} className={navLinkClass}>
-                  <FileText className="w-5 h-5 shrink-0" />
-                  Business description
-                </Link>
-                <Link href="/dashboard/exemple-mails" onClick={closeSidebar} className={navLinkClass}>
-                  <Mail className="w-5 h-5 shrink-0" />
-                  Exemple mails
-                </Link>
-              </div>
-              <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-sky-800/50">
-                <p className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-sky-500">
-                  Help
-                </p>
-                <Link href="/contact" onClick={closeSidebar} className={navLinkClass}>
-                  <HelpCircle className="w-5 h-5 shrink-0" />
-                  Contact
-                </Link>
-              </div>
-              <div className="mt-auto pt-4 border-t border-zinc-200 dark:border-sky-800/50 space-y-0">
-                {user && (
-                  <Link href="/preferences" onClick={closeSidebar} className={navLinkClass}>
-                    <Settings className="w-5 h-5 shrink-0" />
-                    Preferences
-                  </Link>
-                )}
+          </div>
+        )}
+
+        {/* Nav */}
+        <nav className="flex-1 py-2 flex flex-col overflow-y-auto">
+          <div className={`flex flex-col gap-0.5 ${sidebarOpen ? 'px-2' : 'px-1.5'}`}>
+            <Link href="/todo" onClick={closeSidebar} className={sidebarOpen ? navLinkClass : 'flex justify-center p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-slate-200/80 dark:hover:bg-neutral-800 transition-colors'} title={!sidebarOpen ? 'To-Do list' : undefined}>
+              <ListTodo className="w-[18px] h-[18px] shrink-0" />
+              {sidebarOpen && <span>To-Do list</span>}
+            </Link>
+          </div>
+
+          <div className="my-2 mx-2 border-t border-slate-200 dark:border-neutral-800" />
+
+          <div className={`flex flex-col gap-0.5 ${sidebarOpen ? 'px-2' : 'px-1.5'}`}>
+            <Link href="/contact" onClick={closeSidebar} className={sidebarOpen ? navLinkClass : 'flex justify-center p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-slate-200/80 dark:hover:bg-neutral-800 transition-colors'} title={!sidebarOpen ? 'Contact' : undefined}>
+              <HelpCircle className="w-[18px] h-[18px] shrink-0" />
+              {sidebarOpen && <span>Contact</span>}
+            </Link>
+            {user && (
+              <Link href="/preferences" onClick={closeSidebar} className={sidebarOpen ? navLinkClass : 'flex justify-center p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-slate-200/80 dark:hover:bg-neutral-800 transition-colors'} title={!sidebarOpen ? 'Preferences' : undefined}>
+                <Settings className="w-[18px] h-[18px] shrink-0" />
+                {sidebarOpen && <span>Preferences</span>}
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={() => { toggleTheme(); }}
+              className={sidebarOpen ? navLinkClass : 'flex justify-center p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-slate-200/80 dark:hover:bg-neutral-800 transition-colors w-full'}
+              title={!sidebarOpen ? (theme === 'dark' ? 'Light theme' : 'Dark theme') : undefined}
+            >
+              {theme === 'dark' ? <Sun className="w-[18px] h-[18px] shrink-0" /> : <Moon className="w-[18px] h-[18px] shrink-0" />}
+              {sidebarOpen && <span>{theme === 'dark' ? 'Light theme' : 'Dark theme'}</span>}
+            </button>
+          </div>
+        </nav>
+
+        {/* Bottom profile */}
+        {user && (
+          <div className={`border-t border-slate-200 dark:border-neutral-800 ${sidebarOpen ? 'px-4 py-4' : 'px-1.5 py-3'}`}>
+            {sidebarOpen ? (
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-full bg-violet-600 flex items-center justify-center text-white font-semibold shrink-0">
+                    {(user.fullName?.[0] || user.email?.[0] || 'U').toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    {user.fullName && (
+                      <p className="text-sm font-semibold text-zinc-900 dark:text-white truncate">{user.fullName}</p>
+                    )}
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{user.email}</p>
+                  </div>
+                </div>
                 <button
                   type="button"
-                  onClick={() => { toggleTheme(); }}
-                  className={navLinkClass + ' w-full'}
-                  title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+                  onClick={handleLogout}
+                  title="Sign out"
+                  className="p-1.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-neutral-800 rounded-lg transition-colors shrink-0"
                 >
-                  {theme === 'dark' ? <Sun className="w-5 h-5 shrink-0" /> : <Moon className="w-5 h-5 shrink-0" />}
-                  <span>{theme === 'dark' ? 'Light theme' : 'Dark theme'}</span>
+                  <LogOut className="w-4 h-4" />
                 </button>
-                {user && (
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className={navLinkClass + ' w-full'}
-                    title="Sign out"
-                  >
-                    <LogOut className="w-5 h-5 shrink-0" />
-                    Sign out
-                  </button>
-                )}
               </div>
-            </nav>
+            ) : (
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  title="Sign out"
+                  className="w-8 h-8 rounded-full bg-violet-600 flex items-center justify-center text-white font-semibold text-sm"
+                >
+                  {(user.fullName?.[0] || user.email?.[0] || 'U').toUpperCase()}
+                </button>
+              </div>
+            )}
           </div>
-        </div>
+        )}
+
+        {/* Upgrade — visible uniquement déplié */}
+        {sidebarOpen && (
+          <div className="px-3 pb-3">
+            <Link
+              href="/pricing"
+              onClick={closeSidebar}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-zinc-700 dark:text-zinc-300 hover:bg-slate-200/80 dark:hover:bg-neutral-800 transition-colors w-full"
+            >
+              <Zap className="w-[18px] h-[18px] shrink-0" />
+              <span>Upgrade</span>
+            </Link>
+          </div>
+        )}
+      </div>
     </>
   );
 }

@@ -8,7 +8,7 @@ import CreditsGauge from '@/components/CreditsGauge';
 import CardCurves from '@/components/CardCurves';
 import { useApiPause } from '@/contexts/ApiPauseContext';
 import Image from 'next/image';
-import { Plus, Calendar, MapPin, Trash2, X, AlertTriangle, Mail, Clock, Pencil, MailCheck, MailX, CheckSquare, Square, MoreVertical } from 'lucide-react';
+import { Plus, Calendar, MapPin, Trash2, X, AlertTriangle, Mail, Clock, Pencil, MailCheck, MailX, CheckSquare, Square, MoreVertical, CircleDollarSign, ChevronDown, Check } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
@@ -91,6 +91,8 @@ export default function CampaignsPage() {
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [enqueueLoading, setEnqueueLoading] = useState(false);
   const [enqueueFeedback, setEnqueueFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [deliveryDropdownOpen, setDeliveryDropdownOpen] = useState(false);
+  const deliveryDropdownRef = useRef<HTMLDivElement>(null);
   const [showScheduleCampaignsModal, setShowScheduleCampaignsModal] = useState(false);
   const [scheduleModalSelectedIds, setScheduleModalSelectedIds] = useState<string[]>([]);
   const [dailyLimit, setDailyLimit] = useState(300);
@@ -251,6 +253,17 @@ export default function CampaignsPage() {
       // Ignore
     }
   }
+
+  useEffect(() => {
+    if (!deliveryDropdownOpen) return;
+    const close = (e: MouseEvent) => {
+      if (deliveryDropdownRef.current && !deliveryDropdownRef.current.contains(e.target as Node)) {
+        setDeliveryDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [deliveryDropdownOpen]);
 
   async function saveSchedule(time: string, campaignIds?: string[], deliveryMode?: 'drafts' | 'queue') {
     setScheduleSaving(true);
@@ -598,20 +611,6 @@ export default function CampaignsPage() {
               </select>
               <span className="text-sm text-zinc-500 dark:text-neutral-400">everyday</span>
               <span className="text-zinc-300 dark:text-zinc-600 mx-0.5">|</span>
-              <select
-                aria-label="Daily launch: drafts only or send via queue"
-                value={launchDeliveryMode}
-                onChange={(e) => {
-                  const mode = e.target.value === 'drafts' ? 'drafts' : 'queue';
-                  setLaunchDeliveryMode(mode);
-                  saveSchedule(scheduleTime, undefined, mode);
-                }}
-                className="rounded-md border border-zinc-200 dark:border-sky-700/50 bg-zinc-50 dark:bg-neutral-800 text-sm text-zinc-800 dark:text-neutral-100 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
-                title="Drafts = create Gmail drafts at launch time. Queue = add to send queue (SMTP at scheduled times)."
-              >
-                <option value="queue">Send via queue</option>
-                <option value="drafts">Drafts only</option>
-              </select>
               {campaigns.length > 0 && (
                 <button
                   type="button"
@@ -627,60 +626,109 @@ export default function CampaignsPage() {
                   title="Choose which campaigns run at Daily launch time"
                 >
                   <CheckSquare className="w-4 h-4 shrink-0" />
-                  {scheduledCampaignIds.length === 0 ? 'Choose campaigns' : `${scheduledCampaignIds.length} selected`}
+                  {scheduledCampaignIds.length === 0
+                    ? 'Choose campaigns'
+                    : `${scheduledCampaignIds.length} campaign${scheduledCampaignIds.length !== 1 ? 's' : ''} selected`}
                 </button>
               )}
               {scheduleSaving && (
                 <span className="text-xs text-zinc-400 dark:text-neutral-500">Saving…</span>
               )}
               <span className="text-zinc-300 dark:text-zinc-600 mx-0.5">|</span>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (scheduledCampaignIds.length === 0 || enqueueLoading) return;
-                  setEnqueueLoading(true);
-                  setEnqueueFeedback(null);
-                  try {
-                    const res = await fetch('/api/schedule/enqueue', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ campaignIds: scheduledCampaignIds }),
-                      credentials: 'include',
-                    });
-                    const data = await res.json().catch(() => ({}));
-                    if (res.ok && data.enqueued !== undefined) {
-                      setEnqueueFeedback({
-                        type: 'success',
-                        text: data.enqueued === 0
-                          ? 'No new leads to add (all already in queue or sent).'
-                          : `${data.enqueued} lead${data.enqueued !== 1 ? 's' : ''} added to send queue.`,
+              {/* Add to queue split button with delivery mode dropdown */}
+              <div className="relative flex items-stretch" ref={deliveryDropdownRef}>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (scheduledCampaignIds.length === 0 || enqueueLoading) return;
+                    setEnqueueLoading(true);
+                    setEnqueueFeedback(null);
+                    try {
+                      const res = await fetch('/api/schedule/enqueue', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ campaignIds: scheduledCampaignIds }),
+                        credentials: 'include',
                       });
-                      fetchLeads();
-                      setTimeout(() => setEnqueueFeedback(null), 5000);
-                    } else {
-                      setEnqueueFeedback({ type: 'error', text: data.error || 'Failed to add to queue.' });
+                      const data = await res.json().catch(() => ({}));
+                      if (res.ok && data.enqueued !== undefined) {
+                        setEnqueueFeedback({
+                          type: 'success',
+                          text: data.enqueued === 0
+                            ? 'No new leads to add (all already in queue or sent).'
+                            : `${data.enqueued} lead${data.enqueued !== 1 ? 's' : ''} added to send queue.`,
+                        });
+                        fetchLeads();
+                        setTimeout(() => setEnqueueFeedback(null), 5000);
+                      } else {
+                        setEnqueueFeedback({ type: 'error', text: data.error || 'Failed to add to queue.' });
+                      }
+                    } catch {
+                      setEnqueueFeedback({ type: 'error', text: 'Failed to add to queue.' });
+                    } finally {
+                      setEnqueueLoading(false);
                     }
-                  } catch {
-                    setEnqueueFeedback({ type: 'error', text: 'Failed to add to queue.' });
-                  } finally {
-                    setEnqueueLoading(false);
-                  }
-                }}
-                disabled={scheduledCampaignIds.length === 0 || enqueueLoading}
-                className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                title="Add all leads from the selected Daily launch campaigns to the send queue (SMTP at scheduled times)."
-              >
-                {/* Same icon as "Emails sent" card, in white */}
-                <img
-                  src="/paper-plane.png"
-                  alt=""
-                  width={16}
-                  height={16}
-                  className="w-4 h-4 shrink-0 object-contain"
-                  style={{ filter: 'brightness(0) invert(1)' }}
-                />
-                {enqueueLoading ? 'Adding…' : 'Add to send queue'}
-              </button>
+                  }}
+                  disabled={scheduledCampaignIds.length === 0 || enqueueLoading}
+                  className="inline-flex items-center gap-1.5 rounded-l-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors border-r border-emerald-700"
+                >
+                  <img
+                    src="/paper-plane.png"
+                    alt=""
+                    width={16}
+                    height={16}
+                    className="w-4 h-4 shrink-0 object-contain"
+                    style={{ filter: 'brightness(0) invert(1)' }}
+                  />
+                  {enqueueLoading ? 'Adding…' : 'Add to send queue'}
+                  <span className="w-px h-3.5 rounded-full bg-white/30 mx-0.5 shrink-0" />
+                  <span className={`font-semibold ${launchDeliveryMode === 'queue' ? 'text-green-300' : 'text-orange-300'}`}>
+                    {launchDeliveryMode === 'queue' ? 'Send' : 'Draft'}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryDropdownOpen(prev => !prev)}
+                  className="px-2 py-1.5 rounded-r-lg bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white transition-colors"
+                  title="Change delivery mode"
+                >
+                  <ChevronDown className={`w-4 h-4 transition-transform ${deliveryDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {deliveryDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-1.5 z-50 w-52 rounded-xl border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-xl py-1 text-sm overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLaunchDeliveryMode('queue');
+                        saveSchedule(scheduleTime, undefined, 'queue');
+                        setDeliveryDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2.5 flex items-center gap-2.5 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      <Check className={`w-4 h-4 shrink-0 ${launchDeliveryMode === 'queue' ? 'text-sky-500' : 'opacity-0'}`} />
+                      <div>
+                        <div className={`font-medium ${launchDeliveryMode === 'queue' ? 'text-sky-600 dark:text-sky-400' : 'text-zinc-700 dark:text-zinc-200'}`}>Send via queue</div>
+                        <div className="text-xs text-zinc-400 dark:text-zinc-500">SMTP at scheduled times</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLaunchDeliveryMode('drafts');
+                        saveSchedule(scheduleTime, undefined, 'drafts');
+                        setDeliveryDropdownOpen(false);
+                      }}
+                      className="w-full text-left px-4 py-2.5 flex items-center gap-2.5 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
+                    >
+                      <Check className={`w-4 h-4 shrink-0 ${launchDeliveryMode === 'drafts' ? 'text-sky-500' : 'opacity-0'}`} />
+                      <div>
+                        <div className={`font-medium ${launchDeliveryMode === 'drafts' ? 'text-sky-600 dark:text-sky-400' : 'text-zinc-700 dark:text-zinc-200'}`}>Drafts only</div>
+                        <div className="text-xs text-zinc-400 dark:text-zinc-500">Gmail drafts at launch time</div>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
               {enqueueFeedback && (
                 <span className={`text-xs ${enqueueFeedback.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                   {enqueueFeedback.text}
@@ -964,14 +1012,14 @@ export default function CampaignsPage() {
                       </div>
                       
                       <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-white/10">
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                          <div className="flex items-center gap-2">
-                            <Image src="/customer.png" alt="" width={16} height={16} className="w-4 h-4 object-contain [filter:brightness(0)_saturate(100%)_invert(68%)_sepia(60%)_saturate(1200%)_hue-rotate(180deg)] dark:[filter:brightness(0)_invert(1)] opacity-90" />
-                            <span className="text-sm font-medium text-zinc-900 dark:text-white">{leadsCount} lead{leadsCount !== 1 ? 's' : ''}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                        <div className="flex items-center justify-between">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                            <Image src="/customer.png" alt="" width={12} height={12} className="w-3 h-3 object-contain [filter:brightness(0)_saturate(100%)_invert(68%)_sepia(60%)_saturate(1200%)_hue-rotate(180deg)] dark:[filter:brightness(0)_invert(1)] opacity-90" />
+                            {leadsCount} lead{leadsCount !== 1 ? 's' : ''}
+                          </span>
+                          <div className="flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400">
                             <span className="font-medium text-zinc-700 dark:text-zinc-300">{campaign.numberCreditsUsed ?? 0}</span>
-                            <span>credits used</span>
+                            <CircleDollarSign className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
                           </div>
                         </div>
                       </div>
@@ -1193,6 +1241,14 @@ export default function CampaignsPage() {
               onFilterCityChange={setFilterCity}
               onFilterViewChange={setFilterView}
               onRefresh={fetchLeads}
+              onTrash={async (leadIds) => {
+                await fetch('/api/leads/trash', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ leadIds, action: 'trash' }),
+                });
+                fetchLeads();
+              }}
             />
           </div>
         </div>

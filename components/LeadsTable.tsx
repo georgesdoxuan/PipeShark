@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Search, Mail, X, Briefcase, MapPin, MessageCircle, FolderOpen, RefreshCw, Pencil, Save } from 'lucide-react';
+import { Search, Mail, X, Briefcase, MapPin, MessageCircle, FolderOpen, RefreshCw, Pencil, Save, Trash2, MousePointer2, Plus, ChevronDown, Check } from 'lucide-react';
 import Image from 'next/image';
 
 interface Lead {
@@ -55,19 +55,25 @@ interface LeadsTableProps {
   onFilterCityChange?: (value: string) => void;
   onFilterViewChange?: (value: 'all' | 'sent' | 'replied') => void;
   onRefresh?: () => void;
+  onTrash?: (leadIds: string[]) => void;
+  onEnqueue?: (leadIds: string[], deliveryType: 'draft' | 'send') => void;
 }
 
 const filterBtnBase = "inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-colors disabled:opacity-50";
 const filterBtnActive = "border-sky-500 bg-sky-500/15 text-sky-700 dark:text-sky-200 dark:bg-sky-500/20";
 const filterBtnInactive = "border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-700 dark:text-sky-200 hover:bg-zinc-50 dark:hover:bg-neutral-800 hover:border-zinc-300 dark:hover:border-sky-600";
 
-export default function LeadsTable({ leads, loading = false, filterBusinessType = '', filterCity = '', filterByEmail = true, filterView = 'all', toneOfVoice, campaignIdToTone, campaignIdToName, onDraftModalOpenChange, onFilterBusinessTypeChange, onFilterCityChange, onFilterViewChange, onRefresh }: LeadsTableProps) {
+export default function LeadsTable({ leads, loading = false, filterBusinessType = '', filterCity = '', filterByEmail = true, filterView = 'all', toneOfVoice, campaignIdToTone, campaignIdToName, onDraftModalOpenChange, onFilterBusinessTypeChange, onFilterCityChange, onFilterViewChange, onRefresh, onTrash, onEnqueue }: LeadsTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [currentPage, setCurrentPage] = useState(1);
   const [draftModal, setDraftModal] = useState<{ content: string; lead: Lead } | null>(null);
   const [draftEdit, setDraftEdit] = useState<{ subject: string; body: string } | null>(null);
   const [draftSaving, setDraftSaving] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; leadId: string } | null>(null);
+  const isDraggingRef = useRef(false);
   const itemsPerPage = 20;
 
   // Parse draft: first line = subject, rest = body (subject often at top, e.g. "Support for Your Plumbing Tools")
@@ -158,6 +164,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
   const totalPages = Math.ceil(filteredAndSortedLeads.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedLeads = filteredAndSortedLeads.slice(startIndex, startIndex + itemsPerPage);
+  const allOnPageSelected = paginatedLeads.length > 0 && paginatedLeads.every(l => selectedIds.has(l.id));
 
   // Counts for filter labels (same base as table: after email + business type + city, before reply/emailSent)
   const filterCounts = useMemo(() => {
@@ -183,6 +190,55 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
     setCurrentPage(1);
   }, [searchQuery, filterBusinessType, filterCity, filterView, sortOrder]);
 
+  // Drag-to-select: release mouse globally
+  useEffect(() => {
+    const up = () => { isDraggingRef.current = false; };
+    document.addEventListener('mouseup', up);
+    return () => document.removeEventListener('mouseup', up);
+  }, []);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [contextMenu]);
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }
+
+  const [queueMode, setQueueMode] = useState<'send' | 'draft'>('send');
+  const [queueDropdownOpen, setQueueDropdownOpen] = useState(false);
+  const queueDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!queueDropdownOpen) return;
+    const close = (e: MouseEvent) => {
+      if (queueDropdownRef.current && !queueDropdownRef.current.contains(e.target as Node)) {
+        setQueueDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [queueDropdownOpen]);
+
+  function doQueue() {
+    const ids = selectMode && selectedIds.size > 0 ? [...selectedIds] : paginatedLeads.map(l => l.id);
+    onEnqueue?.(ids, queueMode);
+    if (selectMode && selectedIds.size > 0) exitSelectMode();
+  }
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center">
@@ -204,103 +260,187 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
 
   return (
     <div className="overflow-hidden">
-      {/* Header with Search and Sort Order */}
-      <div className="p-4 pb-3 border-b border-zinc-200 dark:border-sky-800/30">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
+      {/* Toolbar */}
+      <div className="px-4 pt-4 pb-3 border-b border-zinc-200 dark:border-sky-800/30 space-y-3">
+
+        {/* Row 1: Title + actions */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          {/* Left: title + utility icons */}
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-display font-bold text-zinc-900 dark:text-white">
+              Leads ({filteredAndSortedLeads.length})
+            </h2>
+            {onRefresh && (
+              <button
+                type="button"
+                onClick={onRefresh}
+                disabled={loading}
+                className="p-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                title="Refresh"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            )}
+            <Link
+              href="/leads/trash"
+              className="p-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-500 dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
+              title="Trash"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {/* Right: action buttons */}
+          <div className="flex items-center gap-3 flex-wrap">
+
+            {/* Select group */}
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-display font-bold text-zinc-900 dark:text-white">
-                Leads ({filteredAndSortedLeads.length})
-              </h2>
-              {onRefresh && (
+              {selectMode ? (
+                <>
+                  <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                    {selectedIds.size} selected
+                  </span>
+                  {selectedIds.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => { onTrash?.([...selectedIds]); exitSelectMode(); }}
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 dark:border-red-800 bg-white dark:bg-neutral-900 text-red-600 dark:text-red-400 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Trash
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={exitSelectMode}
+                    className="px-3 py-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-600 dark:text-zinc-400 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
                 <button
                   type="button"
-                  onClick={onRefresh}
-                  disabled={loading}
-                  className="inline-flex items-center justify-center p-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-700 dark:text-sky-200 hover:bg-zinc-50 dark:hover:bg-neutral-800 hover:border-zinc-300 dark:hover:border-sky-600 transition-colors disabled:opacity-50 shadow-sm"
-                  title="Refresh leads"
+                  onClick={() => setSelectMode(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-600 dark:text-sky-200 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
                 >
-                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                  <MousePointer2 className="w-4 h-4" />
+                  Select
                 </button>
               )}
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            {onFilterBusinessTypeChange && (
-              <>
-                <select
-                  value={filterBusinessType}
-                  onChange={(e) => onFilterBusinessTypeChange(e.target.value)}
-                  className={selectClass}
-                  style={{ backgroundImage: selectChevron }}
-                  title="Filter by business type"
-                >
-                  <option value="">All types</option>
-                  {[...new Set(leads.map((l) => l.businessType).filter((x): x is string => Boolean(x)))].sort().map((bt) => (
-                    <option key={bt} value={bt}>{bt}</option>
-                  ))}
-                </select>
-                <select
-                  value={filterCity}
-                  onChange={(e) => onFilterCityChange?.(e.target.value)}
-                  className={selectClass}
-                  style={{ backgroundImage: selectChevron }}
-                  title="Filter by city"
-                >
-                  <option value="">All cities</option>
-                  {[...new Set(leads.map((l) => l.city).filter((x): x is string => Boolean(x)))].sort().map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-                {onFilterViewChange && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => onFilterViewChange('all')}
-                      className={`${filterBtnBase} ${filterView === 'all' ? filterBtnActive : filterBtnInactive}`}
-                      title="Show all leads"
-                    >
-                      All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onFilterViewChange('sent')}
-                      className={`${filterBtnBase} ${filterView === 'sent' ? filterBtnActive : filterBtnInactive}`}
-                      title="Show only leads with email sent"
-                    >
-                      Email sent ({filterCounts.emailSentCount})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onFilterViewChange('replied')}
-                      className={`${filterBtnBase} ${filterView === 'replied' ? filterBtnActive : filterBtnInactive}`}
-                      title="Show only leads who replied"
-                    >
-                      Replies ({filterCounts.repliedCount})
-                    </button>
-                  </>
-                )}
-              </>
-            )}
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-              className={selectClass}
-              style={{ backgroundImage: selectChevron }}
-            >
-              <option value="newest">Most recent</option>
-              <option value="oldest">Oldest</option>
-            </select>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-zinc-500 dark:text-sky-300" />
-              <input
-                type="text"
-                placeholder="Search by business type, city..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full sm:w-64 pl-10 pr-4 py-2.5 border border-zinc-200 dark:border-sky-700/50 rounded-xl bg-white dark:bg-neutral-800/80 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-sky-400/70 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-400 transition-all shadow-sm hover:border-sky-300 dark:hover:border-sky-600"
-              />
+
+            {/* Separator */}
+            <div className="w-px h-6 bg-zinc-200 dark:bg-neutral-700 shrink-0" />
+
+            {/* Add to queue — split button with mode dropdown */}
+            <div className="relative flex items-stretch" ref={queueDropdownRef}>
+              <button
+                type="button"
+                onClick={doQueue}
+                className="inline-flex items-center gap-1.5 pl-3 pr-3 py-2 rounded-l-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium transition-colors shadow-sm border-r border-sky-600"
+              >
+                <Plus className="w-4 h-4 shrink-0" />
+                Add to queue
+                <span className="w-px h-4 rounded-full bg-white/30 mx-0.5 shrink-0" />
+                <span className={`font-semibold ${queueMode === 'send' ? 'text-green-300' : 'text-orange-300'}`}>
+                  {queueMode === 'send' ? 'Send' : 'Draft'}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setQueueDropdownOpen(prev => !prev)}
+                className="px-2 py-2 rounded-r-xl bg-sky-500 hover:bg-sky-600 text-white transition-colors shadow-sm"
+                title="Change mode"
+              >
+                <ChevronDown className={`w-4 h-4 transition-transform ${queueDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {queueDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1.5 z-50 w-48 rounded-xl border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-xl py-1 text-sm overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => { setQueueMode('send'); setQueueDropdownOpen(false); }}
+                    className="w-full text-left px-4 py-2.5 flex items-center gap-2.5 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
+                  >
+                    <Check className={`w-4 h-4 shrink-0 ${queueMode === 'send' ? 'text-sky-500' : 'opacity-0'}`} />
+                    <div>
+                      <div className={`font-medium ${queueMode === 'send' ? 'text-sky-600 dark:text-sky-400' : 'text-zinc-700 dark:text-zinc-200'}`}>Send directly</div>
+                      <div className="text-xs text-zinc-400 dark:text-zinc-500">Email goes to outbox</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setQueueMode('draft'); setQueueDropdownOpen(false); }}
+                    className="w-full text-left px-4 py-2.5 flex items-center gap-2.5 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
+                  >
+                    <Check className={`w-4 h-4 shrink-0 ${queueMode === 'draft' ? 'text-sky-500' : 'opacity-0'}`} />
+                    <div>
+                      <div className={`font-medium ${queueMode === 'draft' ? 'text-sky-600 dark:text-sky-400' : 'text-zinc-700 dark:text-zinc-200'}`}>Save as draft</div>
+                      <div className="text-xs text-zinc-400 dark:text-zinc-500">Saved to Gmail drafts</div>
+                    </div>
+                  </button>
+                </div>
+              )}
             </div>
+
+          </div>
+        </div>
+
+        {/* Row 2: Filters + sort + search */}
+        <div className="flex flex-wrap items-center gap-2">
+          {onFilterBusinessTypeChange && (
+            <>
+              <select
+                value={filterBusinessType}
+                onChange={(e) => onFilterBusinessTypeChange(e.target.value)}
+                className={selectClass}
+                style={{ backgroundImage: selectChevron }}
+                title="Filter by business type"
+              >
+                <option value="">All types</option>
+                {[...new Set(leads.map((l) => l.businessType).filter((x): x is string => Boolean(x)))].sort().map((bt) => (
+                  <option key={bt} value={bt}>{bt}</option>
+                ))}
+              </select>
+              <select
+                value={filterCity}
+                onChange={(e) => onFilterCityChange?.(e.target.value)}
+                className={selectClass}
+                style={{ backgroundImage: selectChevron }}
+                title="Filter by city"
+              >
+                <option value="">All cities</option>
+                {[...new Set(leads.map((l) => l.city).filter((x): x is string => Boolean(x)))].sort().map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              {onFilterViewChange && (
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => onFilterViewChange('all')} className={`${filterBtnBase} ${filterView === 'all' ? filterBtnActive : filterBtnInactive}`}>All</button>
+                  <button type="button" onClick={() => onFilterViewChange('sent')} className={`${filterBtnBase} ${filterView === 'sent' ? filterBtnActive : filterBtnInactive}`}>Sent ({filterCounts.emailSentCount})</button>
+                  <button type="button" onClick={() => onFilterViewChange('replied')} className={`${filterBtnBase} ${filterView === 'replied' ? filterBtnActive : filterBtnInactive}`}>Replies ({filterCounts.repliedCount})</button>
+                </div>
+              )}
+            </>
+          )}
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+            className={selectClass}
+            style={{ backgroundImage: selectChevron }}
+          >
+            <option value="newest">Most recent</option>
+            <option value="oldest">Oldest</option>
+          </select>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 dark:text-sky-300" />
+            <input
+              type="text"
+              placeholder="Search by business type, city..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full sm:w-56 pl-10 pr-4 py-2.5 border border-zinc-200 dark:border-sky-700/50 rounded-xl bg-white dark:bg-neutral-800/80 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-sky-400/70 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-400 transition-all shadow-sm hover:border-sky-300 dark:hover:border-sky-600"
+            />
           </div>
         </div>
       </div>
@@ -308,48 +448,65 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
       {/* Table - min-width + auto layout so columns don't overlap and horizontal scroll works */}
       <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-sky-700/40">
         <table className="w-full min-w-[1100px]" style={{ tableLayout: 'auto' }}>
-          <thead className="bg-sky-500/75 dark:bg-sky-600/75 border-b border-sky-500/60 dark:border-sky-600/60">
-            <tr>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap rounded-tl-xl" style={{ minWidth: 120 }}>
+          <thead>
+            <tr style={{ background: 'linear-gradient(90deg, #0ea5e9 0%, #38bdf8 35%, #6366f1 80%, #818cf8 100%)' }}>
+              {selectMode && (
+                <th className="px-3 py-3.5 rounded-tl-xl w-10">
+                  <input
+                    type="checkbox"
+                    checked={allOnPageSelected}
+                    onMouseDown={e => e.stopPropagation()}
+                    onChange={() => {
+                      if (allOnPageSelected) {
+                        setSelectedIds(prev => { const n = new Set(prev); paginatedLeads.forEach(l => n.delete(l.id)); return n; });
+                      } else {
+                        setSelectedIds(prev => new Set([...prev, ...paginatedLeads.map(l => l.id)]));
+                      }
+                    }}
+                    className="w-4 h-4 rounded accent-sky-500 cursor-pointer"
+                  />
+                </th>
+              )}
+              <th className={`px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap ${!selectMode ? 'rounded-tl-xl' : ''}`} style={{ minWidth: 120 }}>
                 Name
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
+              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
                 Business Type
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
+              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
                 City
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap">
+              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap">
                 Email
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
+              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
                 Phone
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
+              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
                 URL
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
+              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
                 Draft
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
-                Sent
+              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
+                Status
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
+              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
                 Delivery type
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
+              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
                 Scheduled at
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap w-0">
+              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
                 Reply
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ minWidth: 145 }}>
+              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap" style={{ minWidth: 145 }}>
                 Date
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap" style={{ minWidth: 100 }}>
+              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap" style={{ minWidth: 100 }}>
                 Campaign
               </th>
-              <th className="px-4 py-3.5 text-left text-sm font-display font-semibold tracking-wide text-white/95 whitespace-nowrap rounded-tr-xl" style={{ maxWidth: 100, width: 100 }}>
+              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap rounded-tr-xl" style={{ maxWidth: 100, width: 100 }}>
                 LinkedIn
               </th>
             </tr>
@@ -357,7 +514,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
           <tbody className="bg-white dark:bg-neutral-900/95 divide-y divide-zinc-200 dark:divide-sky-800/30">
             {paginatedLeads.length === 0 ? (
               <tr>
-                <td colSpan={14} className="px-6 py-12 text-center">
+                <td colSpan={selectMode ? 15 : 14} className="px-6 py-12 text-center">
                   <p className="text-zinc-600 dark:text-sky-200">
                     {searchQuery.trim() 
                       ? `No results for "${searchQuery}"` 
@@ -369,8 +526,22 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
               paginatedLeads.map((lead) => (
               <tr
                 key={lead.id}
-                className="hover:bg-zinc-50 dark:hover:bg-neutral-800/80 transition-colors"
+                className={`hover:bg-zinc-50 dark:hover:bg-neutral-800/80 transition-colors ${selectMode && selectedIds.has(lead.id) ? 'bg-sky-50 dark:bg-sky-900/20' : ''}`}
+                onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, leadId: lead.id }); }}
+                onMouseDown={() => { if (!selectMode) return; isDraggingRef.current = true; toggleSelect(lead.id); }}
+                onMouseEnter={() => { if (!selectMode || !isDraggingRef.current) return; setSelectedIds(prev => new Set([...prev, lead.id])); }}
               >
+                {selectMode && (
+                  <td className="px-3 py-4 w-10">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(lead.id)}
+                      onMouseDown={e => e.stopPropagation()}
+                      onChange={() => toggleSelect(lead.id)}
+                      className="w-4 h-4 rounded accent-sky-500 cursor-pointer"
+                    />
+                  </td>
+                )}
                 <td className="px-4 py-4">
                   <div className="text-sm font-medium text-zinc-900 dark:text-white truncate" title={lead.name || undefined}>
                     {lead.name || '-'}
@@ -450,14 +621,20 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-4 w-0">
-                  <span className="text-sm text-zinc-500 dark:text-sky-400/90">–</span>
+                <td className="px-4 py-4 w-0 whitespace-nowrap">
+                  {lead.emailSent ? (
+                    <span className="text-xs font-medium text-green-600 dark:text-green-400">Sent</span>
+                  ) : lead.gmailThreadId ? (
+                    <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">In mail box</span>
+                  ) : (
+                    <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">Pending</span>
+                  )}
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap">
                   {lead.deliveryType === 'draft' ? (
-                    <span className="text-xs font-medium text-sky-700 dark:text-sky-300">Draft</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30">Draft</span>
                   ) : lead.deliveryType === 'send' ? (
-                    <span className="text-xs font-medium text-sky-700 dark:text-sky-300">Send</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/30">Send</span>
                   ) : (
                     <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
                   )}
@@ -516,6 +693,41 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
           </tbody>
         </table>
       </div>
+
+      {/* Right-click context menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-[100] bg-white dark:bg-neutral-900 rounded-xl border border-zinc-200 dark:border-neutral-700 shadow-xl py-1 min-w-[220px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={() => { onEnqueue?.([contextMenu.leadId], 'draft'); setContextMenu(null); }}
+            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
+          >
+            <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" />
+            Add to queue (draft mode)
+          </button>
+          <button
+            type="button"
+            onClick={() => { onEnqueue?.([contextMenu.leadId], 'send'); setContextMenu(null); }}
+            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
+          >
+            <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
+            Add to queue (send mode)
+          </button>
+          <div className="my-1 border-t border-zinc-100 dark:border-neutral-800" />
+          <button
+            type="button"
+            onClick={() => { onTrash?.([contextMenu.leadId]); setContextMenu(null); }}
+            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          >
+            <Trash2 className="w-4 h-4 shrink-0" />
+            Move to trash
+          </button>
+        </div>
+      )}
 
       {/* Draft text modal – centered on screen */}
       {draftModal !== null && (() => {

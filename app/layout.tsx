@@ -1,18 +1,11 @@
 import type { Metadata } from "next";
-import { Montserrat } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { ApiPauseProvider } from "@/contexts/ApiPauseContext";
 import { CampaignLoadingProvider } from "@/contexts/CampaignLoadingContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import AppBackgroundWrapper from "@/components/AppBackgroundWrapper";
-
-const montserrat = Montserrat({
-  variable: "--font-montserrat",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  display: "swap",
-});
+import { SidebarProvider } from "@/contexts/SidebarContext";
 
 export const metadata: Metadata = {
   title: "PipeShark - Dashboard",
@@ -30,21 +23,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${montserrat.variable} antialiased`}
-      >
+      <body className="antialiased">
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('pipeshark-theme');var d=document.documentElement;d.classList.remove('light','dark');d.classList.add(t==='light'||t==='dark'?t:(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'));}catch(e){document.documentElement.classList.add('dark');}})();`,
           }}
         />
         <ThemeProvider>
+          <SidebarProvider>
           <ApiPauseProvider>
             <CampaignLoadingProvider>
               <AppBackgroundWrapper>{children}</AppBackgroundWrapper>
               {process.env.NEXT_PUBLIC_VERCEL === '1' ? <Analytics /> : null}
             </CampaignLoadingProvider>
           </ApiPauseProvider>
+          </SidebarProvider>
         </ThemeProvider>
       </body>
     </html>
