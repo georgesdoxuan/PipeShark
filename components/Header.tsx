@@ -164,13 +164,13 @@ export default function Header() {
           </div>
 
           {/* Center: nav tabs */}
-          <nav className="flex items-center gap-1 flex-1 justify-center">
+          <nav className="flex items-center gap-3 flex-1 justify-center">
             <Link href="/dashboard" className={bannerNavClass(isActive('/dashboard'))}>
               <LayoutDashboard className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
               Dashboard
             </Link>
             <Link href="/messages" className={bannerNavClass(isActive('/messages'))}>
-              <MessageCircle className="w-4 h-4 text-orange-400" />
+              <MessageCircle className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
               Messages
             </Link>
             <Link href="/call-center" className={bannerNavClass(isActive('/call-center'))}>
