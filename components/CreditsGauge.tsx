@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CircleDollarSign } from 'lucide-react';
+import Image from 'next/image';
 
 const DEFAULT_DAILY_LIMIT = 300;
 
@@ -78,7 +78,7 @@ export default function CreditsGauge({ campaignId, leadsWithEmail, compact = fal
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
         <span className="text-xs text-zinc-700 dark:text-sky-200 font-medium inline-flex items-center gap-1">
-          <CircleDollarSign className="w-3.5 h-3.5 text-yellow-500 dark:text-yellow-400" />
+          <Image src="/star-inside-circle.png" alt="" width={12} height={12} className="w-3 h-3 object-contain [filter:invert(1)_sepia(1)_saturate(10000%)_hue-rotate(-45deg)]" />
           Daily Credits
         </span>
         <span className="text-xs text-sky-600 dark:text-sky-300 font-semibold">

@@ -73,8 +73,15 @@ export default function MessagesPage() {
   const [editSubject, setEditSubject] = useState('');
   const [editBody, setEditBody] = useState('');
   const [savingQueueId, setSavingQueueId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'all' | 'replies'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'sent' | 'replies'>('all');
   const [sentimentCache, setSentimentCache] = useState<Record<string, Sentiment>>({});
+
+  // Sync activeTab with URL hash (#sent, #replies)
+  useEffect(() => {
+    const hash = typeof window !== 'undefined' ? window.location.hash.slice(1).toLowerCase() : '';
+    if (hash === 'replies') setActiveTab('replies');
+    else if (hash === 'sent') setActiveTab('sent');
+  }, []);
 
   useEffect(() => {
     fetch('/api/messages/conversations', { credentials: 'include' })
@@ -169,7 +176,12 @@ export default function MessagesPage() {
   }
 
   const selectedConv = conversations.find((c) => c.id === selectedLeadId);
-  const displayedConversations = activeTab === 'replies' ? conversations.filter(c => c.replied) : conversations;
+  const displayedConversations =
+    activeTab === 'replies'
+      ? conversations.filter((c) => c.replied)
+      : activeTab === 'sent'
+        ? conversations.filter((c) => !c.replied)
+        : conversations;
 
   function SentimentBadge({ sentiment, size = 'sm' }: { sentiment: Sentiment; size?: 'sm' | 'xs' }) {
     const sz = size === 'xs' ? 'w-3 h-3' : 'w-3.5 h-3.5';
@@ -203,20 +215,27 @@ export default function MessagesPage() {
                   <Image src="/mail.png" alt="" width={20} height={20} className="w-5 h-5 object-contain [filter:brightness(0)] dark:[filter:brightness(0)_invert(1)]" />
                   Messages
                 </h1>
-                <div className="flex gap-1">
+                <div className="flex gap-1 flex-wrap">
                   <button
                     type="button"
-                    onClick={() => setActiveTab('all')}
-                    className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${activeTab === 'all' ? 'bg-zinc-100 dark:bg-neutral-700 text-zinc-900 dark:text-white' : 'text-zinc-500 dark:text-neutral-400 hover:bg-zinc-50 dark:hover:bg-neutral-800'}`}
+                    onClick={() => { setActiveTab('all'); if (typeof window !== 'undefined') window.history.replaceState(null, '', '/messages'); }}
+                    className={`flex-1 min-w-0 py-1.5 text-xs font-medium rounded-lg transition-colors ${activeTab === 'all' ? 'bg-zinc-100 dark:bg-neutral-700 text-zinc-900 dark:text-white' : 'text-zinc-500 dark:text-neutral-400 hover:bg-zinc-50 dark:hover:bg-neutral-800'}`}
                   >
                     All ({conversations.length})
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActiveTab('replies')}
-                    className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-colors ${activeTab === 'replies' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 'text-zinc-500 dark:text-neutral-400 hover:bg-zinc-50 dark:hover:bg-neutral-800'}`}
+                    onClick={() => { setActiveTab('sent'); if (typeof window !== 'undefined') window.history.replaceState(null, '', '/messages#sent'); }}
+                    className={`flex-1 min-w-0 py-1.5 text-xs font-medium rounded-lg transition-colors ${activeTab === 'sent' ? 'bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-400' : 'text-zinc-500 dark:text-neutral-400 hover:bg-zinc-50 dark:hover:bg-neutral-800'}`}
                   >
-                    Replies ({conversations.filter(c => c.replied).length})
+                    Emails Sent ({conversations.filter((c) => !c.replied).length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('replies'); if (typeof window !== 'undefined') window.history.replaceState(null, '', '/messages#replies'); }}
+                    className={`flex-1 min-w-0 py-1.5 text-xs font-medium rounded-lg transition-colors ${activeTab === 'replies' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 'text-zinc-500 dark:text-neutral-400 hover:bg-zinc-50 dark:hover:bg-neutral-800'}`}
+                  >
+                    Replies ({conversations.filter((c) => c.replied).length})
                   </button>
                 </div>
               </div>
@@ -241,7 +260,7 @@ export default function MessagesPage() {
                   </div>
                 ) : displayedConversations.length === 0 ? (
                   <div className="p-6 text-center text-sm text-zinc-500 dark:text-neutral-400">
-                    No replies yet.
+                    {activeTab === 'replies' ? 'No replies yet.' : activeTab === 'sent' ? 'No pending emails.' : 'No conversations.'}
                   </div>
                 ) : (
                   <ul className="divide-y divide-zinc-100 dark:divide-neutral-800">

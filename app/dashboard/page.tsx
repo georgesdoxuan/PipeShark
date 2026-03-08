@@ -8,7 +8,7 @@ import CreditsGauge from '@/components/CreditsGauge';
 import { useApiPause } from '@/contexts/ApiPauseContext';
 import { useSidebar } from '@/contexts/SidebarContext';
 import Image from 'next/image';
-import { Plus, Calendar, MapPin, Trash2, X, AlertTriangle, Mail, Clock, Pencil, MailCheck, MailX, CheckSquare, Square, MoreVertical, CircleDollarSign, ChevronDown, Check, Power, Zap } from 'lucide-react';
+import { Plus, Calendar, MapPin, Trash2, X, AlertTriangle, Mail, Clock, Pencil, MailCheck, MailX, CheckSquare, Square, MoreVertical, ChevronDown, Check, Power, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
@@ -566,12 +566,12 @@ export default function CampaignsPage() {
             </div>
             {/* Today's timeline — carte blanche sans contours, décalée à gauche */}
             <div className="flex-1 min-w-0 flex items-center justify-center -translate-x-8">
-              <div className="rounded-xl bg-white dark:bg-neutral-800/80 shadow-none px-4 py-3">
+              <div className="rounded-xl bg-white dark:bg-neutral-800/80 shadow-none border border-zinc-200 dark:border-sky-700/50 px-4 py-3">
                 <div className="flex flex-col gap-1.5 items-center">
                   <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">Today's timeline</span>
                   <div className="flex items-center">
                     {/* Box 1: new leads */}
-                    <div className="relative rounded-xl bg-zinc-100 dark:bg-neutral-700/50 px-4 py-2.5 text-sm shrink-0">
+                    <div className="relative rounded-xl bg-zinc-100 dark:bg-neutral-700/50 shadow-sm px-4 py-2.5 text-sm shrink-0">
                       {todayLeads.length > 0 && (
                         <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
                           <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
@@ -590,7 +590,7 @@ export default function CampaignsPage() {
                       <div className="w-full h-px bg-zinc-300 dark:bg-neutral-600" />
                     </div>
                     {/* Box 2: emails sent */}
-                    <div className="relative rounded-xl bg-zinc-100 dark:bg-neutral-700/50 px-4 py-2.5 text-sm shrink-0">
+                    <div className="relative rounded-xl bg-zinc-100 dark:bg-neutral-700/50 shadow-sm px-4 py-2.5 text-sm shrink-0">
                       {(sentToday + draftToday) > 0 && (
                         <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
                           <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
@@ -623,7 +623,7 @@ export default function CampaignsPage() {
           <div className="flex items-start gap-3 mb-8 mt-6">
           <div className="flex flex-col items-start gap-1.5 flex-1 min-w-0">
             <div className={`transition-all duration-300 ${sidebarOpen ? 'w-full max-w-full origin-left scale-[1.08]' : ''}`}>
-            <div className={`rounded-xl bg-white dark:bg-neutral-800/50 shadow-sm inline-flex items-center ${sidebarOpen ? 'flex-nowrap overflow-x-auto max-w-full gap-1.5 p-2' : 'flex-wrap p-3 gap-2'}`}>
+            <div className={`rounded-xl bg-white dark:bg-neutral-800/50 shadow-sm border border-zinc-200 dark:border-sky-700/50 inline-flex items-center ${sidebarOpen ? 'flex-nowrap overflow-x-auto max-w-full gap-1.5 p-2' : 'flex-wrap p-3 gap-2'}`}>
               <Clock className={`text-sky-500 dark:text-sky-400 flex-shrink-0 ${sidebarOpen ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
               <span className={`font-medium text-zinc-700 dark:text-neutral-200 ${sidebarOpen ? 'text-xs whitespace-nowrap' : 'text-sm'}`}>Daily Launch</span>
               <span className={`text-zinc-400 dark:text-zinc-500 font-normal whitespace-nowrap ${sidebarOpen ? 'text-[11px]' : 'text-xs'}`}>— finds new leads at</span>
@@ -812,7 +812,7 @@ export default function CampaignsPage() {
             <div className="mb-1">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {displayedCampaigns.map((campaign) => {
-                const cardClass = 'bg-white dark:bg-neutral-800/60 border-2 border-sky-200 dark:border-sky-700/60';
+                const cardClass = 'bg-gradient-to-br from-sky-100 via-sky-50 to-white dark:from-sky-900/60 dark:via-sky-950/50 dark:to-neutral-800/70 border-2 border-sky-200 dark:border-sky-700/60';
                 // Helper function to format city size display
                 const formatCitySize = (citySize?: string): string => {
                   // Default to '1M+' if no citySize is set (for old campaigns)
@@ -1036,13 +1036,13 @@ export default function CampaignsPage() {
                       
                       <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-white/10">
                         <div className="flex items-center justify-between">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-white/15 border border-zinc-200 dark:border-white/20 text-xs font-semibold text-zinc-700 dark:text-zinc-300 shadow-sm">
                             <Image src="/customer.png" alt="" width={12} height={12} className="w-3 h-3 object-contain [filter:brightness(0)_saturate(100%)_invert(68%)_sepia(60%)_saturate(1200%)_hue-rotate(180deg)] dark:[filter:brightness(0)_invert(1)] opacity-90" />
                             {leadsCount} lead{leadsCount !== 1 ? 's' : ''}
                           </span>
                           <div className="flex items-center gap-1 text-sm text-zinc-500 dark:text-zinc-400">
                             <span className="font-medium text-zinc-700 dark:text-zinc-300">{campaign.numberCreditsUsed ?? 0}</span>
-                            <CircleDollarSign className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
+                            <Image src="/star-inside-circle.png" alt="" width={14} height={14} className="w-3.5 h-3.5 object-contain [filter:invert(1)_sepia(1)_saturate(10000%)_hue-rotate(-45deg)]" />
                           </div>
                         </div>
                       </div>
@@ -1243,7 +1243,7 @@ export default function CampaignsPage() {
           )}
 
           {/* All my leads Section — carte sans bandeau titre (titre + Refresh + Trash dans LeadsTable) */}
-          <div ref={leadsSectionRef} className="rounded-2xl bg-white dark:bg-neutral-800/60 shadow-md border border-zinc-200 dark:border-neutral-700 overflow-hidden mt-6">
+          <div id="all-my-leads" ref={leadsSectionRef} className="rounded-2xl bg-white dark:bg-neutral-800/60 shadow-md border border-zinc-200 dark:border-neutral-700 overflow-hidden mt-6">
             <div className="p-4 sm:p-5 pt-0">
             <LeadsTable
               leads={displayedLeads}

@@ -179,7 +179,6 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
   const totalPages = Math.ceil(filteredAndSortedLeads.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedLeads = filteredAndSortedLeads.slice(startIndex, startIndex + itemsPerPage);
-  const allOnPageSelected = paginatedLeads.length > 0 && paginatedLeads.every(l => selectedIds.has(l.id));
 
   // Counts for filter labels (same base as table: after email + business type + city, before reply/emailSent)
   const filterCounts = useMemo(() => {
@@ -401,9 +400,9 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                 <button type="button" onClick={() => onFilterViewChange('replied')} className={`${filterBtnBase} shrink-0 text-xs px-2 py-1.5 ${filterView === 'replied' ? filterBtnActive : filterBtnInactive}`}>Replies ({filterCounts.repliedCount})</button>
                 <button
                   type="button"
-                  onClick={() => setSelectMode(true)}
+                  onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
                   className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-sky-200 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors shrink-0 text-[11px] font-medium ml-0.5 origin-center scale-[1.08]"
-                  title="Select leads"
+                  title={selectMode ? "Annuler la sélection" : "Select leads"}
                 >
                   Select
                 </button>
@@ -420,21 +419,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
           <thead>
             <tr className="bg-[var(--viper-primary)] dark:bg-[var(--viper-primary-dark)]">
               {selectMode && (
-                <th className="px-3 py-3.5 rounded-tl-xl w-10">
-                  <input
-                    type="checkbox"
-                    checked={allOnPageSelected}
-                    onMouseDown={e => e.stopPropagation()}
-                    onChange={() => {
-                      if (allOnPageSelected) {
-                        setSelectedIds(prev => { const n = new Set(prev); paginatedLeads.forEach(l => n.delete(l.id)); return n; });
-                      } else {
-                        setSelectedIds(prev => new Set([...prev, ...paginatedLeads.map(l => l.id)]));
-                      }
-                    }}
-                    className="w-4 h-4 rounded accent-sky-500 cursor-pointer"
-                  />
-                </th>
+                <th className="px-3 py-3.5 rounded-tl-xl w-10" title="Sélection individuelle uniquement" />
               )}
               <th className={`px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap ${!selectMode ? 'rounded-tl-xl' : ''}`} style={{ minWidth: 120 }}>
                 Name
@@ -455,10 +440,10 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                 Delivery type
               </th>
               <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
-                URL
+                Draft
               </th>
               <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
-                Draft
+                URL
               </th>
               <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
                 Status
@@ -570,22 +555,6 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                   )}
                 </td>
                 <td className="px-4 py-4">
-                  {lead.url ? (
-                    <a
-                      href={lead.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center p-2 w-9 h-9 rounded-lg transition-colors hover:bg-sky-50 dark:hover:bg-sky-500/10"
-                      title={lead.url}
-                      aria-label="Open URL"
-                    >
-                      <Image src="/link.png" alt="URL" width={20} height={20} className="object-contain w-5 h-5 [filter:brightness(0)_saturate(100%)_invert(52%)_sepia(89%)_saturate(1500%)_hue-rotate(186deg)] dark:[filter:brightness(0)_saturate(100%)_invert(65%)_sepia(60%)_saturate(800%)_hue-rotate(186deg)]" />
-                    </a>
-                  ) : (
-                    <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
-                  )}
-                </td>
-                <td className="px-4 py-4">
                   {lead.emailDraftCreated ? (
                     <div className="flex flex-col gap-0.5">
                       <button
@@ -606,6 +575,22 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-yellow-500/20 text-amber-700 dark:text-yellow-300 border border-amber-200 dark:border-yellow-500/30">
                       Pending
                     </span>
+                  )}
+                </td>
+                <td className="px-4 py-4">
+                  {lead.url ? (
+                    <a
+                      href={lead.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center p-2 w-9 h-9 rounded-lg transition-colors hover:bg-sky-50 dark:hover:bg-sky-500/10"
+                      title={lead.url}
+                      aria-label="Open URL"
+                    >
+                      <Image src="/link.png" alt="URL" width={20} height={20} className="object-contain w-5 h-5 [filter:brightness(0)_saturate(100%)_invert(52%)_sepia(89%)_saturate(1500%)_hue-rotate(186deg)] dark:[filter:brightness(0)_saturate(100%)_invert(65%)_sepia(60%)_saturate(800%)_hue-rotate(186deg)]" />
+                    </a>
+                  ) : (
+                    <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
                   )}
                 </td>
                 <td className="px-4 py-4 w-0 whitespace-nowrap">

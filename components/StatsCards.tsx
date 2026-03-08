@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { Users, TrendingUp, Send } from 'lucide-react';
 
 const TARGETS_ICON_SRC = '/customer.png';
@@ -53,6 +54,7 @@ export default function StatsCards({ stats, compact = false, mini = false }: Sta
     subtitle?: string;
     extra?: string;
     style: keyof typeof CARD_STYLES;
+    href: string;
   }> = [
     {
       title: 'Leads',
@@ -60,6 +62,7 @@ export default function StatsCards({ stats, compact = false, mini = false }: Sta
       icon: Users,
       customIconSrc: TARGETS_ICON_SRC,
       style: 'leads',
+      href: '/dashboard#all-my-leads',
     },
     {
       title: 'Emails sent',
@@ -67,6 +70,7 @@ export default function StatsCards({ stats, compact = false, mini = false }: Sta
       icon: Send,
       customIconSrc: PAPER_PLANE_SRC,
       style: 'sent',
+      href: '/messages#sent',
     },
     {
       title: 'Replies',
@@ -75,6 +79,7 @@ export default function StatsCards({ stats, compact = false, mini = false }: Sta
       extra: stats.avgTimeToReplyHours != null ? `Avg: ${stats.avgTimeToReplyHours}h` : undefined,
       icon: TrendingUp,
       style: 'replies',
+      href: '/messages#replies',
     },
   ];
 
@@ -95,9 +100,9 @@ export default function StatsCards({ stats, compact = false, mini = false }: Sta
       {cards.map((card) => {
         const s = CARD_STYLES[card.style];
         return (
-          <div key={card.title} className="flex flex-col items-start shrink-0">
+          <Link key={card.title} href={card.href} className="flex flex-col items-start shrink-0 hover:opacity-95 transition-opacity">
             <div
-              className={`${sizeClass} flex flex-col rounded-2xl bg-white dark:bg-neutral-900 bg-gradient-to-br ${s.accent} shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden relative`}
+              className={`${sizeClass} flex flex-col rounded-2xl bg-white dark:bg-neutral-900 bg-gradient-to-br ${s.accent} shadow-sm transition-all duration-300 overflow-hidden relative cursor-pointer`}
             >
               <div className="flex items-start justify-between gap-2 min-h-0 flex-shrink-0">
                 <p className={`text-zinc-600 dark:text-neutral-400 ${titleClass} font-semibold leading-tight break-normal line-clamp-2 flex-1 ${minWidthClass}`} title={card.title}>
@@ -130,7 +135,7 @@ export default function StatsCards({ stats, compact = false, mini = false }: Sta
             ) : !mini && card.subtitle ? (
               <p className="text-[10px] text-zinc-500 dark:text-neutral-400 leading-tight mt-1 px-0.5">{card.subtitle}</p>
             ) : null}
-          </div>
+          </Link>
         );
       })}
     </div>

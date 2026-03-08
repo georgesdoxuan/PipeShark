@@ -55,8 +55,6 @@ export default function TrashPage() {
     });
   }
 
-  const allSelected = leads.length > 0 && leads.every(l => selectedIds.has(l.id));
-
   return (
     <>
       <Header />
@@ -128,14 +126,7 @@ export default function TrashPage() {
             <table className="w-full min-w-[600px]">
               <thead>
                 <tr className="bg-zinc-50 dark:bg-neutral-800 border-b border-zinc-200 dark:border-neutral-700">
-                  <th className="px-4 py-3 w-10">
-                    <input
-                      type="checkbox"
-                      checked={allSelected}
-                      onChange={() => setSelectedIds(allSelected ? new Set() : new Set(leads.map(l => l.id)))}
-                      className="w-4 h-4 rounded accent-sky-500 cursor-pointer"
-                    />
-                  </th>
+                  <th className="px-4 py-3 w-10" title="Sélection individuelle uniquement" />
                   <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Name</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Business</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">City</th>

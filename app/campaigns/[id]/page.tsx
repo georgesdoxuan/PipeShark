@@ -7,8 +7,9 @@ import LeadsTable from '@/components/LeadsTable';
 import CreditsGauge from '@/components/CreditsGauge';
 import { useApiPause } from '@/contexts/ApiPauseContext';
 import { useCampaignLoading } from '@/contexts/CampaignLoadingContext';
-import { ArrowLeft, RefreshCw, Play, Loader2, FileText, X, ChevronDown, ChevronUp, MailX, MessageCircle, Target, CircleDollarSign, Briefcase, Send } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Play, Loader2, FileText, X, ChevronDown, ChevronUp, MailX, MessageCircle, Target, Briefcase, Send } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import EditCampaignModal from '@/components/EditCampaignModal';
 
 interface Lead {
@@ -477,7 +478,7 @@ export default function CampaignDetailPage() {
                 <div className="flex items-center gap-3">
                   {campaign.numberCreditsUsed != null && (
                     <span className="text-sm font-medium text-zinc-700 dark:text-sky-300 inline-flex items-center gap-1.5">
-                      <CircleDollarSign className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
+                      <Image src="/star-inside-circle.png" alt="" width={14} height={14} className="w-3.5 h-3.5 object-contain [filter:invert(1)_sepia(1)_saturate(10000%)_hue-rotate(-45deg)]" />
                       {campaign.numberCreditsUsed} credit{campaign.numberCreditsUsed !== 1 ? 's' : ''}
                     </span>
                   )}
