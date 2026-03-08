@@ -2,8 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Header from '@/components/Header';
-import Link from 'next/link';
-import { ArrowLeft, FileText, Mail, Plus, Trash2, Pencil, SlidersHorizontal } from 'lucide-react';
+import { FileText, Mail, Plus, Trash2, Pencil, SlidersHorizontal } from 'lucide-react';
 
 interface CompanyDescription {
   id: string;
@@ -247,13 +246,6 @@ export default function ConfigurationPage() {
     <div className="min-h-screen bg-sky-50 dark:bg-neutral-950">
       <Header />
       <div className="px-4 sm:px-6 lg:px-8 py-4 max-w-6xl mx-auto">
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-2 text-sm text-zinc-500 dark:text-neutral-400 hover:text-zinc-900 dark:hover:text-white mb-4 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to dashboard
-        </Link>
         <h1 className="text-xl font-display font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-4">
           <SlidersHorizontal className="w-5 h-5 text-sky-500" />
           Configuration
@@ -264,7 +256,7 @@ export default function ConfigurationPage() {
           <section
             ref={businessRef}
             id="business-descriptions"
-            className="flex flex-col min-h-0 rounded-xl border border-sky-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm overflow-hidden"
+            className="flex flex-col min-h-0 rounded-xl bg-white dark:bg-neutral-900 shadow-md dark:shadow-neutral-950/40 overflow-hidden"
           >
             <div className="shrink-0 px-4 py-3 border-b border-zinc-200 dark:border-neutral-700 flex items-center gap-2">
               <FileText className="w-5 h-5 text-sky-500" />
@@ -306,7 +298,7 @@ export default function ConfigurationPage() {
                   {uniqueDescriptions.map((d) => (
                     <li
                       key={d.id}
-                      className="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-zinc-50 dark:bg-neutral-800/50 p-3 text-sm"
+                      className="rounded-lg bg-zinc-50 dark:bg-neutral-800/50 shadow-sm p-3 text-sm"
                     >
                       {editingId === d.id ? (
                         <>
@@ -366,7 +358,7 @@ export default function ConfigurationPage() {
           <section
             ref={emailsRef}
             id="exemple-mails"
-            className="flex flex-col min-h-0 rounded-xl border border-sky-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-sm overflow-hidden"
+            className="flex flex-col min-h-0 rounded-xl bg-white dark:bg-neutral-900 shadow-md dark:shadow-neutral-950/40 overflow-hidden"
           >
             <div className="shrink-0 px-4 py-3 border-b border-zinc-200 dark:border-neutral-700 flex items-center gap-2">
               <Mail className="w-5 h-5 text-sky-500" />
@@ -413,7 +405,7 @@ export default function ConfigurationPage() {
               ) : (
                 <ul className="space-y-2">
                   {templates.map((t) => (
-                    <li key={t.id} className="rounded-lg border border-zinc-200 dark:border-neutral-700 bg-zinc-50 dark:bg-neutral-800/50 p-3 flex items-start justify-between gap-2">
+                    <li key={t.id} className="rounded-lg bg-zinc-50 dark:bg-neutral-800/50 shadow-sm p-3 flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         {t.name && <p className="text-sm font-medium text-zinc-900 dark:text-white mb-0.5">{t.name}</p>}
                         <p className="text-sm text-zinc-700 dark:text-neutral-300 line-clamp-3">{t.content}</p>

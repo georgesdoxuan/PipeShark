@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
-import { Settings, ArrowLeft, MailCheck, MailX, Scale, Lock, Send } from 'lucide-react';
+import { Settings, MailCheck, MailX, Scale, Lock, Send } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import SenderAccountForm from '@/components/SenderAccountForm';
@@ -167,19 +167,10 @@ export default function PreferencesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white/60 dark:bg-black/70 relative">
-      <div className="relative z-10">
+    <div className="min-h-screen bg-sky-50 dark:bg-black/70 relative">
         <Header />
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 text-zinc-500 dark:text-neutral-400 hover:text-zinc-900 dark:hover:text-white mb-6 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Link>
-
-          <div className="bg-zinc-50 dark:bg-neutral-900 rounded-xl border border-zinc-200 dark:border-neutral-800 p-6 mb-6">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
+          <div className="bg-white dark:bg-neutral-900 rounded-xl border border-zinc-200 dark:border-neutral-800 p-6 mb-6">
             <h1 className="text-2xl font-display font-bold text-zinc-900 dark:text-white mb-6 flex items-center gap-2">
               <Settings className="w-6 h-6" />
               Preferences
@@ -344,7 +335,6 @@ export default function PreferencesPage() {
             </footer>
           </section>
         </div>
-      </div>
     </div>
   );
 }

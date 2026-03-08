@@ -62,6 +62,10 @@ interface Lead {
   replied?: boolean;
   repliedAt?: string | null;
   gmailThreadId?: string | null;
+  emailSent?: boolean;
+  deliveryType?: 'draft' | 'send' | null;
+  scheduledAt?: string | null;
+  queueItemId?: string | null;
 }
 
 export default function CampaignsPage() {
@@ -137,6 +141,11 @@ export default function CampaignsPage() {
     const c = campaigns.find(x => x.id === campaignId);
     return c?.name || c?.businessType || null;
   }, [todayLeads, campaigns]);
+
+  const repliesToday = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return repliesByDay.find(r => r.date === today)?.count ?? 0;
+  }, [repliesByDay]);
 
   useEffect(() => {
     if (searchParams.get('leads') === 'today' && !loadingLeads && leadsSectionRef.current) {
@@ -566,44 +575,56 @@ export default function CampaignsPage() {
             </div>
             {/* Today's timeline — carte blanche sans contours, décalée à gauche */}
             <div className="flex-1 min-w-0 flex items-center justify-center -translate-x-8">
-              <div className="rounded-xl bg-white dark:bg-neutral-800/80 shadow-none border border-zinc-200 dark:border-sky-700/50 px-4 py-3">
-                <div className="flex flex-col gap-1.5 items-center">
+              <div className="rounded-xl bg-white dark:bg-neutral-800/80 shadow-none border border-zinc-200 dark:border-sky-700/50 px-3 py-2.5 xl:max-2xl:px-2 xl:max-2xl:py-1.5">
+                <div className="flex flex-col gap-1 items-center">
                   <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">Today's timeline</span>
                   <div className="flex items-center">
                     {/* Box 1: new leads */}
-                    <div className="relative rounded-xl bg-zinc-100 dark:bg-neutral-700/50 shadow-sm px-4 py-2.5 text-sm shrink-0">
+                    <div className="relative rounded-xl bg-zinc-100 dark:bg-neutral-700/50 shadow-sm px-3 py-2 xl:max-2xl:px-2 xl:max-2xl:py-1 text-sm shrink-0">
                       {todayLeads.length > 0 && (
                         <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
                           <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
                         </span>
                       )}
-                      <div className="font-semibold text-zinc-700 dark:text-zinc-200">{todayLeads.length} new leads</div>
-                      {todayCampaignName && <div className="text-xs text-zinc-400 dark:text-zinc-500 truncate max-w-[140px]">from {todayCampaignName}</div>}
+                      <div className="font-semibold text-zinc-700 dark:text-zinc-200 xl:max-2xl:text-xs">{todayLeads.length} new leads</div>
+                      {todayCampaignName && <div className="text-xs xl:max-2xl:text-[10px] text-zinc-400 dark:text-zinc-500 truncate max-w-[110px] xl:max-2xl:max-w-[80px]">from {todayCampaignName}</div>}
                     </div>
                     {/* Connector */}
-                    <div className="relative flex items-center w-24 shrink-0">
-                      {(sentToday + draftToday) === 0 && nextQueueAt && (
-                        <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] text-zinc-400 dark:text-zinc-500 whitespace-nowrap">
-                          next at {new Date(nextQueueAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      )}
+                    <div className="flex items-center w-14 xl:max-2xl:w-8 shrink-0">
                       <div className="w-full h-px bg-zinc-300 dark:bg-neutral-600" />
                     </div>
                     {/* Box 2: emails sent */}
-                    <div className="relative rounded-xl bg-zinc-100 dark:bg-neutral-700/50 shadow-sm px-4 py-2.5 text-sm shrink-0">
+                    <div className="relative rounded-xl bg-zinc-100 dark:bg-neutral-700/50 shadow-sm px-3 py-2 xl:max-2xl:px-2 xl:max-2xl:py-1 text-sm shrink-0">
                       {(sentToday + draftToday) > 0 && (
                         <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
                           <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
                         </span>
                       )}
-                      <div className="font-semibold text-zinc-700 dark:text-zinc-200">
+                      <div className="font-semibold text-zinc-700 dark:text-zinc-200 xl:max-2xl:text-xs">
                         {sentToday > 0 && <span>{sentToday} sent</span>}
                         {sentToday > 0 && draftToday > 0 && <span className="text-zinc-300 mx-1">·</span>}
                         {draftToday > 0 && <span>{draftToday} draft{draftToday > 1 ? 's' : ''}</span>}
                         {sentToday === 0 && draftToday === 0 && <span>0 emails</span>}
                       </div>
-                      <div className="text-xs text-zinc-400 dark:text-zinc-500">sent today</div>
+                      <div className="text-xs xl:max-2xl:text-[10px] text-zinc-400 dark:text-zinc-500">sent today</div>
+                      {(sentToday + draftToday) === 0 && nextQueueAt && (
+                        <div className="text-[9px] text-zinc-400 dark:text-zinc-500 whitespace-nowrap mt-0.5">
+                          next at {new Date(nextQueueAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      )}
                     </div>
+                    {/* Connector */}
+                    <div className="w-14 xl:max-2xl:w-8 shrink-0 h-px bg-zinc-300 dark:bg-neutral-600" />
+                    {/* Box 3: replies today */}
+                    <Link href="/messages#replies" className="relative rounded-xl bg-zinc-100 dark:bg-neutral-700/50 shadow-sm px-3 py-2 xl:max-2xl:px-2 xl:max-2xl:py-1 text-sm shrink-0 hover:bg-zinc-200 dark:hover:bg-neutral-600/60 transition-colors">
+                      {repliesToday > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
+                          <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                        </span>
+                      )}
+                      <div className="font-semibold text-zinc-700 dark:text-zinc-200 xl:max-2xl:text-xs">{repliesToday} {repliesToday === 1 ? 'reply' : 'replies'}</div>
+                      <div className="text-xs xl:max-2xl:text-[10px] text-zinc-400 dark:text-zinc-500">today</div>
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -1296,16 +1317,21 @@ export default function CampaignsPage() {
                 }
               }}
               onUpdateDeliveryType={async (queueItemId, deliveryType) => {
+                // Optimistic update
+                setLeads((prev) => prev.map((l) => l.queueItemId === queueItemId ? { ...l, deliveryType } : l));
                 try {
-                  await fetch('/api/leads/queue-delivery-type', {
+                  const res = await fetch('/api/leads/queue-delivery-type', {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ queueItemId, deliveryType }),
                     credentials: 'include',
                   });
-                  fetchLeads();
+                  if (!res.ok) {
+                    // Revert on failure
+                    fetchLeads();
+                  }
                 } catch {
-                  // silent — UI will reflect unchanged state on next refresh
+                  fetchLeads();
                 }
               }}
             />

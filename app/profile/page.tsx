@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
-import { User, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
+import { User } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -33,17 +32,9 @@ export default function ProfilePage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-50/60 dark:bg-black/70 relative">
-      <div className="relative z-10">
+    <div className="min-h-screen bg-sky-50 dark:bg-black/70 relative">
         <Header />
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 text-zinc-600 dark:text-neutral-400 hover:text-zinc-900 dark:hover:text-white mb-6 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Link>
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
           <div className="bg-white dark:bg-neutral-900 rounded-xl border border-zinc-200 dark:border-neutral-800 shadow-sm dark:shadow-none p-6">
             <h1 className="text-2xl font-display font-bold text-zinc-900 dark:text-white mb-6 flex items-center gap-2">
               <User className="w-6 h-6 text-zinc-700 dark:text-white" />
@@ -69,7 +60,6 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
-      </div>
     </div>
   );
 }

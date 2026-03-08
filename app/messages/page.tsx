@@ -203,8 +203,7 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white/60 dark:bg-black/70 relative">
-      <div className="relative z-10">
+    <div className="min-h-screen bg-sky-50 dark:bg-black/70 relative">
         <Header />
         <div className="w-full max-w-[1600px] mx-auto px-3 sm:px-4 lg:px-6 pt-0 pb-0">
           <div className="flex flex-col sm:flex-row gap-0 sm:gap-4 rounded-none sm:rounded-xl border-0 sm:border border-zinc-200 dark:border-neutral-800 border-t border-zinc-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 overflow-hidden min-h-[calc(100vh-4rem)]">
@@ -470,7 +469,6 @@ export default function MessagesPage() {
             </main>
           </div>
         </div>
-      </div>
     </div>
   );
 }

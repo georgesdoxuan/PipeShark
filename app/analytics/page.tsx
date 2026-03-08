@@ -3,7 +3,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import Header from '@/components/Header';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell, Legend } from 'recharts';
-import { Users, Mail, MessageCircle, Phone, TrendingUp, Target, Clock, CheckCircle } from 'lucide-react';
+import Image from 'next/image';
+import { MessageCircle, TrendingUp, Target, Clock, CheckCircle } from 'lucide-react';
 
 interface Lead {
   id: string;
@@ -33,11 +34,15 @@ interface RepliesByDay {
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6'];
 
-function StatCard({ icon: Icon, label, value, sub, color }: { icon: React.ElementType; label: string; value: string | number; sub?: string; color: string }) {
+function StatCard({ icon: Icon, iconSrc, label, value, sub, color }: { icon?: React.ElementType; iconSrc?: string; label: string; value: string | number; sub?: string; color: string }) {
   return (
-    <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-zinc-200 dark:border-neutral-800 p-5 flex items-start gap-4">
+    <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-md dark:shadow-neutral-950/40 p-5 flex items-start gap-4">
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
-        <Icon className="w-5 h-5 text-white" />
+        {iconSrc ? (
+          <Image src={iconSrc} alt="" width={20} height={20} className="w-5 h-5 object-contain [filter:brightness(0)_invert(1)]" />
+        ) : Icon ? (
+          <Icon className="w-5 h-5 text-white" />
+        ) : null}
       </div>
       <div>
         <p className="text-2xl font-bold text-zinc-900 dark:text-white">{value}</p>
@@ -134,17 +139,31 @@ export default function AnalyticsPage() {
 
   if (loading) {
     return (
-      <>
+      <div className="min-h-screen bg-sky-50 dark:bg-black/70">
         <Header />
         <main className="p-6 max-w-7xl mx-auto">
           <div className="flex items-center justify-center h-64 text-zinc-400">Loading analytics…</div>
         </main>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-sky-50 dark:bg-black/70 relative overflow-hidden">
+      {/* Background curves – style distinct from dashboard */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden z-0" aria-hidden>
+        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 1440 900" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+          {/* Grand arc haut-gauche → bas-droite */}
+          <path d="M-200 100 Q400 -80 900 200 Q1300 420 1600 800" stroke="currentColor" strokeWidth="180" strokeLinecap="round" className="text-sky-200/40 dark:text-sky-500/10" fill="none" />
+          {/* Arc secondaire décalé */}
+          <path d="M-100 400 Q500 200 1000 500 Q1300 680 1500 1000" stroke="currentColor" strokeWidth="120" strokeLinecap="round" className="text-sky-300/30 dark:text-sky-400/8" fill="none" />
+          {/* Petit arc en bas-gauche */}
+          <path d="M0 800 Q300 600 600 750 Q800 850 1000 700" stroke="currentColor" strokeWidth="90" strokeLinecap="round" className="text-indigo-200/30 dark:text-indigo-500/8" fill="none" />
+          {/* Blob haut-droite */}
+          <ellipse cx="1300" cy="100" rx="280" ry="180" className="fill-sky-200/25 dark:fill-sky-500/8" transform="rotate(-20 1300 100)" />
+        </svg>
+      </div>
+      <div className="relative z-10">
       <Header />
       <main className="p-6 max-w-7xl mx-auto space-y-8">
         <div>
@@ -154,10 +173,10 @@ export default function AnalyticsPage() {
 
         {/* KPI cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatCard icon={Users} label="Total leads" value={stats.total} color="bg-indigo-500" />
-          <StatCard icon={Mail} label="Emails sent" value={stats.sent} sub={`${stats.inMailbox} in mailbox`} color="bg-sky-500" />
+          <StatCard iconSrc="/customer.png" label="Total leads" value={stats.total} color="bg-indigo-500" />
+          <StatCard iconSrc="/mail.png" label="Emails sent" value={stats.sent} sub={`${stats.inMailbox} in mailbox`} color="bg-sky-500" />
           <StatCard icon={MessageCircle} label="Reply rate" value={`${stats.replyRate}%`} sub={`${stats.replied} replies`} color="bg-emerald-500" />
-          <StatCard icon={Phone} label="Called" value={`${stats.callRate}%`} sub={`${stats.called} / ${stats.total}`} color="bg-violet-500" />
+          <StatCard iconSrc="/phone-receiver-silhouette.png" label="Called" value={`${stats.callRate}%`} sub={`${stats.called} / ${stats.total}`} color="bg-violet-500" />
           <StatCard icon={Target} label="Active campaigns" value={stats.activeCampaigns} color="bg-orange-500" />
           <StatCard icon={CheckCircle} label="With email" value={stats.withEmail} sub={`${stats.total - stats.withEmail} without`} color="bg-teal-500" />
           <StatCard icon={TrendingUp} label="Total replied" value={stats.replied} color="bg-pink-500" />
@@ -167,7 +186,7 @@ export default function AnalyticsPage() {
         {/* Charts row 1 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Leads per day */}
-          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-zinc-200 dark:border-neutral-800 p-5">
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-md dark:shadow-neutral-950/40 p-5">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-white mb-4">Leads generated — last 14 days</h2>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={leadsPerDay} barSize={14}>
@@ -184,7 +203,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Replies this week */}
-          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-zinc-200 dark:border-neutral-800 p-5">
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-md dark:shadow-neutral-950/40 p-5">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-white mb-4">Replies this week</h2>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={repliesChartData} barSize={14}>
@@ -204,7 +223,7 @@ export default function AnalyticsPage() {
         {/* Charts row 2 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Leads per campaign */}
-          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-zinc-200 dark:border-neutral-800 p-5">
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-md dark:shadow-neutral-950/40 p-5">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-white mb-4">Leads per campaign</h2>
             {leadsPerCampaign.length === 0 ? (
               <p className="text-sm text-zinc-400 py-8 text-center">No data yet</p>
@@ -225,7 +244,7 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Email status pie */}
-          <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-zinc-200 dark:border-neutral-800 p-5">
+          <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-md dark:shadow-neutral-950/40 p-5">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-white mb-4">Email pipeline</h2>
             {emailStatusData.length === 0 ? (
               <p className="text-sm text-zinc-400 py-8 text-center">No data yet</p>
@@ -248,6 +267,7 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </main>
-    </>
+      </div>
+    </div>
   );
 }

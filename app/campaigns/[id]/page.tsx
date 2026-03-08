@@ -325,7 +325,7 @@ export default function CampaignDetailPage() {
 
   if (!campaign) {
     return (
-      <div className="min-h-screen bg-white/60 dark:bg-black/70 relative">
+      <div className="min-h-screen bg-sky-50 dark:bg-black/70 relative">
         <Header />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-white dark:bg-neutral-900/80 rounded-xl border border-zinc-200 dark:border-sky-800/30 shadow-xl p-12 text-center">
@@ -337,7 +337,7 @@ export default function CampaignDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white/60 dark:bg-black/70 relative">
+    <div className="min-h-screen bg-sky-50 dark:bg-black/70 relative">
       <div>
         <Header />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

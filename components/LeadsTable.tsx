@@ -280,9 +280,9 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
           <Image
             src="/customer.png"
             alt=""
-            width={28}
-            height={28}
-            className="w-7 h-7 object-contain flex-shrink-0 [filter:brightness(0)_saturate(100%)_invert(68%)_sepia(60%)_saturate(1200%)_hue-rotate(180deg)] dark:[filter:brightness(0)_invert(1)]"
+            width={20}
+            height={20}
+            className="w-5 h-5 object-contain flex-shrink-0 [filter:brightness(0)_saturate(100%)_invert(68%)_sepia(60%)_saturate(1200%)_hue-rotate(180deg)] dark:[filter:brightness(0)_invert(1)]"
           />
           <h2 className="text-lg font-display font-bold text-zinc-900 dark:text-white shrink-0">
             All my leads ({filteredAndSortedLeads.length})

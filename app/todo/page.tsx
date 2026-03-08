@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
-import { ArrowLeft, Plus, Trash2, Loader2, ListTodo, Circle, PlayCircle, CheckCircle, ChevronRight, ChevronLeft } from 'lucide-react';
-import Link from 'next/link';
+import { Plus, Trash2, Loader2, ListTodo, Circle, PlayCircle, CheckCircle, ChevronRight, ChevronLeft } from 'lucide-react';
 
 type TodoStatus = 'todo' | 'doing' | 'done';
 
@@ -119,19 +118,10 @@ export default function TodoPage() {
   }, {} as Record<TodoStatus, Todo[]>);
 
   return (
-    <div className="min-h-screen bg-white/60 dark:bg-black/70 relative">
-      <div className="relative z-10">
+    <div className="min-h-screen bg-sky-50 dark:bg-black/70 relative">
         <Header />
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 text-zinc-600 dark:text-neutral-400 hover:text-zinc-900 dark:hover:text-white mb-6 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </Link>
-
-          <div className="bg-white dark:bg-neutral-800/80 rounded-xl border border-zinc-200 dark:border-neutral-700 shadow-xl overflow-hidden">
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
+          <div className="bg-white dark:bg-neutral-800/80 rounded-xl border border-zinc-200 dark:border-neutral-700 shadow-sm overflow-hidden">
             <div className="p-6 border-b border-zinc-200 dark:border-neutral-700">
               <h1 className="text-2xl font-display font-bold text-zinc-900 dark:text-white mb-2 flex items-center gap-2">
                 <ListTodo className="w-6 h-6 text-sky-600 dark:text-sky-400" />
@@ -265,7 +255,6 @@ export default function TodoPage() {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Header from '@/components/Header';
-import { Search, Mail, Phone, FolderPlus, RefreshCw, Check, Loader2, Eye, X } from 'lucide-react';
+import { Search, Mail, Phone, FolderPlus, RefreshCw, Check, Loader2, Eye, X, Trash2, MousePointerClick } from 'lucide-react';
 import Image from 'next/image';
 
 interface Lead {
@@ -15,6 +15,15 @@ interface Lead {
   email: string | null;
   phone: string | null;
   url: string | null;
+  linkedin?: string | null;
+  draft?: string | null;
+  emailDraftCreated?: boolean | null;
+  replied?: boolean;
+  emailSent?: boolean;
+  gmailThreadId?: string | null;
+  deliveryType?: 'draft' | 'send' | null;
+  scheduledAt?: string | null;
+  queueItemId?: string | null;
   preparationSummary?: string | null;
   callNotes?: string | null;
   called?: boolean;
@@ -52,8 +61,15 @@ export default function CallCenterPage() {
   const [prepCommentText, setPrepCommentText] = useState('');
   const [prepSaving, setPrepSaving] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectMode, setSelectMode] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [businessTypeFilter, setBusinessTypeFilter] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
+  const [filterView, setFilterView] = useState<'all' | 'sent' | 'replied'>('all');
   const [generatingPrep, setGeneratingPrep] = useState(false);
   const [generateFeedback, setGenerateFeedback] = useState<string | null>(null);
+  const [draftModal, setDraftModal] = useState<{ content: string; lead: Lead } | null>(null);
+  const [deletingSelected, setDeletingSelected] = useState(false);
 
   const fetchLeads = useCallback(async () => {
     try {
@@ -133,22 +149,42 @@ export default function CallCenterPage() {
     }
   };
 
-  const filteredLeads = leads.filter((l) => {
-    if (campaignFilterId && l.campaignId !== campaignFilterId) return false;
-    const q = search.toLowerCase();
-    if (!q) return true;
-    const name = (l.name ?? '').toLowerCase();
-    const business = (l.businessType ?? '').toLowerCase();
-    const city = (l.city ?? '').toLowerCase();
-    const email = (l.email ?? '').toLowerCase();
-    return name.includes(q) || business.includes(q) || city.includes(q) || email.includes(q);
-  });
+  const uniqueBusinessTypes = Array.from(new Set(leads.map((l) => l.businessType).filter(Boolean))).sort() as string[];
+  const uniqueCities = Array.from(new Set(leads.map((l) => l.city).filter(Boolean))).sort() as string[];
+
+  const filteredLeads = leads
+    .filter((l) => {
+      if (campaignFilterId && l.campaignId !== campaignFilterId) return false;
+      if (businessTypeFilter && l.businessType !== businessTypeFilter) return false;
+      if (cityFilter && l.city !== cityFilter) return false;
+      if (filterView === 'sent' && !l.emailSent) return false;
+      if (filterView === 'replied' && !l.replied) return false;
+      const q = search.toLowerCase();
+      if (!q) return true;
+      const name = (l.name ?? '').toLowerCase();
+      const business = (l.businessType ?? '').toLowerCase();
+      const city = (l.city ?? '').toLowerCase();
+      const email = (l.email ?? '').toLowerCase();
+      return name.includes(q) || business.includes(q) || city.includes(q) || email.includes(q);
+    })
+    .sort((a, b) => {
+      const da = a.date ? new Date(a.date).getTime() : 0;
+      const db = b.date ? new Date(b.date).getTime() : 0;
+      return sortOrder === 'newest' ? db - da : da - db;
+    });
 
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / ITEMS_PER_PAGE));
   const paginatedLeads = filteredLeads.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
+  function formatScheduledAt(iso: string | undefined | null): string {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+
   return (
-    <div className="min-h-screen bg-zinc-100/60 dark:bg-black/70 relative">
+    <div className="min-h-screen bg-sky-50 dark:bg-black/70 relative">
       <Header />
       <div className="w-full px-4 sm:px-6 lg:px-8 py-6">
 
@@ -169,44 +205,122 @@ export default function CallCenterPage() {
           </button>
         </div>
 
-        {/* Toolbar: folder + filters */}
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          {/* New folder */}
-          <div className="flex items-center gap-2 bg-white dark:bg-neutral-800/80 border border-zinc-200 dark:border-sky-800/50 rounded-xl px-3 py-2 shadow-sm">
-            <FolderPlus className="w-4 h-4 text-sky-500 dark:text-sky-400 shrink-0" />
-            <input
-              type="text"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && createFolder()}
-              placeholder="New folder..."
-              className="w-36 text-sm bg-transparent text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none"
-            />
+        {/* Toolbar */}
+        <div className="mb-4 space-y-2">
+          {/* Row 1: folder + filters + select */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* New folder */}
+            <div className="flex items-center gap-2 bg-white dark:bg-neutral-800/80 border border-zinc-200 dark:border-sky-800/50 rounded-xl px-3 py-2 shadow-sm">
+              <FolderPlus className="w-4 h-4 text-sky-500 dark:text-sky-400 shrink-0" />
+              <input
+                type="text"
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && createFolder()}
+                placeholder="New folder..."
+                className="w-28 text-sm bg-transparent text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={createFolder}
+                disabled={!newFolderName.trim() || creatingFolder}
+                className="px-3 py-1 rounded-lg bg-sky-500 text-white text-xs font-medium hover:bg-sky-600 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {creatingFolder ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Create'}
+              </button>
+            </div>
+
+            {/* Campaign filter */}
+            <select
+              value={campaignFilterId}
+              onChange={(e) => { setCampaignFilterId(e.target.value); setPage(1); }}
+              className="text-sm rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800 text-zinc-900 dark:text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+            >
+              <option value="">All campaigns</option>
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.id}>{c.name || c.businessType || c.id.slice(0, 8)}</option>
+              ))}
+            </select>
+
+            {/* Business type filter */}
+            {uniqueBusinessTypes.length > 0 && (
+              <select
+                value={businessTypeFilter}
+                onChange={(e) => { setBusinessTypeFilter(e.target.value); setPage(1); }}
+                className="text-sm rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800 text-zinc-900 dark:text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+              >
+                <option value="">All types</option>
+                {uniqueBusinessTypes.map((bt) => (
+                  <option key={bt} value={bt}>{bt}</option>
+                ))}
+              </select>
+            )}
+
+            {/* City filter */}
+            {uniqueCities.length > 0 && (
+              <select
+                value={cityFilter}
+                onChange={(e) => { setCityFilter(e.target.value); setPage(1); }}
+                className="text-sm rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800 text-zinc-900 dark:text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+              >
+                <option value="">All cities</option>
+                {uniqueCities.map((city) => (
+                  <option key={city} value={city}>{city}</option>
+                ))}
+              </select>
+            )}
+
+            {/* Sent / Replied filter */}
+            <div className="flex rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800 overflow-hidden text-sm font-medium">
+              {(['all', 'sent', 'replied'] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => { setFilterView(v); setPage(1); }}
+                  className={`px-3 py-2 transition-colors capitalize ${filterView === v ? 'bg-sky-500 text-white' : 'text-zinc-600 dark:text-sky-300 hover:bg-zinc-100 dark:hover:bg-neutral-700'}`}
+                >
+                  {v === 'all' ? 'All' : v === 'sent' ? 'Sent' : 'Replied'}
+                </button>
+              ))}
+            </div>
+
+            {/* Sort */}
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+              className="text-sm rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800 text-zinc-900 dark:text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+
+            {/* Search */}
+            <div className="relative flex-1 min-w-[180px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 dark:text-sky-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                placeholder="Search name, business, city..."
+                className="w-full pl-9 pr-4 py-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800 text-zinc-900 dark:text-white placeholder-zinc-400 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30"
+              />
+            </div>
+
+            {/* Select button */}
             <button
               type="button"
-              onClick={createFolder}
-              disabled={!newFolderName.trim() || creatingFolder}
-              className="px-3 py-1 rounded-lg bg-sky-500 text-white text-xs font-medium hover:bg-sky-600 disabled:opacity-40 disabled:cursor-not-allowed"
+              onClick={() => { setSelectMode((m) => !m); if (selectMode) setSelectedIds(new Set()); }}
+              className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-colors ${selectMode ? 'border-sky-500 bg-sky-500 text-white' : 'border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800 text-zinc-700 dark:text-sky-200 hover:bg-zinc-50 dark:hover:bg-neutral-700'}`}
             >
-              {creatingFolder ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Create'}
+              <MousePointerClick className="w-4 h-4" />
+              Select
             </button>
           </div>
 
-          {/* Campaign filter */}
-          <select
-            value={campaignFilterId}
-            onChange={(e) => { setCampaignFilterId(e.target.value); setPage(1); }}
-            className="text-sm rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800 text-zinc-900 dark:text-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
-          >
-            <option value="">All campaigns</option>
-            {campaigns.map((c) => (
-              <option key={c.id} value={c.id}>{c.name || c.businessType || c.id.slice(0, 8)}</option>
-            ))}
-          </select>
-
-          {/* Generate prep button */}
-          {selectedIds.size > 0 && (
-            <div className="flex items-center gap-2">
+          {/* Row 2: actions when in select mode */}
+          {selectMode && selectedIds.size > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Generate prep */}
               <button
                 type="button"
                 disabled={generatingPrep}
@@ -238,22 +352,42 @@ export default function CallCenterPage() {
                 {generatingPrep ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
                 Generate prep ({selectedIds.size})
               </button>
-              <button type="button" onClick={() => setSelectedIds(new Set())} className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-sky-300">Clear</button>
+
+              {/* Trash */}
+              <button
+                type="button"
+                disabled={deletingSelected}
+                onClick={async () => {
+                  if (!confirm(`Move ${selectedIds.size} lead${selectedIds.size !== 1 ? 's' : ''} to trash?`)) return;
+                  setDeletingSelected(true);
+                  try {
+                    const res = await fetch('/api/leads/trash', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ leadIds: Array.from(selectedIds), action: 'trash' }),
+                      credentials: 'include',
+                    });
+                    if (res.ok) {
+                      setLeads((prev) => prev.filter((l) => !selectedIds.has(l.id)));
+                      setSelectedIds(new Set());
+                      setSelectMode(false);
+                    }
+                  } finally {
+                    setDeletingSelected(false);
+                  }
+                }}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-sm font-medium transition-colors"
+              >
+                {deletingSelected ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                Trash ({selectedIds.size})
+              </button>
+
+              <button type="button" onClick={() => setSelectedIds(new Set())} className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-sky-300">
+                Clear selection
+              </button>
               {generateFeedback && <span className="text-xs text-green-600 dark:text-green-400">{generateFeedback}</span>}
             </div>
           )}
-
-          {/* Search */}
-          <div className="relative flex-1 min-w-[200px] max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 dark:text-sky-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search name, business, city, email..."
-              className="w-full pl-9 pr-4 py-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800 text-zinc-900 dark:text-white placeholder-zinc-400 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/30"
-            />
-          </div>
         </div>
 
         {loading ? (
@@ -265,17 +399,19 @@ export default function CallCenterPage() {
             <table className="w-full" style={{ tableLayout: 'auto' }}>
               <thead className="bg-sky-500/75 dark:bg-sky-600/75 border-b border-sky-500/60">
                 <tr>
-                  <th className="px-3 py-3 w-8">
-                    <input
-                      type="checkbox"
-                      checked={paginatedLeads.length > 0 && paginatedLeads.every((l) => selectedIds.has(l.id))}
-                      onChange={(e) => {
-                        if (e.target.checked) setSelectedIds((prev) => new Set([...prev, ...paginatedLeads.map((l) => l.id)]));
-                        else setSelectedIds((prev) => { const next = new Set(prev); paginatedLeads.forEach((l) => next.delete(l.id)); return next; });
-                      }}
-                      className="rounded border-white/50 accent-white cursor-pointer"
-                    />
-                  </th>
+                  {selectMode && (
+                    <th className="px-3 py-3 w-8">
+                      <input
+                        type="checkbox"
+                        checked={paginatedLeads.length > 0 && paginatedLeads.every((l) => selectedIds.has(l.id))}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedIds((prev) => new Set([...prev, ...paginatedLeads.map((l) => l.id)]));
+                          else setSelectedIds((prev) => { const next = new Set(prev); paginatedLeads.forEach((l) => next.delete(l.id)); return next; });
+                        }}
+                        className="rounded border-white/50 accent-white cursor-pointer"
+                      />
+                    </th>
+                  )}
                   <th className="px-3 py-3 text-left text-xs font-semibold text-white/95 uppercase tracking-wide whitespace-nowrap">Name</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-white/95 uppercase tracking-wide whitespace-nowrap">Business</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-white/95 uppercase tracking-wide whitespace-nowrap">City</th>
@@ -286,27 +422,35 @@ export default function CallCenterPage() {
                   <th className="px-3 py-3 text-left text-xs font-semibold text-white/95 uppercase tracking-wide whitespace-nowrap" style={{ minWidth: 160 }}>Notes</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-white/95 uppercase tracking-wide whitespace-nowrap" style={{ minWidth: 140 }}>Comments</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-white/95 uppercase tracking-wide whitespace-nowrap" style={{ minWidth: 110 }}>Folder</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-white/95 uppercase tracking-wide whitespace-nowrap" style={{ minWidth: 80 }}>LinkedIn</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-white/95 uppercase tracking-wide whitespace-nowrap" style={{ minWidth: 60 }}>Draft</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-white/95 uppercase tracking-wide whitespace-nowrap" style={{ minWidth: 90 }}>Status</th>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-white/95 uppercase tracking-wide whitespace-nowrap" style={{ minWidth: 60 }}>Reply</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-white/95 uppercase tracking-wide whitespace-nowrap" style={{ minWidth: 90 }}>Del. type</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-white/95 uppercase tracking-wide whitespace-nowrap" style={{ minWidth: 120 }}>Scheduled at</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-white/95 uppercase tracking-wide whitespace-nowrap rounded-tr-xl" style={{ minWidth: 160 }}>Email</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-sky-800/30">
                 {paginatedLeads.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-6 py-12 text-center text-zinc-500 dark:text-sky-400">
+                    <td colSpan={selectMode ? 18 : 17} className="px-6 py-12 text-center text-zinc-500 dark:text-sky-400">
                       {search.trim() ? `No leads match "${search}"` : 'No leads yet'}
                     </td>
                   </tr>
                 ) : (
                   paginatedLeads.map((lead) => (
                     <tr key={lead.id} className={`hover:bg-zinc-50/80 dark:hover:bg-neutral-800/40 transition-colors ${lead.called ? 'opacity-60' : ''} ${selectedIds.has(lead.id) ? 'bg-sky-50/60 dark:bg-sky-900/10' : ''}`}>
-                      <td className="px-3 py-3 w-8">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(lead.id)}
-                          onChange={(e) => setSelectedIds((prev) => { const next = new Set(prev); e.target.checked ? next.add(lead.id) : next.delete(lead.id); return next; })}
-                          className="rounded border-zinc-300 dark:border-sky-600 accent-sky-500 cursor-pointer"
-                        />
-                      </td>
+                      {selectMode && (
+                        <td className="px-3 py-3 w-8">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(lead.id)}
+                            onChange={(e) => setSelectedIds((prev) => { const next = new Set(prev); e.target.checked ? next.add(lead.id) : next.delete(lead.id); return next; })}
+                            className="rounded border-zinc-300 dark:border-sky-600 accent-sky-500 cursor-pointer"
+                          />
+                        </td>
+                      )}
                       <td className="px-3 py-3 text-sm font-medium text-zinc-900 dark:text-white whitespace-nowrap">{lead.name || '—'}</td>
                       <td className="px-3 py-3 text-sm text-zinc-600 dark:text-sky-200 whitespace-nowrap">{lead.businessType || '—'}</td>
                       <td className="px-3 py-3 text-sm text-zinc-500 dark:text-sky-300 whitespace-nowrap">
@@ -395,6 +539,62 @@ export default function CallCenterPage() {
                             <option key={f.id} value={f.id}>{f.name}</option>
                           ))}
                         </select>
+                      </td>
+                      {/* LinkedIn */}
+                      <td className="px-3 py-3 text-sm">
+                        {lead.linkedin && lead.linkedin.trim() !== '' && lead.linkedin.toLowerCase() !== 'no linkedin found' ? (
+                          <a href={lead.linkedin} target="_blank" rel="noopener noreferrer" className="text-sky-600 dark:text-sky-400 hover:underline text-xs">
+                            LinkedIn
+                          </a>
+                        ) : (
+                          <span className="text-zinc-400">—</span>
+                        )}
+                      </td>
+                      {/* Draft */}
+                      <td className="px-3 py-3 text-center">
+                        {lead.emailDraftCreated ? (
+                          <button
+                            type="button"
+                            onClick={() => setDraftModal({ content: lead.draft ?? '', lead })}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 text-xs font-medium hover:bg-sky-100 dark:hover:bg-sky-500/20 border border-sky-200 dark:border-sky-500/30 transition-colors"
+                          >
+                            <Eye className="w-3 h-3" />
+                          </button>
+                        ) : (
+                          <span className="text-zinc-400 text-xs">—</span>
+                        )}
+                      </td>
+                      {/* Status */}
+                      <td className="px-3 py-3">
+                        {lead.emailSent ? (
+                          <span className="text-xs font-medium text-green-600 dark:text-green-400">Sent</span>
+                        ) : lead.gmailThreadId ? (
+                          <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">In mailbox</span>
+                        ) : (
+                          <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">Pending</span>
+                        )}
+                      </td>
+                      {/* Reply */}
+                      <td className="px-3 py-3 text-center">
+                        {lead.replied ? (
+                          <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-green-500 shrink-0" title="Replied" />
+                        ) : (
+                          <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-zinc-200 dark:bg-zinc-600 shrink-0" title="No reply" />
+                        )}
+                      </td>
+                      {/* Delivery type */}
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        {lead.deliveryType === 'send' ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">Send</span>
+                        ) : lead.deliveryType === 'draft' ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">Draft</span>
+                        ) : (
+                          <span className="text-zinc-400">—</span>
+                        )}
+                      </td>
+                      {/* Scheduled at */}
+                      <td className="px-3 py-3">
+                        <span className="text-xs text-zinc-600 dark:text-sky-200">{formatScheduledAt(lead.scheduledAt)}</span>
                       </td>
                       {/* Email */}
                       <td className="px-3 py-3 text-sm">
@@ -497,6 +697,26 @@ export default function CallCenterPage() {
                 {prepSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                 Save
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Draft modal */}
+      {draftModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setDraftModal(null)}>
+          <div className="relative w-full max-w-xl bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-sky-800/50 max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between p-5 border-b border-zinc-200 dark:border-sky-800/50 shrink-0">
+              <div>
+                <h2 className="text-base font-semibold text-zinc-900 dark:text-white">{draftModal.lead.name || draftModal.lead.businessType || 'Draft'}</h2>
+                <p className="text-xs text-zinc-500 dark:text-sky-400 mt-0.5">{draftModal.lead.email}</p>
+              </div>
+              <button type="button" onClick={() => setDraftModal(null)} className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-neutral-800 text-zinc-500 dark:text-sky-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-5">
+              <pre className="text-sm text-zinc-800 dark:text-zinc-100 whitespace-pre-wrap font-sans leading-relaxed">{draftModal.content || '—'}</pre>
             </div>
           </div>
         </div>
