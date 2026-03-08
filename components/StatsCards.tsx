@@ -22,8 +22,8 @@ interface StatsCardsProps {
     replyRate?: string;
     avgTimeToReplyHours?: string | null;
   };
-  /** When true, use smaller squares so two fit side-by-side in a narrow column (e.g. below Credits) */
   compact?: boolean;
+  mini?: boolean;
 }
 
 const CARD_STYLES = {
@@ -44,7 +44,7 @@ const CARD_STYLES = {
   },
 } as const;
 
-export default function StatsCards({ stats, compact = false }: StatsCardsProps) {
+export default function StatsCards({ stats, compact = false, mini = false }: StatsCardsProps) {
   const cards: Array<{
     title: string;
     value: number;
@@ -78,53 +78,57 @@ export default function StatsCards({ stats, compact = false }: StatsCardsProps) 
     },
   ];
 
-  const sizeClass = compact
+  const sizeClass = mini
+    ? 'w-24 h-24 p-3'
+    : compact
     ? 'w-36 min-w-[9rem] h-36 p-4'
     : 'w-36 h-36 sm:w-40 sm:h-40 p-5';
-  const iconSizeClass = compact ? 'w-11 h-11' : 'w-14 h-14 sm:w-16 sm:h-16';
-  const iconPx = compact ? 44 : 64;
-  const valueClass = compact ? 'text-3xl' : 'text-4xl sm:text-5xl';
+  const iconSizeClass = mini ? 'w-7 h-7' : compact ? 'w-11 h-11' : 'w-14 h-14 sm:w-16 sm:h-16';
+  const iconPx = mini ? 28 : compact ? 44 : 64;
+  const valueClass = mini ? 'text-2xl' : compact ? 'text-3xl' : 'text-4xl sm:text-5xl';
+  const iconPadding = mini ? 'p-1.5' : 'p-3';
+  const titleClass = mini ? 'text-xs' : 'text-sm';
+  const minWidthClass = mini ? 'min-w-[2.5rem]' : 'min-w-[4rem]';
 
   return (
     <div className={`flex gap-2 flex-nowrap ${compact ? 'shrink-0' : 'flex-wrap gap-4'}`}>
       {cards.map((card) => {
         const s = CARD_STYLES[card.style];
         return (
-          <div
-            key={card.title}
-            className={`${sizeClass} flex flex-col rounded-2xl bg-white dark:bg-neutral-900 bg-gradient-to-br ${s.accent} shadow-md hover:shadow-lg transition-all duration-300 shrink-0 overflow-hidden relative`}
-          >
-            <div className="flex items-start justify-between gap-2 min-h-0 flex-shrink-0">
-              <p className="text-zinc-600 dark:text-neutral-400 text-sm font-semibold leading-tight break-normal line-clamp-2 flex-1 min-w-[4rem]" title={card.title}>
-                {card.title}
-              </p>
-              <span className={`${s.iconBg} rounded-xl p-3 flex-shrink-0 flex items-center justify-center ${iconSizeClass}`}>
-                {'customIconSrc' in card && card.customIconSrc ? (
-                  card.style === 'sent' ? (
-                    <span className={`${iconSizeClass} flex items-center justify-center overflow-hidden`} style={SENT_ICON_GREEN_STYLE}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={PAPER_PLANE_SRC} alt="" width={iconPx} height={iconPx} className="w-full h-full object-contain" />
-                    </span>
+          <div key={card.title} className="flex flex-col items-start shrink-0">
+            <div
+              className={`${sizeClass} flex flex-col rounded-2xl bg-white dark:bg-neutral-900 bg-gradient-to-br ${s.accent} shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden relative`}
+            >
+              <div className="flex items-start justify-between gap-2 min-h-0 flex-shrink-0">
+                <p className={`text-zinc-600 dark:text-neutral-400 ${titleClass} font-semibold leading-tight break-normal line-clamp-2 flex-1 ${minWidthClass}`} title={card.title}>
+                  {card.title}
+                </p>
+                <span className={`${s.iconBg} rounded-xl ${iconPadding} flex-shrink-0 flex items-center justify-center ${iconSizeClass}`}>
+                  {'customIconSrc' in card && card.customIconSrc ? (
+                    card.style === 'sent' ? (
+                      <span className={`${iconSizeClass} flex items-center justify-center overflow-hidden`} style={SENT_ICON_GREEN_STYLE}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={PAPER_PLANE_SRC} alt="" width={iconPx} height={iconPx} className="w-full h-full object-contain" />
+                      </span>
+                    ) : (
+                      <Image src={card.customIconSrc} alt="" width={iconPx} height={iconPx} className={`${iconSizeClass} object-contain ${LOGO_BLUE_FILTER}`} />
+                    )
                   ) : (
-                    <Image src={card.customIconSrc} alt="" width={iconPx} height={iconPx} className={`${iconSizeClass} object-contain ${LOGO_BLUE_FILTER}`} />
-                  )
-                ) : (
-                  <card.icon className={`${iconSizeClass} ${s.iconColor}`} strokeWidth={2} />
-                )}
-              </span>
-            </div>
-            <p className={`${valueClass} font-display font-bold text-zinc-900 dark:text-white pt-1 leading-tight tracking-tight`}>
-              {card.value}
-            </p>
-            {('subtitle' in card && card.subtitle) || ('extra' in card && card.extra) ? (
-              <div className="mt-1 space-y-0.5">
-                {card.subtitle && (
-                  <p className="text-[10px] sm:text-xs text-zinc-500 dark:text-neutral-400 leading-tight">{card.subtitle}</p>
-                )}
-                {card.extra && (
-                  <p className="text-[10px] sm:text-xs text-zinc-500 dark:text-neutral-400 leading-tight">{card.extra}</p>
-                )}
+                    <card.icon className={`${iconSizeClass} ${s.iconColor}`} strokeWidth={2} />
+                  )}
+                </span>
               </div>
+              <p className={`${valueClass} font-display font-bold text-zinc-900 dark:text-white pt-1 leading-tight tracking-tight`}>
+                {card.value}
+              </p>
+              {!mini && card.extra ? (
+                <p className="text-[10px] text-zinc-500 dark:text-neutral-400 leading-tight mt-1">{card.extra}</p>
+              ) : null}
+            </div>
+            {mini && card.subtitle ? (
+              <p className="text-[10px] text-zinc-500 dark:text-neutral-400 leading-tight mt-1 px-0.5">{card.subtitle}</p>
+            ) : !mini && card.subtitle ? (
+              <p className="text-[10px] text-zinc-500 dark:text-neutral-400 leading-tight mt-1 px-0.5">{card.subtitle}</p>
             ) : null}
           </div>
         );

@@ -24,6 +24,7 @@ export async function GET(request: Request) {
       ...lead,
       deliveryType: queueInfo[lead.id]?.delivery_type ?? null,
       scheduledAt: queueInfo[lead.id]?.scheduled_at ?? null,
+      queueItemId: queueInfo[lead.id]?.queue_item_id ?? null,
     }));
 
     return NextResponse.json(leadsWithQueue);

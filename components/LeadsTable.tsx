@@ -27,6 +27,7 @@ interface Lead {
   /** From email_queue when lead is in queue */
   deliveryType?: 'draft' | 'send' | null;
   scheduledAt?: string | null;
+  queueItemId?: string | null;
 }
 
 const selectClass = "text-sm font-medium text-zinc-700 dark:text-sky-200 bg-white dark:bg-neutral-800/80 border border-zinc-200 dark:border-sky-700/50 rounded-xl px-4 py-2.5 shadow-sm hover:border-sky-300 dark:hover:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-400 transition-colors cursor-pointer appearance-none bg-[length:14px] bg-[right_0.75rem_center] bg-no-repeat pr-9";
@@ -57,13 +58,14 @@ interface LeadsTableProps {
   onRefresh?: () => void;
   onTrash?: (leadIds: string[]) => void;
   onEnqueue?: (leadIds: string[], deliveryType: 'draft' | 'send') => void;
+  onUpdateDeliveryType?: (queueItemId: string, deliveryType: 'draft' | 'send') => void;
 }
 
 const filterBtnBase = "inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-colors disabled:opacity-50";
 const filterBtnActive = "border-sky-500 bg-sky-500/15 text-sky-700 dark:text-sky-200 dark:bg-sky-500/20";
 const filterBtnInactive = "border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-700 dark:text-sky-200 hover:bg-zinc-50 dark:hover:bg-neutral-800 hover:border-zinc-300 dark:hover:border-sky-600";
 
-export default function LeadsTable({ leads, loading = false, filterBusinessType = '', filterCity = '', filterByEmail = true, filterView = 'all', toneOfVoice, campaignIdToTone, campaignIdToName, onDraftModalOpenChange, onFilterBusinessTypeChange, onFilterCityChange, onFilterViewChange, onRefresh, onTrash, onEnqueue }: LeadsTableProps) {
+export default function LeadsTable({ leads, loading = false, filterBusinessType = '', filterCity = '', filterByEmail = true, filterView = 'all', toneOfVoice, campaignIdToTone, campaignIdToName, onDraftModalOpenChange, onFilterBusinessTypeChange, onFilterCityChange, onFilterViewChange, onRefresh, onTrash, onEnqueue, onUpdateDeliveryType }: LeadsTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [currentPage, setCurrentPage] = useState(1);
@@ -260,189 +262,141 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
 
   return (
     <div className="overflow-hidden">
-      {/* Toolbar */}
-      <div className="px-4 pt-4 pb-3 border-b border-zinc-200 dark:border-sky-800/30 space-y-3">
+      {/* Toolbar — single row */}
+      <div className="px-4 py-3 border-b border-zinc-200 dark:border-sky-800/30 flex items-center gap-2 flex-wrap">
 
-        {/* Row 1: Title + actions */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          {/* Left: title + utility icons */}
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-display font-bold text-zinc-900 dark:text-white">
-              Leads ({filteredAndSortedLeads.length})
-            </h2>
-            {onRefresh && (
-              <button
-                type="button"
-                onClick={onRefresh}
-                disabled={loading}
-                className="p-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50"
-                title="Refresh"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              </button>
-            )}
-            <Link
-              href="/leads/trash"
-              className="p-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-500 dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
-              title="Trash"
+        {/* Title + utility icons */}
+        <h2 className="text-base font-display font-bold text-zinc-900 dark:text-white shrink-0">
+          Leads ({filteredAndSortedLeads.length})
+        </h2>
+        {onRefresh && (
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={loading}
+            className="p-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50 shrink-0"
+            title="Refresh"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        )}
+        <Link
+          href="/leads/trash"
+          className="p-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-500 dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors shrink-0"
+          title="Trash"
+        >
+          <Trash2 className="w-4 h-4" />
+        </Link>
+
+        <div className="w-px h-5 bg-zinc-200 dark:bg-neutral-700 shrink-0 mx-0.5" />
+
+        {/* Filters */}
+        {onFilterBusinessTypeChange && (
+          <>
+            <select
+              value={filterBusinessType}
+              onChange={(e) => onFilterBusinessTypeChange(e.target.value)}
+              className={selectClass}
+              style={{ backgroundImage: selectChevron }}
+              title="Filter by business type"
             >
-              <Trash2 className="w-4 h-4" />
-            </Link>
-          </div>
+              <option value="">All types</option>
+              {[...new Set(leads.map((l) => l.businessType).filter((x): x is string => Boolean(x)))].sort().map((bt) => (
+                <option key={bt} value={bt}>{bt}</option>
+              ))}
+            </select>
+            <select
+              value={filterCity}
+              onChange={(e) => onFilterCityChange?.(e.target.value)}
+              className={selectClass}
+              style={{ backgroundImage: selectChevron }}
+              title="Filter by city"
+            >
+              <option value="">All cities</option>
+              {[...new Set(leads.map((l) => l.city).filter((x): x is string => Boolean(x)))].sort().map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            {onFilterViewChange && (
+              <div className="flex items-center gap-1">
+                <button type="button" onClick={() => onFilterViewChange('all')} className={`${filterBtnBase} ${filterView === 'all' ? filterBtnActive : filterBtnInactive}`}>All</button>
+                <button type="button" onClick={() => onFilterViewChange('sent')} className={`${filterBtnBase} ${filterView === 'sent' ? filterBtnActive : filterBtnInactive}`}>Sent ({filterCounts.emailSentCount})</button>
+                <button type="button" onClick={() => onFilterViewChange('replied')} className={`${filterBtnBase} ${filterView === 'replied' ? filterBtnActive : filterBtnInactive}`}>Replies ({filterCounts.repliedCount})</button>
+              </div>
+            )}
+          </>
+        )}
+        <select
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+          className={selectClass}
+          style={{ backgroundImage: selectChevron }}
+        >
+          <option value="newest">Most recent</option>
+          <option value="oldest">Oldest</option>
+        </select>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 dark:text-sky-300" />
+          <input
+            type="text"
+            placeholder="Search by business type, city..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full sm:w-56 pl-10 pr-4 py-2.5 border border-zinc-200 dark:border-sky-700/50 rounded-xl bg-white dark:bg-neutral-800/80 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-sky-400/70 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-400 transition-all shadow-sm hover:border-sky-300 dark:hover:border-sky-600"
+          />
+        </div>
 
-          {/* Right: action buttons */}
-          <div className="flex items-center gap-3 flex-wrap">
+        {/* Spacer */}
+        <div className="flex-1" />
 
-            {/* Select group */}
-            <div className="flex items-center gap-2">
-              {selectMode ? (
-                <>
-                  <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                    {selectedIds.size} selected
-                  </span>
-                  {selectedIds.size > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => { onTrash?.([...selectedIds]); exitSelectMode(); }}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-red-200 dark:border-red-800 bg-white dark:bg-neutral-900 text-red-600 dark:text-red-400 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Trash
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={exitSelectMode}
-                    className="px-3 py-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-600 dark:text-zinc-400 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </>
-              ) : (
+        {/* Action buttons — wrapped in a pill container */}
+        <div className="inline-flex items-center gap-2 shrink-0 border border-zinc-200 dark:border-sky-700/50 rounded-2xl px-2 py-1.5 bg-white dark:bg-neutral-800/60 shadow-sm">
+          {selectMode ? (
+            <>
+              <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 px-1">{selectedIds.size} selected</span>
+              {selectedIds.size > 0 && (
                 <button
                   type="button"
-                  onClick={() => setSelectMode(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-600 dark:text-sky-200 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
+                  onClick={() => { onTrash?.([...selectedIds]); exitSelectMode(); }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-800 bg-white dark:bg-neutral-900 text-red-600 dark:text-red-400 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                 >
-                  <MousePointer2 className="w-4 h-4" />
-                  Select
+                  <Trash2 className="w-4 h-4" />
+                  Trash
                 </button>
               )}
-            </div>
-
-            {/* Separator */}
-            <div className="w-px h-6 bg-zinc-200 dark:bg-neutral-700 shrink-0" />
-
-            {/* Add to queue — split button with mode dropdown */}
-            <div className="relative flex items-stretch" ref={queueDropdownRef}>
               <button
                 type="button"
-                onClick={doQueue}
-                className="inline-flex items-center gap-1.5 pl-3 pr-3 py-2 rounded-l-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium transition-colors shadow-sm border-r border-sky-600"
+                onClick={exitSelectMode}
+                className="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-sky-700/50 text-zinc-600 dark:text-zinc-400 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
               >
-                <Plus className="w-4 h-4 shrink-0" />
-                Add to queue
-                <span className="w-px h-4 rounded-full bg-white/30 mx-0.5 shrink-0" />
-                <span className={`font-semibold ${queueMode === 'send' ? 'text-green-300' : 'text-orange-300'}`}>
-                  {queueMode === 'send' ? 'Send' : 'Draft'}
-                </span>
+                Cancel
               </button>
-              <button
-                type="button"
-                onClick={() => setQueueDropdownOpen(prev => !prev)}
-                className="px-2 py-2 rounded-r-xl bg-sky-500 hover:bg-sky-600 text-white transition-colors shadow-sm"
-                title="Change mode"
-              >
-                <ChevronDown className={`w-4 h-4 transition-transform ${queueDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-              {queueDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1.5 z-50 w-48 rounded-xl border border-zinc-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-xl py-1 text-sm overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => { setQueueMode('send'); setQueueDropdownOpen(false); }}
-                    className="w-full text-left px-4 py-2.5 flex items-center gap-2.5 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
-                  >
-                    <Check className={`w-4 h-4 shrink-0 ${queueMode === 'send' ? 'text-sky-500' : 'opacity-0'}`} />
-                    <div>
-                      <div className={`font-medium ${queueMode === 'send' ? 'text-sky-600 dark:text-sky-400' : 'text-zinc-700 dark:text-zinc-200'}`}>Send directly</div>
-                      <div className="text-xs text-zinc-400 dark:text-zinc-500">Email goes to outbox</div>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setQueueMode('draft'); setQueueDropdownOpen(false); }}
-                    className="w-full text-left px-4 py-2.5 flex items-center gap-2.5 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
-                  >
-                    <Check className={`w-4 h-4 shrink-0 ${queueMode === 'draft' ? 'text-sky-500' : 'opacity-0'}`} />
-                    <div>
-                      <div className={`font-medium ${queueMode === 'draft' ? 'text-sky-600 dark:text-sky-400' : 'text-zinc-700 dark:text-zinc-200'}`}>Save as draft</div>
-                      <div className="text-xs text-zinc-400 dark:text-zinc-500">Saved to Gmail drafts</div>
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
-
-          </div>
-        </div>
-
-        {/* Row 2: Filters + sort + search */}
-        <div className="flex flex-wrap items-center gap-2">
-          {onFilterBusinessTypeChange && (
-            <>
-              <select
-                value={filterBusinessType}
-                onChange={(e) => onFilterBusinessTypeChange(e.target.value)}
-                className={selectClass}
-                style={{ backgroundImage: selectChevron }}
-                title="Filter by business type"
-              >
-                <option value="">All types</option>
-                {[...new Set(leads.map((l) => l.businessType).filter((x): x is string => Boolean(x)))].sort().map((bt) => (
-                  <option key={bt} value={bt}>{bt}</option>
-                ))}
-              </select>
-              <select
-                value={filterCity}
-                onChange={(e) => onFilterCityChange?.(e.target.value)}
-                className={selectClass}
-                style={{ backgroundImage: selectChevron }}
-                title="Filter by city"
-              >
-                <option value="">All cities</option>
-                {[...new Set(leads.map((l) => l.city).filter((x): x is string => Boolean(x)))].sort().map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-              {onFilterViewChange && (
-                <div className="flex items-center gap-1">
-                  <button type="button" onClick={() => onFilterViewChange('all')} className={`${filterBtnBase} ${filterView === 'all' ? filterBtnActive : filterBtnInactive}`}>All</button>
-                  <button type="button" onClick={() => onFilterViewChange('sent')} className={`${filterBtnBase} ${filterView === 'sent' ? filterBtnActive : filterBtnInactive}`}>Sent ({filterCounts.emailSentCount})</button>
-                  <button type="button" onClick={() => onFilterViewChange('replied')} className={`${filterBtnBase} ${filterView === 'replied' ? filterBtnActive : filterBtnInactive}`}>Replies ({filterCounts.repliedCount})</button>
-                </div>
-              )}
             </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSelectMode(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-sky-700/50 text-zinc-600 dark:text-sky-200 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-neutral-700/50 transition-colors"
+            >
+              <MousePointer2 className="w-4 h-4" />
+              Select
+            </button>
           )}
-          <select
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-            className={selectClass}
-            style={{ backgroundImage: selectChevron }}
+          <span className="text-xs text-zinc-400 dark:text-zinc-500 font-medium px-0.5">to</span>
+          <button
+            type="button"
+            onClick={doQueue}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium transition-colors shadow-sm"
           >
-            <option value="newest">Most recent</option>
-            <option value="oldest">Oldest</option>
-          </select>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 dark:text-sky-300" />
-            <input
-              type="text"
-              placeholder="Search by business type, city..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:w-56 pl-10 pr-4 py-2.5 border border-zinc-200 dark:border-sky-700/50 rounded-xl bg-white dark:bg-neutral-800/80 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-sky-400/70 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-400 transition-all shadow-sm hover:border-sky-300 dark:hover:border-sky-600"
-            />
+            <Plus className="w-4 h-4 shrink-0" />
+            Add to queue
+          </button>
+          <div className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 dark:bg-neutral-700/60 p-0.5 text-xs font-semibold">
+            <button type="button" onClick={() => setQueueMode('send')} className={`px-3 py-1 rounded-full transition-all ${queueMode === 'send' ? 'bg-emerald-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}>Send</button>
+            <button type="button" onClick={() => setQueueMode('draft')} className={`px-3 py-1 rounded-full transition-all ${queueMode === 'draft' ? 'bg-amber-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}>Draft</button>
           </div>
         </div>
+
       </div>
 
       {/* Table - min-width + auto layout so columns don't overlap and horizontal scroll works */}
@@ -483,6 +437,9 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                 Phone
               </th>
               <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
+                Delivery type
+              </th>
+              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
                 URL
               </th>
               <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
@@ -490,9 +447,6 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
               </th>
               <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
                 Status
-              </th>
-              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
-                Delivery type
               </th>
               <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
                 Scheduled at
@@ -582,6 +536,24 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
                   )}
                 </td>
+                <td className="px-4 py-4 whitespace-nowrap">
+                  {(lead.deliveryType === 'send' || lead.deliveryType === 'draft') && lead.queueItemId ? (
+                    <div className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 dark:bg-neutral-700/60 p-0.5 text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => lead.deliveryType !== 'send' && onUpdateDeliveryType?.(lead.queueItemId!, 'send')}
+                        className={`px-2.5 py-0.5 rounded-full transition-all ${lead.deliveryType === 'send' ? 'bg-emerald-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}
+                      >Send</button>
+                      <button
+                        type="button"
+                        onClick={() => lead.deliveryType !== 'draft' && onUpdateDeliveryType?.(lead.queueItemId!, 'draft')}
+                        className={`px-2.5 py-0.5 rounded-full transition-all ${lead.deliveryType === 'draft' ? 'bg-amber-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}
+                      >Draft</button>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
+                  )}
+                </td>
                 <td className="px-4 py-4">
                   {lead.url ? (
                     <a
@@ -628,15 +600,6 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">In mail box</span>
                   ) : (
                     <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">Pending</span>
-                  )}
-                </td>
-                <td className="px-4 py-4 whitespace-nowrap">
-                  {lead.deliveryType === 'draft' ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-500/20 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-500/30">Draft</span>
-                  ) : lead.deliveryType === 'send' ? (
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-500/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/30">Send</span>
-                  ) : (
-                    <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
                   )}
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap">
@@ -706,7 +669,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
             onClick={() => { onEnqueue?.([contextMenu.leadId], 'draft'); setContextMenu(null); }}
             className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
           >
-            <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" />
+            <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
             Add to queue (draft mode)
           </button>
           <button

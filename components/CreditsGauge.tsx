@@ -75,17 +75,17 @@ export default function CreditsGauge({ campaignId, leadsWithEmail, compact = fal
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-sm text-zinc-700 dark:text-sky-200 font-medium inline-flex items-center gap-1.5">
-          <CircleDollarSign className="w-4 h-4 text-yellow-500 dark:text-yellow-400" />
+        <span className="text-xs text-zinc-700 dark:text-sky-200 font-medium inline-flex items-center gap-1">
+          <CircleDollarSign className="w-3.5 h-3.5 text-yellow-500 dark:text-yellow-400" />
           Daily Credits
         </span>
-        <span className="text-sm text-sky-600 dark:text-sky-300 font-semibold">
-          {currentCredits}/{dailyLimit} used
+        <span className="text-xs text-sky-600 dark:text-sky-300 font-semibold">
+          {currentCredits}/{dailyLimit}
         </span>
       </div>
-      <div className="bg-zinc-200 dark:bg-neutral-800 rounded-full h-3 overflow-hidden">
+      <div className="bg-zinc-200 dark:bg-neutral-800 rounded-full h-2 overflow-hidden">
         <div
           className={`h-full transition-all duration-300 ${
             percentage >= 100
@@ -97,9 +97,9 @@ export default function CreditsGauge({ campaignId, leadsWithEmail, compact = fal
           style={{ width: `${Math.min(percentage, 100)}%` }}
         />
       </div>
-      <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-neutral-400">
+      <div className="flex items-center justify-between text-[10px] text-zinc-500 dark:text-neutral-400">
         <span>Remaining: {remaining}</span>
-        <span>Resets in: {formatTime(timeUntilReset)}</span>
+        <span>{formatTime(timeUntilReset)}</span>
       </div>
     </div>
   );

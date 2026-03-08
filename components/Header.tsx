@@ -166,7 +166,12 @@ export default function Header() {
           {/* Center: nav tabs */}
           <nav className="flex items-center gap-3 flex-1 justify-center">
             <Link href="/dashboard" className={bannerNavClass(isActive('/dashboard'))}>
-              <LayoutDashboard className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
+              <svg viewBox="0 0 24 24" className="w-4 h-4 text-zinc-400 dark:text-zinc-500" fill="currentColor">
+                <rect x="1" y="1" width="9" height="9" rx="2.5" />
+                <rect x="13" y="1" width="9" height="9" rx="2.5" />
+                <rect x="1" y="13" width="9" height="9" rx="2.5" />
+                <rect x="13" y="13" width="9" height="9" rx="2.5" />
+              </svg>
               Dashboard
             </Link>
             <Link href="/messages" className={bannerNavClass(isActive('/messages'))}>
@@ -373,30 +378,30 @@ export default function Header() {
             </Link>
           </div>
 
-          <div className="my-2 mx-2 border-t border-slate-200 dark:border-neutral-800" />
-
-          <div className={`flex flex-col gap-0.5 ${sidebarOpen ? 'px-2' : 'px-1.5'}`}>
-            <Link href="/contact" onClick={closeSidebar} className={sidebarOpen ? navLinkClass : 'flex justify-center p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-slate-200/80 dark:hover:bg-neutral-800 transition-colors'} title={!sidebarOpen ? 'Contact' : undefined}>
-              <HelpCircle className="w-[18px] h-[18px] shrink-0" />
-              {sidebarOpen && <span>Contact</span>}
-            </Link>
-            {user && (
-              <Link href="/preferences" onClick={closeSidebar} className={sidebarOpen ? navLinkClass : 'flex justify-center p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-slate-200/80 dark:hover:bg-neutral-800 transition-colors'} title={!sidebarOpen ? 'Preferences' : undefined}>
-                <Settings className="w-[18px] h-[18px] shrink-0" />
-                {sidebarOpen && <span>Preferences</span>}
-              </Link>
-            )}
-            <button
-              type="button"
-              onClick={() => { toggleTheme(); }}
-              className={sidebarOpen ? navLinkClass : 'flex justify-center p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-slate-200/80 dark:hover:bg-neutral-800 transition-colors w-full'}
-              title={!sidebarOpen ? (theme === 'dark' ? 'Light theme' : 'Dark theme') : undefined}
-            >
-              {theme === 'dark' ? <Sun className="w-[18px] h-[18px] shrink-0" /> : <Moon className="w-[18px] h-[18px] shrink-0" />}
-              {sidebarOpen && <span>{theme === 'dark' ? 'Light theme' : 'Dark theme'}</span>}
-            </button>
-          </div>
         </nav>
+
+        {/* Bottom utilities */}
+        <div className={`flex flex-col gap-0.5 pb-1 ${sidebarOpen ? 'px-2' : 'px-1.5'}`}>
+          <Link href="/contact" onClick={closeSidebar} className={sidebarOpen ? navLinkClass : 'flex justify-center p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-slate-200/80 dark:hover:bg-neutral-800 transition-colors'} title={!sidebarOpen ? 'Contact' : undefined}>
+            <HelpCircle className="w-[18px] h-[18px] shrink-0" />
+            {sidebarOpen && <span>Contact</span>}
+          </Link>
+          {user && (
+            <Link href="/preferences" onClick={closeSidebar} className={sidebarOpen ? navLinkClass : 'flex justify-center p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-slate-200/80 dark:hover:bg-neutral-800 transition-colors'} title={!sidebarOpen ? 'Preferences' : undefined}>
+              <Settings className="w-[18px] h-[18px] shrink-0" />
+              {sidebarOpen && <span>Preferences</span>}
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={() => { toggleTheme(); }}
+            className={sidebarOpen ? navLinkClass : 'flex justify-center p-3 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-slate-200/80 dark:hover:bg-neutral-800 transition-colors w-full'}
+            title={!sidebarOpen ? (theme === 'dark' ? 'Light theme' : 'Dark theme') : undefined}
+          >
+            {theme === 'dark' ? <Sun className="w-[18px] h-[18px] shrink-0" /> : <Moon className="w-[18px] h-[18px] shrink-0" />}
+            {sidebarOpen && <span>{theme === 'dark' ? 'Light theme' : 'Dark theme'}</span>}
+          </button>
+        </div>
 
         {/* Bottom profile */}
         {user && (
