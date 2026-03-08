@@ -25,7 +25,7 @@ export default function AppBackgroundWrapper({
     <div className="min-h-screen relative" style={{ background: 'var(--background)' }}>
       <BackgroundCurves />
       <div
-        className={`relative z-10 transition-all duration-300 ease-in-out ${hasSidebar ? (sidebarOpen ? 'ml-52' : 'ml-14') : ''}`}
+        className={`relative z-10 transition-all duration-300 ease-in-out ${hasSidebar ? (sidebarOpen ? 'ml-40' : 'ml-14') : ''}`}
       >
         {children}
       </div>

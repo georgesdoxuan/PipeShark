@@ -44,7 +44,7 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <ViperLogo className="w-10 h-10 text-sky-600" />
-            <h1 className="text-3xl font-brand font-bold tracking-wide"><span className="text-white">Pipe</span><span className="text-sky-400">Shark</span></h1>
+            <h1 className="text-3xl font-montserrat font-brand font-bold tracking-wide"><span className="text-white">Pipe</span><span className="text-sky-400">Shark</span></h1>
           </div>
           <p className="text-sky-200/90">Sign in to your account</p>
         </div>

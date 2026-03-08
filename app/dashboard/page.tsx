@@ -5,8 +5,8 @@ import Header from '@/components/Header';
 import LeadsTable from '@/components/LeadsTable';
 import StatsCards from '@/components/StatsCards';
 import CreditsGauge from '@/components/CreditsGauge';
-import CardCurves from '@/components/CardCurves';
 import { useApiPause } from '@/contexts/ApiPauseContext';
+import { useSidebar } from '@/contexts/SidebarContext';
 import Image from 'next/image';
 import { Plus, Calendar, MapPin, Trash2, X, AlertTriangle, Mail, Clock, Pencil, MailCheck, MailX, CheckSquare, Square, MoreVertical, CircleDollarSign, ChevronDown, Check, Power, Zap } from 'lucide-react';
 import Link from 'next/link';
@@ -95,6 +95,7 @@ export default function CampaignsPage() {
   const deliveryDropdownRef = useRef<HTMLDivElement>(null);
   const [leadsEnqueueFeedback, setLeadsEnqueueFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [autoEnqueueEnabled, setAutoEnqueueEnabled] = useState(true);
+  const [leadsCampaignFilterId, setLeadsCampaignFilterId] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem('pipeshark-auto-enqueue');
@@ -116,6 +117,7 @@ export default function CampaignsPage() {
   const [sentToday, setSentToday] = useState(0);
   const [draftToday, setDraftToday] = useState(0);
   const searchParams = useSearchParams();
+  const { sidebarOpen } = useSidebar();
   const draftModalOpenRef = useRef(false);
   const leadsSectionRef = useRef<HTMLDivElement>(null);
   const titleColorPersistedRef = useRef<Set<string>>(new Set());
@@ -507,7 +509,7 @@ export default function CampaignsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-100/60 dark:bg-black/70 relative">
+    <div className="min-h-screen bg-sky-50 dark:bg-black/70 relative">
       <div>
         <Header />
         <div className="w-full px-4 sm:px-6 lg:px-8 py-5">
@@ -549,77 +551,82 @@ export default function CampaignsPage() {
           )}
 
           {/* Header Section: My Campaigns | Leads & Replies | Credits */}
-          <div className="flex flex-wrap items-start gap-4 mb-4">
-            {/* My Campaigns */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <svg viewBox="0 0 24 24" className="w-7 h-7 text-zinc-900 dark:text-white flex-shrink-0" fill="currentColor">
+          <div className="flex flex-wrap items-start gap-4 mb-1">
+            {/* Dashboard — titre + icône en gris, sans carte */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <svg viewBox="0 0 24 24" className="w-5 h-5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" fill="currentColor">
                 <rect x="1" y="1" width="9" height="9" rx="2.5" />
                 <rect x="13" y="1" width="9" height="9" rx="2.5" />
                 <rect x="1" y="13" width="9" height="9" rx="2.5" />
                 <rect x="13" y="13" width="9" height="9" rx="2.5" />
               </svg>
-              <h1 className="text-xl font-display font-bold text-zinc-900 dark:text-white">
+              <h1 className="text-base font-display font-bold text-zinc-500 dark:text-zinc-400">
                 Dashboard
               </h1>
             </div>
-            {/* Today's timeline — centré dans l'espace vide */}
-            <div className="flex-1 min-w-0 flex items-center justify-center">
-              <div className="flex flex-col gap-1.5 items-center">
-                <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">Today's timeline</span>
-                <div className="flex items-center">
-                  {/* Box 1: new leads */}
-                  <div className="relative rounded-xl bg-zinc-100 dark:bg-neutral-700/50 px-4 py-2.5 text-sm shrink-0">
-                    {todayLeads.length > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
-                        <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
-                      </span>
-                    )}
-                    <div className="font-semibold text-zinc-700 dark:text-zinc-200">{todayLeads.length} new leads</div>
-                    {todayCampaignName && <div className="text-xs text-zinc-400 dark:text-zinc-500 truncate max-w-[140px]">from {todayCampaignName}</div>}
-                  </div>
-                  {/* Connector */}
-                  <div className="relative flex items-center w-24 shrink-0">
-                    {(sentToday + draftToday) === 0 && nextQueueAt && (
-                      <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] text-zinc-400 dark:text-zinc-500 whitespace-nowrap">
-                        next at {new Date(nextQueueAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    )}
-                    <div className="w-full h-px bg-zinc-300 dark:bg-neutral-600" />
-                  </div>
-                  {/* Box 2: emails sent */}
-                  <div className="relative rounded-xl bg-zinc-100 dark:bg-neutral-700/50 px-4 py-2.5 text-sm shrink-0">
-                    {(sentToday + draftToday) > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
-                        <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
-                      </span>
-                    )}
-                    <div className="font-semibold text-zinc-700 dark:text-zinc-200">
-                      {sentToday > 0 && <span>{sentToday} sent</span>}
-                      {sentToday > 0 && draftToday > 0 && <span className="text-zinc-300 mx-1">·</span>}
-                      {draftToday > 0 && <span>{draftToday} draft{draftToday > 1 ? 's' : ''}</span>}
-                      {sentToday === 0 && draftToday === 0 && <span>0 emails</span>}
+            {/* Today's timeline — carte blanche sans contours, décalée à gauche */}
+            <div className="flex-1 min-w-0 flex items-center justify-center -translate-x-8">
+              <div className="rounded-xl bg-white dark:bg-neutral-800/80 shadow-none px-4 py-3">
+                <div className="flex flex-col gap-1.5 items-center">
+                  <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">Today's timeline</span>
+                  <div className="flex items-center">
+                    {/* Box 1: new leads */}
+                    <div className="relative rounded-xl bg-zinc-100 dark:bg-neutral-700/50 px-4 py-2.5 text-sm shrink-0">
+                      {todayLeads.length > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
+                          <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                        </span>
+                      )}
+                      <div className="font-semibold text-zinc-700 dark:text-zinc-200">{todayLeads.length} new leads</div>
+                      {todayCampaignName && <div className="text-xs text-zinc-400 dark:text-zinc-500 truncate max-w-[140px]">from {todayCampaignName}</div>}
                     </div>
-                    <div className="text-xs text-zinc-400 dark:text-zinc-500">sent today</div>
+                    {/* Connector */}
+                    <div className="relative flex items-center w-24 shrink-0">
+                      {(sentToday + draftToday) === 0 && nextQueueAt && (
+                        <span className="absolute -top-4 left-1/2 -translate-x-1/2 text-[9px] text-zinc-400 dark:text-zinc-500 whitespace-nowrap">
+                          next at {new Date(nextQueueAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                      <div className="w-full h-px bg-zinc-300 dark:bg-neutral-600" />
+                    </div>
+                    {/* Box 2: emails sent */}
+                    <div className="relative rounded-xl bg-zinc-100 dark:bg-neutral-700/50 px-4 py-2.5 text-sm shrink-0">
+                      {(sentToday + draftToday) > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center">
+                          <Check className="w-2.5 h-2.5 text-white" strokeWidth={3} />
+                        </span>
+                      )}
+                      <div className="font-semibold text-zinc-700 dark:text-zinc-200">
+                        {sentToday > 0 && <span>{sentToday} sent</span>}
+                        {sentToday > 0 && draftToday > 0 && <span className="text-zinc-300 mx-1">·</span>}
+                        {draftToday > 0 && <span>{draftToday} draft{draftToday > 1 ? 's' : ''}</span>}
+                        {sentToday === 0 && draftToday === 0 && <span>0 emails</span>}
+                      </div>
+                      <div className="text-xs text-zinc-400 dark:text-zinc-500">sent today</div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-            {/* Right: StatsCards mini + Daily Credits */}
+            {/* StatsCards (3 cartes) + Daily Credits */}
             <div className="flex items-start gap-3 flex-shrink-0">
-              <StatsCards stats={stats} mini />
+              <div className="-translate-x-20">
+                <StatsCards stats={stats} mini />
+              </div>
               <div className="w-44 flex-shrink-0">
                 <CreditsGauge />
               </div>
             </div>
           </div>
 
-          {/* Daily launch + Replies this week side by side */}
-          <div className="flex items-start gap-3 mb-2">
+          {/* Daily Launch + Replies this week side by side */}
+          <div className="flex items-start gap-3 mb-8 mt-6">
           <div className="flex flex-col items-start gap-1.5 flex-1 min-w-0">
-            <div className="rounded-xl bg-white dark:bg-neutral-800/50 shadow-sm p-3 inline-flex flex-wrap items-center gap-2">
-              <Clock className="w-4 h-4 text-sky-500 dark:text-sky-400 flex-shrink-0" />
-              <span className="text-sm font-medium text-zinc-700 dark:text-neutral-200">Daily launch</span>
-              <span className="text-xs text-zinc-400 dark:text-zinc-500 font-normal">— finds new leads at</span>
+            <div className={`transition-all duration-300 ${sidebarOpen ? 'w-full max-w-full origin-left scale-[1.08]' : ''}`}>
+            <div className={`rounded-xl bg-white dark:bg-neutral-800/50 shadow-sm inline-flex items-center ${sidebarOpen ? 'flex-nowrap overflow-x-auto max-w-full gap-1.5 p-2' : 'flex-wrap p-3 gap-2'}`}>
+              <Clock className={`text-sky-500 dark:text-sky-400 flex-shrink-0 ${sidebarOpen ? 'w-3.5 h-3.5' : 'w-4 h-4'}`} />
+              <span className={`font-medium text-zinc-700 dark:text-neutral-200 ${sidebarOpen ? 'text-xs whitespace-nowrap' : 'text-sm'}`}>Daily Launch</span>
+              <span className={`text-zinc-400 dark:text-zinc-500 font-normal whitespace-nowrap ${sidebarOpen ? 'text-[11px]' : 'text-xs'}`}>— finds new leads at</span>
               <div className="relative">
                 <select
                   id="schedule-time"
@@ -629,7 +636,7 @@ export default function CampaignsPage() {
                     setScheduleTime(t);
                     saveSchedule(t, scheduledCampaignIds);
                   }}
-                  className="appearance-none pl-3 pr-7 py-1.5 rounded-lg border border-zinc-200 dark:border-sky-700/40 bg-white dark:bg-neutral-800 text-sm font-semibold text-zinc-700 dark:text-sky-200 shadow-sm hover:border-sky-400 dark:hover:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400/30 transition-colors cursor-pointer"
+                  className={`appearance-none pl-2 pr-6 rounded-lg border border-zinc-200 dark:border-sky-700/40 bg-white dark:bg-neutral-800 font-semibold text-zinc-700 dark:text-sky-200 shadow-sm hover:border-sky-400 dark:hover:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-400/30 transition-colors cursor-pointer ${sidebarOpen ? 'py-1 text-xs' : 'pl-3 pr-7 py-1.5 text-sm'}`}
                   title="Launch at the chosen time (your timezone)."
                 >
                   {Array.from({ length: 24 }, (_, i) => {
@@ -641,10 +648,10 @@ export default function CampaignsPage() {
                     );
                   })}
                 </select>
-                <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 dark:text-sky-500" />
+                <ChevronDown className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-zinc-400 dark:text-sky-500 ${sidebarOpen ? 'right-1 w-3 h-3' : 'right-1.5 w-3.5 h-3.5'}`} />
               </div>
-              <span className="text-sm text-zinc-500 dark:text-neutral-400">every day with</span>
-              <span className="text-zinc-300 dark:text-zinc-600 mx-0.5">|</span>
+              <span className={`text-zinc-500 dark:text-neutral-400 whitespace-nowrap ${sidebarOpen ? 'text-[11px]' : 'text-sm'}`}>every day with</span>
+              <span className="text-zinc-300 dark:text-zinc-600 mx-0.5 shrink-0">|</span>
               {campaigns.length > 0 && (
                 <button
                   type="button"
@@ -652,19 +659,19 @@ export default function CampaignsPage() {
                     setScheduleModalSelectedIds([...scheduledCampaignIds]);
                     setShowScheduleCampaignsModal(true);
                   }}
-                  className={`ml-1 inline-flex flex-col items-start rounded-lg px-3 py-1.5 transition-colors ${
+                  className={`inline-flex flex-col items-start rounded-lg transition-colors ${sidebarOpen ? 'ml-0 px-2 py-1' : 'ml-1 px-3 py-1.5'} ${
                     scheduledCampaignIds.length === 0
                       ? 'bg-zinc-100 dark:bg-neutral-700/50 text-zinc-600 dark:text-sky-300 border border-zinc-200 dark:border-sky-700/50 hover:bg-zinc-200 dark:hover:bg-neutral-700'
                       : 'bg-sky-500 text-white hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-500'
                   }`}
-                  title="Choose which campaigns run at Daily launch time"
+                  title="Choose which campaigns run at Daily Launch time"
                 >
-                  <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-                    <CheckSquare className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                  <span className={`inline-flex items-center gap-1.5 whitespace-nowrap ${sidebarOpen ? 'gap-1' : ''}`}>
+                    <CheckSquare className={`shrink-0 opacity-80 ${sidebarOpen ? 'w-3 h-3' : 'w-3.5 h-3.5'}`} />
                     {scheduledCampaignIds.length === 0 ? (
-                      <span className="text-sm font-medium">Choose campaigns</span>
+                      <span className={sidebarOpen ? 'text-xs font-medium' : 'text-sm font-medium'}>Choose campaigns</span>
                     ) : (
-                      <span className="text-sm font-semibold">{scheduledCampaignIds.map(id => campaigns.find(c => c.id === id)?.name || campaigns.find(c => c.id === id)?.businessType || id).join(', ')}</span>
+                      <span className={sidebarOpen ? 'text-xs font-semibold' : 'text-sm font-semibold'}>{scheduledCampaignIds.map(id => campaigns.find(c => c.id === id)?.name || campaigns.find(c => c.id === id)?.businessType || id).join(', ')}</span>
                     )}
                   </span>
                 </button>
@@ -672,11 +679,10 @@ export default function CampaignsPage() {
               {scheduleSaving && (
                 <span className="text-xs text-zinc-400 dark:text-neutral-500">Saving…</span>
               )}
-              <span className="text-zinc-300 dark:text-zinc-600 mx-0.5">|</span>
+              <span className="text-zinc-300 dark:text-zinc-600 mx-0.5 shrink-0">|</span>
               {/* Add to send queue automatically — encadrement */}
-              <div className="inline-flex items-center gap-2 border border-zinc-200 dark:border-sky-700/50 rounded-2xl px-2 py-1.5 bg-white dark:bg-neutral-800/60 shadow-sm">
-                {/* On/Off toggle vertical */}
-                <div className="flex flex-col gap-0.5 rounded-lg bg-zinc-100 dark:bg-neutral-700/60 p-0.5 text-[10px] font-semibold">
+              <div className={`inline-flex items-center border border-zinc-200 dark:border-sky-700/50 rounded-2xl bg-white dark:bg-neutral-800/60 shadow-sm ${sidebarOpen ? 'gap-1 px-1.5 py-1' : 'gap-2 px-2 py-1.5'}`}>
+                <div className="flex flex-row gap-0.5 rounded-lg bg-zinc-100 dark:bg-neutral-700/60 p-0.5 text-[10px] font-semibold">
                   <button
                     type="button"
                     onClick={() => { setAutoEnqueueEnabled(true); localStorage.setItem('pipeshark-auto-enqueue', 'true'); }}
@@ -688,20 +694,19 @@ export default function CampaignsPage() {
                     className={`px-2 py-0.5 rounded-md transition-all ${!autoEnqueueEnabled ? 'bg-zinc-400 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}
                   >Off</button>
                 </div>
-                <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium whitespace-nowrap bg-emerald-500 text-white rounded-lg select-none shadow-sm transition-opacity ${!autoEnqueueEnabled ? 'opacity-50' : ''}`}>
-                  <img src="/paper-plane.png" alt="" width={16} height={16} className="w-4 h-4 shrink-0 object-contain" style={{ filter: 'brightness(0) invert(1)' }} />
+                <span className={`font-medium text-zinc-700 dark:text-neutral-200 whitespace-nowrap ${!autoEnqueueEnabled ? 'opacity-50' : ''} ${sidebarOpen ? 'text-[11px]' : 'text-sm'}`}>
                   Add to send queue automatically
-                </div>
-                <div className={`inline-flex items-center gap-0.5 rounded-full bg-zinc-100 dark:bg-neutral-700/60 p-0.5 text-xs font-semibold ${!autoEnqueueEnabled ? 'pointer-events-none opacity-50' : ''}`}>
+                </span>
+                <div className={`inline-flex items-center gap-0.5 rounded-full bg-zinc-100 dark:bg-neutral-700/60 p-0.5 font-semibold ${!autoEnqueueEnabled ? 'pointer-events-none opacity-50' : ''} ${sidebarOpen ? 'text-[10px]' : 'text-xs'}`}>
                   <button
                     type="button"
                     onClick={() => { if (autoEnqueueEnabled) { setLaunchDeliveryMode('queue'); saveSchedule(scheduleTime, undefined, 'queue'); } }}
-                    className={`px-3 py-1 rounded-full transition-all ${launchDeliveryMode === 'queue' ? 'bg-emerald-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}
+                    className={`rounded-full transition-all ${launchDeliveryMode === 'queue' ? 'bg-emerald-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'} ${sidebarOpen ? 'px-2 py-0.5' : 'px-3 py-1'}`}
                   >Send</button>
                   <button
                     type="button"
                     onClick={() => { if (autoEnqueueEnabled) { setLaunchDeliveryMode('drafts'); saveSchedule(scheduleTime, undefined, 'drafts'); } }}
-                    className={`px-3 py-1 rounded-full transition-all ${launchDeliveryMode === 'drafts' ? 'bg-amber-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}
+                    className={`rounded-full transition-all ${launchDeliveryMode === 'drafts' ? 'bg-amber-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'} ${sidebarOpen ? 'px-2 py-0.5' : 'px-3 py-1'}`}
                   >Draft</button>
                 </div>
               </div>
@@ -711,13 +716,10 @@ export default function CampaignsPage() {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-sky-400 dark:text-sky-300 flex-shrink-0 fill-sky-400 dark:fill-sky-300" />
-              <h2 className="text-lg font-display font-bold text-zinc-900 dark:text-white">My Campaigns</h2>
             </div>
           </div>
-          {/* Replies this week - aligned with Daily Credits */}
-          <div className="w-56 flex-shrink-0">
+          {/* Replies this week - remontée, détachée de My Campaigns */}
+          <div className="w-56 flex-shrink-0 -mt-14">
             <div className="rounded-2xl bg-white/80 dark:bg-neutral-800/60 shadow-sm p-3">
               <p className="text-xs font-semibold text-zinc-600 dark:text-neutral-300 mb-2">Replies this week</p>
               <ResponsiveContainer width="100%" height={80}>
@@ -732,6 +734,63 @@ export default function CampaignsPage() {
           </div>
           </div>
 
+          {/* Section My Campaigns — remontée, détachée de Replies */}
+          <div className="rounded-2xl bg-white dark:bg-neutral-800/60 shadow-md overflow-hidden mb-6 -mt-4">
+            <div className="p-4 sm:p-5 border-b border-zinc-200 dark:border-neutral-700 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <Zap className="w-5 h-5 text-sky-400 dark:text-sky-300 flex-shrink-0 fill-sky-400 dark:fill-sky-300" />
+                <h2 className="text-lg font-display font-bold text-zinc-900 dark:text-white shrink-0">My Campaigns</h2>
+                {scheduledCampaignIds.length > 0 && (
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400 truncate" title={scheduledCampaignIds.map(id => campaigns.find(c => c.id === id)?.name || campaigns.find(c => c.id === id)?.businessType || id).join(', ')}>
+                    <span className="text-zinc-400 dark:text-zinc-500">— selected for Daily Launch:</span>{' '}
+                    {scheduledCampaignIds.map(id => campaigns.find(c => c.id === id)?.name || campaigns.find(c => c.id === id)?.businessType || id).join(', ')}
+                  </span>
+                )}
+              </div>
+              {!loading && campaigns.length > 0 && (
+                <div className="flex items-center gap-2">
+                  {!selectMode ? (
+                    <>
+                      <Link
+                        href="/campaigns/new"
+                        className="inline-flex items-center gap-1.5 bg-sky-400 hover:bg-sky-300 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
+                        title="Create a new prospection campaign"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        New Campaign
+                      </Link>
+                      <button
+                        onClick={() => setSelectMode(true)}
+                        className="px-2 py-1 text-xs bg-sky-100 dark:bg-[#051a28] text-zinc-800 dark:text-white rounded-lg hover:opacity-90 transition-opacity"
+                        title="Select campaigns to delete in bulk"
+                      >
+                        Select
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={exitSelectMode}
+                        className="px-2 py-1 text-xs bg-sky-100 dark:bg-[#051a28] text-zinc-800 dark:text-white rounded-lg hover:opacity-90 transition-opacity"
+                        title="Cancel selection"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => setBulkDeleteConfirm(true)}
+                        disabled={selectedCampaignIds.size === 0}
+                        className="flex items-center gap-2 px-3 py-1.5 text-sm bg-red-600/80 border border-red-500/50 rounded-lg text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        title="Delete selected campaigns"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        Delete ({selectedCampaignIds.size})
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="p-4 sm:p-5 pt-0">
           {/* Campaigns List */}
           {loading ? (
             <div className="bg-zinc-100 dark:bg-neutral-800/80 rounded-xl border border-zinc-200 dark:border-neutral-700 shadow-xl p-12 text-center mb-8">
@@ -751,49 +810,9 @@ export default function CampaignsPage() {
             </div>
           ) : (
             <div className="mb-1">
-              <div className="flex items-center justify-start gap-2 mb-2">
-                {!selectMode ? (
-                  <>
-                    <Link
-                      href="/campaigns/new"
-                      className="inline-flex items-center gap-1.5 bg-sky-400 hover:bg-sky-300 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200"
-                      title="Create a new prospection campaign"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      New Campaign
-                    </Link>
-                    <button
-                      onClick={() => setSelectMode(true)}
-                      className="px-2 py-1 text-xs bg-sky-100 dark:bg-[#051a28] text-zinc-800 dark:text-white rounded-lg hover:opacity-90 transition-opacity"
-                      title="Select campaigns to delete in bulk"
-                    >
-                      Select
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={exitSelectMode}
-                      className="px-2 py-1 text-xs bg-sky-100 dark:bg-[#051a28] text-zinc-800 dark:text-white rounded-lg hover:opacity-90 transition-opacity"
-                      title="Cancel selection"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => setBulkDeleteConfirm(true)}
-                      disabled={selectedCampaignIds.size === 0}
-                      className="flex items-center gap-2 px-3 py-1.5 text-sm bg-red-600/80 border border-red-500/50 rounded-lg text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      title="Delete selected campaigns"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      Delete ({selectedCampaignIds.size})
-                    </button>
-                  </>
-                )}
-              </div>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {displayedCampaigns.map((campaign) => {
-                const cardClass = 'bg-white dark:bg-slate-900/50';
+                const cardClass = 'bg-white dark:bg-neutral-800/60 border-2 border-sky-200 dark:border-sky-700/60';
                 // Helper function to format city size display
                 const formatCitySize = (citySize?: string): string => {
                   // Default to '1M+' if no citySize is set (for old campaigns)
@@ -863,7 +882,6 @@ export default function CampaignsPage() {
                           : undefined
                     }
                   >
-                    <CardCurves />
                     <Link
                       href={editingCampaignId === campaign.id || selectMode ? '#' : `/campaigns/${campaign.id}`}
                       className="block relative z-10"
@@ -1049,6 +1067,9 @@ export default function CampaignsPage() {
             </div>
           )}
 
+            </div>
+          </div>
+
           {/* Delete Confirmation Modal */}
           {deleteConfirm && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -1212,7 +1233,7 @@ export default function CampaignsPage() {
                     }}
                     disabled={scheduleSaving}
                     className="flex-1 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl font-semibold transition-colors disabled:opacity-50"
-                    title="Save selected campaigns for Daily launch"
+                    title="Save selected campaigns for Daily Launch"
                   >
                     {scheduleSaving ? 'Saving…' : 'Save'}
                   </button>
@@ -1221,18 +1242,9 @@ export default function CampaignsPage() {
             </div>
           )}
 
-          {/* All my leads Section - table only, refresh is in LeadsTable header */}
-          <div ref={leadsSectionRef} className="mt-4">
-            <h2 className="text-lg font-display font-bold text-zinc-900 dark:text-white mb-3 flex items-center gap-2">
-              <Image
-                src="/customer.png"
-                alt=""
-                width={20}
-                height={20}
-                className="w-5 h-5 object-contain flex-shrink-0 [filter:brightness(0)_saturate(100%)_invert(68%)_sepia(60%)_saturate(1200%)_hue-rotate(180deg)] dark:[filter:brightness(0)_invert(1)]"
-              />
-              All my leads
-            </h2>
+          {/* All my leads Section — carte sans bandeau titre (titre + Refresh + Trash dans LeadsTable) */}
+          <div ref={leadsSectionRef} className="rounded-2xl bg-white dark:bg-neutral-800/60 shadow-md border border-zinc-200 dark:border-neutral-700 overflow-hidden mt-6">
+            <div className="p-4 sm:p-5 pt-0">
             <LeadsTable
               leads={displayedLeads}
               loading={loadingLeads}
@@ -1241,6 +1253,9 @@ export default function CampaignsPage() {
               filterView={filterView}
               campaignIdToTone={Object.fromEntries(campaigns.map((c) => [c.id, c.toneOfVoice || 'professional']))}
               campaignIdToName={Object.fromEntries(campaigns.map((c) => [c.id, c.name || c.businessType || 'Campaign']))}
+              campaigns={campaigns.map((c) => ({ id: c.id, name: c.name || c.businessType || c.id }))}
+              selectedCampaignId={leadsCampaignFilterId}
+              onCampaignFilterChange={setLeadsCampaignFilterId}
               onDraftModalOpenChange={(open) => { draftModalOpenRef.current = open; }}
               onFilterBusinessTypeChange={setFilterBusinessType}
               onFilterCityChange={setFilterCity}
@@ -1303,6 +1318,7 @@ export default function CampaignsPage() {
                 {leadsEnqueueFeedback.text}
               </div>
             )}
+            </div>
           </div>
         </div>
       </div>

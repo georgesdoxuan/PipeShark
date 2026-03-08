@@ -141,7 +141,7 @@ export default function LandingPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <ViperLogo className="w-8 h-8 text-sky-600" />
-              <h1 className="text-2xl font-brand font-bold tracking-wide"><span className="text-white">Pipe</span><span className="text-sky-400">Shark</span></h1>
+              <h1 className="text-2xl font-montserrat font-brand font-bold tracking-wide"><span className="text-white">Pipe</span><span className="text-sky-400">Shark</span></h1>
             </div>
             <Link
               href="/login"
@@ -365,7 +365,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <ViperLogo className="w-6 h-6 text-sky-600" />
-            <h4 className="text-xl font-brand font-bold tracking-wide"><span className="text-white">Pipe</span><span className="text-sky-400">Shark</span></h4>
+            <h4 className="text-xl font-montserrat font-brand font-bold tracking-wide"><span className="text-white">Pipe</span><span className="text-sky-400">Shark</span></h4>
           </div>
           <p className="text-sky-500 text-sm">
             Automated prospecting tool

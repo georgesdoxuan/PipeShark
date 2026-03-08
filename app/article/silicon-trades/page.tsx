@@ -39,7 +39,7 @@ export default function SiliconTradesArticlePage() {
           <Link href="/landing" className="flex items-center gap-3 min-w-0">
             <ViperLogo className="h-12 w-auto text-sky-600 shrink-0" />
             <div className="min-w-0 flex items-baseline gap-2 flex-wrap">
-              <span className="font-brand font-bold text-zinc-900 tracking-wide text-2xl">PipeShark</span>
+              <span className="font-montserrat font-brand font-bold text-zinc-900 tracking-wide text-2xl">PipeShark</span>
               <span className="text-base text-black font-medium">Automated prospecting &amp; lead generation for trades</span>
             </div>
           </Link>

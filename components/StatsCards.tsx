@@ -79,7 +79,7 @@ export default function StatsCards({ stats, compact = false, mini = false }: Sta
   ];
 
   const sizeClass = mini
-    ? 'w-24 h-24 p-3'
+    ? 'w-28 h-24 p-3'
     : compact
     ? 'w-36 min-w-[9rem] h-36 p-4'
     : 'w-36 h-36 sm:w-40 sm:h-40 p-5';

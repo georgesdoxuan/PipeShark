@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       { source: "/", destination: "/landing", permanent: false },
+      { source: "/dashboard/business-descriptions", destination: "/dashboard/configuration", permanent: false },
+      { source: "/dashboard/exemple-mails", destination: "/dashboard/configuration", permanent: false },
     ];
   },
   async headers() {

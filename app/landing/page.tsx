@@ -142,7 +142,7 @@ export default function LandingPage() {
         <div className="grid grid-cols-3 items-center w-full px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center gap-2 flex-shrink-0">
             <ViperLogo className="h-14 w-auto flex-shrink-0 min-w-14" />
-            <h1 className="text-2xl font-brand font-bold tracking-wide text-zinc-900 dark:text-white">Pipeshark</h1>
+            <h1 className="text-2xl font-montserrat font-brand font-bold tracking-wide text-zinc-900 dark:text-white">Pipeshark</h1>
           </div>
           <nav className="hidden sm:flex items-center justify-center gap-1 sm:gap-3">
             <Link
@@ -697,7 +697,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <ViperLogo className="h-16 w-auto flex-shrink-0 min-w-16" />
-            <h4 className="text-xl font-brand font-bold tracking-wide text-zinc-900 dark:text-white">Pipeshark</h4>
+            <h4 className="text-xl font-montserrat font-brand font-bold tracking-wide text-zinc-900 dark:text-white">Pipeshark</h4>
           </div>
           <p className="text-zinc-500 dark:text-sky-500 text-sm">
             Automated prospecting for local businesses

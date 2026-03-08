@@ -31,6 +31,7 @@ interface Lead {
 }
 
 const selectClass = "text-sm font-medium text-zinc-700 dark:text-sky-200 bg-white dark:bg-neutral-800/80 border border-zinc-200 dark:border-sky-700/50 rounded-xl px-4 py-2.5 shadow-sm hover:border-sky-300 dark:hover:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-400 transition-colors cursor-pointer appearance-none bg-[length:14px] bg-[right_0.75rem_center] bg-no-repeat pr-9";
+const selectClassCompact = "text-xs font-medium text-zinc-700 dark:text-sky-200 bg-white dark:bg-neutral-800/80 border border-zinc-200 dark:border-sky-700/50 rounded-lg px-2.5 py-1.5 shadow-sm hover:border-sky-300 dark:hover:border-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-400 transition-colors cursor-pointer appearance-none bg-[length:12px] bg-[right_0.5rem_center] bg-no-repeat pr-7";
 const selectChevron = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")";
 
 const TONE_LABELS: Record<string, string> = {
@@ -51,6 +52,10 @@ interface LeadsTableProps {
   toneOfVoice?: string;
   campaignIdToTone?: Record<string, string>;
   campaignIdToName?: Record<string, string>;
+  /** List of campaigns for filter buttons; if > 5, shown in scrollable row */
+  campaigns?: { id: string; name: string }[];
+  selectedCampaignId?: string | null;
+  onCampaignFilterChange?: (campaignId: string | null) => void;
   onDraftModalOpenChange?: (open: boolean) => void;
   onFilterBusinessTypeChange?: (value: string) => void;
   onFilterCityChange?: (value: string) => void;
@@ -65,7 +70,7 @@ const filterBtnBase = "inline-flex items-center gap-2 px-3 py-2 rounded-xl borde
 const filterBtnActive = "border-sky-500 bg-sky-500/15 text-sky-700 dark:text-sky-200 dark:bg-sky-500/20";
 const filterBtnInactive = "border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-700 dark:text-sky-200 hover:bg-zinc-50 dark:hover:bg-neutral-800 hover:border-zinc-300 dark:hover:border-sky-600";
 
-export default function LeadsTable({ leads, loading = false, filterBusinessType = '', filterCity = '', filterByEmail = true, filterView = 'all', toneOfVoice, campaignIdToTone, campaignIdToName, onDraftModalOpenChange, onFilterBusinessTypeChange, onFilterCityChange, onFilterViewChange, onRefresh, onTrash, onEnqueue, onUpdateDeliveryType }: LeadsTableProps) {
+export default function LeadsTable({ leads, loading = false, filterBusinessType = '', filterCity = '', filterByEmail = true, filterView = 'all', toneOfVoice, campaignIdToTone, campaignIdToName, campaigns = [], selectedCampaignId = null, onCampaignFilterChange, onDraftModalOpenChange, onFilterBusinessTypeChange, onFilterCityChange, onFilterViewChange, onRefresh, onTrash, onEnqueue, onUpdateDeliveryType }: LeadsTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,6 +82,10 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; leadId: string } | null>(null);
   const isDraggingRef = useRef(false);
   const itemsPerPage = 20;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCampaignId]);
 
   // Parse draft: first line = subject, rest = body (subject often at top, e.g. "Support for Your Plumbing Tools")
   const parseDraftSubjectAndBody = (content: string) => {
@@ -134,6 +143,11 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
       );
     }
 
+    // Apply campaign filter
+    if (selectedCampaignId) {
+      filtered = filtered.filter(lead => lead.campaignId === selectedCampaignId);
+    }
+
     // Apply view filter: all | email sent only | replies only
     if (filterView === 'sent') {
       filtered = filtered.filter(lead => !!lead.emailSent);
@@ -141,14 +155,13 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
       filtered = filtered.filter(lead => !!lead.replied);
     }
 
-    // Apply search filter
+    // Apply search filter (company / business name)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (lead) =>
-          (lead.businessType?.toLowerCase().includes(query) ?? false) ||
-          (lead.city?.toLowerCase().includes(query) ?? false) ||
-          (lead.email?.toLowerCase().includes(query) ?? false)
+          (lead.name?.toLowerCase().includes(query) ?? false) ||
+          (lead.businessType?.toLowerCase().includes(query) ?? false)
       );
     }
 
@@ -160,7 +173,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
     });
 
     return filtered;
-  }, [leads, searchQuery, sortOrder, filterBusinessType, filterCity, filterByEmail, filterView]);
+  }, [leads, searchQuery, sortOrder, filterBusinessType, filterCity, filterByEmail, filterView, selectedCampaignId]);
 
   // Pagination
   const totalPages = Math.ceil(filteredAndSortedLeads.length / itemsPerPage);
@@ -262,31 +275,96 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
 
   return (
     <div className="overflow-hidden">
-      {/* Toolbar — single row */}
-      <div className="px-4 py-3 border-b border-zinc-200 dark:border-sky-800/30 flex items-center gap-2 flex-wrap">
-
-        {/* Title + utility icons */}
-        <h2 className="text-base font-display font-bold text-zinc-900 dark:text-white shrink-0">
-          Leads ({filteredAndSortedLeads.length})
-        </h2>
-        {onRefresh && (
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={loading}
-            className="p-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50 shrink-0"
-            title="Refresh"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+      {/* Toolbar — ligne 1: All my leads | Refresh | (spacer) | Trash ; ligne 2: campagnes, search, filtres, actions */}
+      <div className="px-4 py-3 border-b border-zinc-200 dark:border-sky-800/30 flex flex-col gap-2">
+        <div className="flex items-center w-full gap-2">
+          <Image
+            src="/customer.png"
+            alt=""
+            width={28}
+            height={28}
+            className="w-7 h-7 object-contain flex-shrink-0 [filter:brightness(0)_saturate(100%)_invert(68%)_sepia(60%)_saturate(1200%)_hue-rotate(180deg)] dark:[filter:brightness(0)_invert(1)]"
+          />
+          <h2 className="text-lg font-display font-bold text-zinc-900 dark:text-white shrink-0">
+            All my leads ({filteredAndSortedLeads.length})
+          </h2>
+          {onRefresh && (
+            <button type="button" onClick={onRefresh} disabled={loading} className="inline-flex items-center gap-1.5 p-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50 shrink-0" title="Refresh">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          )}
+          <div className="flex-1 min-w-4" />
+          <div className="inline-flex items-center gap-2 shrink-0 border border-zinc-200 dark:border-sky-700/50 rounded-2xl px-2 py-1.5 bg-white dark:bg-neutral-800/60 shadow-sm">
+            {selectMode ? (
+              <>
+                <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 px-1">{selectedIds.size} selected</span>
+                {selectedIds.size > 0 && (
+                  <button type="button" onClick={() => { onTrash?.([...selectedIds]); exitSelectMode(); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-800 bg-white dark:bg-neutral-900 text-red-600 dark:text-red-400 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                    <Trash2 className="w-4 h-4" /> Trash
+                  </button>
+                )}
+                <button type="button" onClick={exitSelectMode} className="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-sky-700/50 text-zinc-600 dark:text-zinc-400 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors">Cancel</button>
+              </>
+            ) : (
+              <button type="button" onClick={() => setSelectMode(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-sky-700/50 text-zinc-600 dark:text-sky-200 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-neutral-700/50 transition-colors">
+                <MousePointer2 className="w-4 h-4" /> Select
+              </button>
+            )}
+            <span className="text-xs text-zinc-400 dark:text-zinc-500 font-medium px-0.5">to</span>
+            <button type="button" onClick={doQueue} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium transition-colors shadow-sm">
+              <Plus className="w-4 h-4 shrink-0" /> Add to queue
+            </button>
+            <div className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 dark:bg-neutral-700/60 p-0.5 text-xs font-semibold">
+              <button type="button" onClick={() => setQueueMode('send')} className={`px-3 py-1 rounded-full transition-all ${queueMode === 'send' ? 'bg-emerald-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}>Send</button>
+              <button type="button" onClick={() => setQueueMode('draft')} className={`px-3 py-1 rounded-full transition-all ${queueMode === 'draft' ? 'bg-amber-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}>Draft</button>
+            </div>
+          </div>
+          <div className="flex-1 min-w-4" />
+          <Link href="/leads/trash" className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-500 dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors shrink-0 text-xs font-medium" title="Trash">
+            <Trash2 className="w-3.5 h-3.5 shrink-0" />
+            Trash
+          </Link>
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+        {campaigns.length > 0 && onCampaignFilterChange && (
+          <div className={`flex items-center gap-1.5 shrink-0 ${campaigns.length > 5 ? 'overflow-x-auto max-w-[min(50vw,400px)] scrollbar-thin' : 'flex-wrap'}`}>
+            <button
+              type="button"
+              onClick={() => onCampaignFilterChange(null)}
+              className={`${filterBtnBase} shrink-0 ${selectedCampaignId === null ? filterBtnActive : filterBtnInactive}`}
+            >
+              All
+            </button>
+            {campaigns.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onCampaignFilterChange(selectedCampaignId === c.id ? null : c.id)}
+                className={`${filterBtnBase} shrink-0 ${selectedCampaignId === c.id ? filterBtnActive : filterBtnInactive}`}
+                title={c.name}
+              >
+                <span className="truncate max-w-[120px]">{c.name}</span>
+              </button>
+            ))}
+          </div>
         )}
-        <Link
-          href="/leads/trash"
-          className="p-2 rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-500 dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors shrink-0"
-          title="Trash"
-        >
-          <Trash2 className="w-4 h-4" />
-        </Link>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="relative shrink-0">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500 dark:text-sky-300" />
+            <input
+              type="text"
+              placeholder="Search by company name"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-32 sm:w-40 pl-8 pr-2.5 py-1.5 text-sm border border-zinc-200 dark:border-sky-700/50 rounded-lg bg-white dark:bg-neutral-800/80 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-sky-400/70 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-400 transition-all shadow-sm hover:border-sky-300 dark:hover:border-sky-600"
+            />
+          </div>
+          <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')} className={selectClassCompact} style={{ backgroundImage: selectChevron }}>
+            <option value="newest">Most recent</option>
+            <option value="oldest">Oldest</option>
+          </select>
+        </div>
 
         <div className="w-px h-5 bg-zinc-200 dark:bg-neutral-700 shrink-0 mx-0.5" />
 
@@ -296,7 +374,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
             <select
               value={filterBusinessType}
               onChange={(e) => onFilterBusinessTypeChange(e.target.value)}
-              className={selectClass}
+              className={selectClassCompact}
               style={{ backgroundImage: selectChevron }}
               title="Filter by business type"
             >
@@ -308,7 +386,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
             <select
               value={filterCity}
               onChange={(e) => onFilterCityChange?.(e.target.value)}
-              className={selectClass}
+              className={selectClassCompact}
               style={{ backgroundImage: selectChevron }}
               title="Filter by city"
             >
@@ -318,92 +396,29 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
               ))}
             </select>
             {onFilterViewChange && (
-              <div className="flex items-center gap-1">
-                <button type="button" onClick={() => onFilterViewChange('all')} className={`${filterBtnBase} ${filterView === 'all' ? filterBtnActive : filterBtnInactive}`}>All</button>
-                <button type="button" onClick={() => onFilterViewChange('sent')} className={`${filterBtnBase} ${filterView === 'sent' ? filterBtnActive : filterBtnInactive}`}>Sent ({filterCounts.emailSentCount})</button>
-                <button type="button" onClick={() => onFilterViewChange('replied')} className={`${filterBtnBase} ${filterView === 'replied' ? filterBtnActive : filterBtnInactive}`}>Replies ({filterCounts.repliedCount})</button>
+              <div className="flex items-center gap-1 shrink-0">
+                <button type="button" onClick={() => onFilterViewChange('sent')} className={`${filterBtnBase} shrink-0 text-xs px-2 py-1.5 ${filterView === 'sent' ? filterBtnActive : filterBtnInactive}`}>Sent ({filterCounts.emailSentCount})</button>
+                <button type="button" onClick={() => onFilterViewChange('replied')} className={`${filterBtnBase} shrink-0 text-xs px-2 py-1.5 ${filterView === 'replied' ? filterBtnActive : filterBtnInactive}`}>Replies ({filterCounts.repliedCount})</button>
+                <button
+                  type="button"
+                  onClick={() => setSelectMode(true)}
+                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg border border-zinc-200 dark:border-sky-700/50 bg-white dark:bg-neutral-800/80 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-sky-200 hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors shrink-0 text-[11px] font-medium ml-0.5 origin-center scale-[1.08]"
+                  title="Select leads"
+                >
+                  Select
+                </button>
               </div>
             )}
           </>
         )}
-        <select
-          value={sortOrder}
-          onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-          className={selectClass}
-          style={{ backgroundImage: selectChevron }}
-        >
-          <option value="newest">Most recent</option>
-          <option value="oldest">Oldest</option>
-        </select>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 dark:text-sky-300" />
-          <input
-            type="text"
-            placeholder="Search by business type, city..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full sm:w-56 pl-10 pr-4 py-2.5 border border-zinc-200 dark:border-sky-700/50 rounded-xl bg-white dark:bg-neutral-800/80 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-sky-400/70 focus:outline-none focus:ring-2 focus:ring-sky-500/30 focus:border-sky-400 transition-all shadow-sm hover:border-sky-300 dark:hover:border-sky-600"
-          />
         </div>
-
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Action buttons — wrapped in a pill container */}
-        <div className="inline-flex items-center gap-2 shrink-0 border border-zinc-200 dark:border-sky-700/50 rounded-2xl px-2 py-1.5 bg-white dark:bg-neutral-800/60 shadow-sm">
-          {selectMode ? (
-            <>
-              <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 px-1">{selectedIds.size} selected</span>
-              {selectedIds.size > 0 && (
-                <button
-                  type="button"
-                  onClick={() => { onTrash?.([...selectedIds]); exitSelectMode(); }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-800 bg-white dark:bg-neutral-900 text-red-600 dark:text-red-400 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Trash
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={exitSelectMode}
-                className="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-sky-700/50 text-zinc-600 dark:text-zinc-400 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors"
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setSelectMode(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-sky-700/50 text-zinc-600 dark:text-sky-200 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-neutral-700/50 transition-colors"
-            >
-              <MousePointer2 className="w-4 h-4" />
-              Select
-            </button>
-          )}
-          <span className="text-xs text-zinc-400 dark:text-zinc-500 font-medium px-0.5">to</span>
-          <button
-            type="button"
-            onClick={doQueue}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium transition-colors shadow-sm"
-          >
-            <Plus className="w-4 h-4 shrink-0" />
-            Add to queue
-          </button>
-          <div className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 dark:bg-neutral-700/60 p-0.5 text-xs font-semibold">
-            <button type="button" onClick={() => setQueueMode('send')} className={`px-3 py-1 rounded-full transition-all ${queueMode === 'send' ? 'bg-emerald-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}>Send</button>
-            <button type="button" onClick={() => setQueueMode('draft')} className={`px-3 py-1 rounded-full transition-all ${queueMode === 'draft' ? 'bg-amber-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}>Draft</button>
-          </div>
-        </div>
-
       </div>
 
       {/* Table - min-width + auto layout so columns don't overlap and horizontal scroll works */}
       <div className="overflow-x-auto rounded-xl border border-zinc-200 dark:border-sky-700/40">
         <table className="w-full min-w-[1100px]" style={{ tableLayout: 'auto' }}>
           <thead>
-            <tr style={{ background: 'linear-gradient(90deg, #0ea5e9 0%, #38bdf8 35%, #6366f1 80%, #818cf8 100%)' }}>
+            <tr className="bg-[var(--viper-primary)] dark:bg-[var(--viper-primary-dark)]">
               {selectMode && (
                 <th className="px-3 py-3.5 rounded-tl-xl w-10">
                   <input

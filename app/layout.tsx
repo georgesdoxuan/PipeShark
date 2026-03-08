@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { Montserrat } from "next/font/google";
 import "./globals.css";
 import { ApiPauseProvider } from "@/contexts/ApiPauseContext";
+
+const montserrat = Montserrat({ subsets: ["latin"], variable: "--font-montserrat" });
 import { CampaignLoadingProvider } from "@/contexts/CampaignLoadingContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import AppBackgroundWrapper from "@/components/AppBackgroundWrapper";
@@ -23,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="antialiased">
+      <body className={`${montserrat.variable} antialiased`}>
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('pipeshark-theme');var d=document.documentElement;d.classList.remove('light','dark');d.classList.add(t==='light'||t==='dark'?t:(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'));}catch(e){document.documentElement.classList.add('dark');}})();`,
