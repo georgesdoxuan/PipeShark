@@ -293,29 +293,29 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
             </button>
           )}
           <div className="flex-1 min-w-4" />
-          <div className="inline-flex items-center gap-2 shrink-0 border border-zinc-200 dark:border-sky-700/50 rounded-2xl px-2 py-1.5 bg-white dark:bg-neutral-800/60 shadow-sm">
+          <div className="inline-flex items-center gap-1.5 shrink-0 border border-zinc-200 dark:border-sky-700/50 rounded-xl px-1.5 py-1 bg-white dark:bg-neutral-800/60 shadow-sm">
             {selectMode ? (
               <>
-                <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400 px-1">{selectedIds.size} selected</span>
+                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 px-0.5">{selectedIds.size} selected</span>
                 {selectedIds.size > 0 && (
-                  <button type="button" onClick={() => { onTrash?.([...selectedIds]); exitSelectMode(); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 dark:border-red-800 bg-white dark:bg-neutral-900 text-red-600 dark:text-red-400 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                    <Trash2 className="w-4 h-4" /> Trash
+                  <button type="button" onClick={() => { onTrash?.([...selectedIds]); exitSelectMode(); }} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-red-200 dark:border-red-800 bg-white dark:bg-neutral-900 text-red-600 dark:text-red-400 text-xs font-medium hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                    <Trash2 className="w-3.5 h-3.5" /> Trash
                   </button>
                 )}
-                <button type="button" onClick={exitSelectMode} className="px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-sky-700/50 text-zinc-600 dark:text-zinc-400 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors">Cancel</button>
+                <button type="button" onClick={exitSelectMode} className="px-2 py-1 rounded-lg border border-zinc-200 dark:border-sky-700/50 text-zinc-600 dark:text-zinc-400 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-neutral-800 transition-colors">Cancel</button>
               </>
             ) : (
-              <button type="button" onClick={() => setSelectMode(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-sky-700/50 text-zinc-600 dark:text-sky-200 text-sm font-medium hover:bg-zinc-50 dark:hover:bg-neutral-700/50 transition-colors">
-                <MousePointer2 className="w-4 h-4" /> Select
+              <button type="button" onClick={() => setSelectMode(true)} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-zinc-200 dark:border-sky-700/50 text-zinc-600 dark:text-sky-200 text-xs font-medium hover:bg-zinc-50 dark:hover:bg-neutral-700/50 transition-colors">
+                <MousePointer2 className="w-3.5 h-3.5" /> Select
               </button>
             )}
-            <span className="text-xs text-zinc-400 dark:text-zinc-500 font-medium px-0.5">to</span>
-            <button type="button" onClick={doQueue} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium transition-colors shadow-sm">
-              <Plus className="w-4 h-4 shrink-0" /> Add to queue
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500 font-medium">to</span>
+            <button type="button" onClick={doQueue} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium transition-colors shadow-sm">
+              <Plus className="w-3.5 h-3.5 shrink-0" /> Add to queue
             </button>
-            <div className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 dark:bg-neutral-700/60 p-0.5 text-xs font-semibold">
-              <button type="button" onClick={() => setQueueMode('send')} className={`px-3 py-1 rounded-full transition-all ${queueMode === 'send' ? 'bg-emerald-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}>Send</button>
-              <button type="button" onClick={() => setQueueMode('draft')} className={`px-3 py-1 rounded-full transition-all ${queueMode === 'draft' ? 'bg-amber-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}>Draft</button>
+            <div className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 dark:bg-neutral-700/60 p-0.5 text-[11px] font-semibold">
+              <button type="button" onClick={() => setQueueMode('send')} className={`px-2.5 py-0.5 rounded-full transition-all ${queueMode === 'send' ? 'bg-emerald-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}>Send</button>
+              <button type="button" onClick={() => setQueueMode('draft')} className={`px-2.5 py-0.5 rounded-full transition-all ${queueMode === 'draft' ? 'bg-amber-600 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}>Draft</button>
             </div>
           </div>
           <div className="flex-1 min-w-4" />
@@ -486,7 +486,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                 onMouseEnter={() => { if (!selectMode || !isDraggingRef.current) return; setSelectedIds(prev => new Set([...prev, lead.id])); }}
               >
                 {selectMode && (
-                  <td className="px-3 py-4 w-10">
+                  <td className="px-3 py-2.5 w-10">
                     <input
                       type="checkbox"
                       checked={selectedIds.has(lead.id)}
@@ -496,22 +496,22 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     />
                   </td>
                 )}
-                <td className="px-4 py-4">
+                <td className="px-4 py-2.5">
                   <div className="text-sm font-medium text-zinc-900 dark:text-white truncate" title={lead.name || undefined}>
                     {lead.name || '-'}
                   </div>
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-4 py-2.5">
                   <div className="text-sm font-semibold text-zinc-900 dark:text-white truncate" title={lead.businessType || undefined}>
                     {lead.businessType || '-'}
                   </div>
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-4 py-2.5">
                   <div className="text-sm text-zinc-600 dark:text-sky-200 truncate" title={lead.city || undefined}>
                     {lead.city || '-'}
                   </div>
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-4 py-2.5">
                   {lead.email && lead.email !== 'No email found' ? (
                     <div className="flex items-center gap-2 min-w-0">
                       <Mail className="w-4 h-4 text-sky-500 dark:text-sky-300 flex-shrink-0" />
@@ -523,7 +523,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-4 py-2.5">
                   {lead.phone ? (
                     <a
                       href={`tel:${lead.phone}`}
@@ -536,7 +536,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
                   )}
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap">
+                <td className="px-4 py-2.5 whitespace-nowrap">
                   {(lead.deliveryType === 'send' || lead.deliveryType === 'draft') && lead.queueItemId ? (
                     <div className="inline-flex items-center gap-0.5 rounded-full bg-zinc-100 dark:bg-neutral-700/60 p-0.5 text-xs font-semibold">
                       <button
@@ -547,14 +547,14 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                       <button
                         type="button"
                         onClick={() => lead.deliveryType !== 'draft' && onUpdateDeliveryType?.(lead.queueItemId!, 'draft')}
-                        className={`px-2.5 py-0.5 rounded-full transition-all ${lead.deliveryType === 'draft' ? 'bg-amber-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}
+                        className={`px-2.5 py-0.5 rounded-full transition-all ${lead.deliveryType === 'draft' ? 'bg-amber-600 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'}`}
                       >Draft</button>
                     </div>
                   ) : (
                     <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
                   )}
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-4 py-2.5">
                   {lead.emailDraftCreated ? (
                     <div className="flex flex-col gap-0.5">
                       <button
@@ -577,7 +577,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-4">
+                <td className="px-4 py-2.5">
                   {lead.url ? (
                     <a
                       href={lead.url}
@@ -593,7 +593,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
                   )}
                 </td>
-                <td className="px-4 py-4 w-0 whitespace-nowrap">
+                <td className="px-4 py-2.5 w-0 whitespace-nowrap">
                   {lead.emailSent ? (
                     <span className="text-xs font-medium text-green-600 dark:text-green-400">Sent</span>
                   ) : lead.gmailThreadId ? (
@@ -602,26 +602,26 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     <span className="text-xs font-medium text-zinc-400 dark:text-zinc-500">Pending</span>
                   )}
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap">
+                <td className="px-4 py-2.5 whitespace-nowrap">
                   {lead.scheduledAt ? (
                     <span className="text-sm text-zinc-600 dark:text-sky-200">{formatDate(lead.scheduledAt)}</span>
                   ) : (
                     <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
                   )}
                 </td>
-                <td className="px-4 py-4 text-center">
+                <td className="px-4 py-2.5 text-center">
                   {lead.replied ? (
                     <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-green-500 dark:bg-green-400 shrink-0" title="Replied" aria-label="Replied" />
                   ) : (
                     <span className="inline-flex items-center justify-center w-3 h-3 rounded-full bg-zinc-200 dark:bg-zinc-600 shrink-0" title="Pending" aria-label="Pending" />
                   )}
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap" style={{ minWidth: 145 }}>
+                <td className="px-4 py-2.5 whitespace-nowrap" style={{ minWidth: 145 }}>
                   <div className="text-sm text-zinc-600 dark:text-sky-200">
                     {formatDate(lead.date)}
                   </div>
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap" style={{ minWidth: 100 }}>
+                <td className="px-4 py-2.5 whitespace-nowrap" style={{ minWidth: 100 }}>
                   {lead.campaignId && (campaignIdToName?.[lead.campaignId] != null) ? (
                     <Link
                       href={`/campaigns/${lead.campaignId}`}
@@ -635,7 +635,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     <span className="text-sm text-zinc-500 dark:text-sky-400/90">-</span>
                   )}
                 </td>
-                <td className="px-4 py-4 max-w-[100px] w-[100px]" style={{ maxWidth: 100 }}>
+                <td className="px-4 py-2.5 max-w-[100px] w-[100px]" style={{ maxWidth: 100 }}>
                   {lead.linkedin && lead.linkedin.trim() !== '' && lead.linkedin.toLowerCase() !== 'no linkedin found' ? (
                     <a
                       href={lead.linkedin}

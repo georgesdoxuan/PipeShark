@@ -730,7 +730,7 @@ export default function CampaignsPage() {
                   <button
                     type="button"
                     onClick={() => { if (autoEnqueueEnabled) { setLaunchDeliveryMode('drafts'); saveSchedule(scheduleTime, undefined, 'drafts'); } }}
-                    className={`rounded-full transition-all ${launchDeliveryMode === 'drafts' ? 'bg-amber-500 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'} ${sidebarOpen ? 'px-2 py-0.5' : 'px-3 py-1'}`}
+                    className={`rounded-full transition-all ${launchDeliveryMode === 'drafts' ? 'bg-amber-600 text-white shadow-sm cursor-default' : 'text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer'} ${sidebarOpen ? 'px-2 py-0.5' : 'px-3 py-1'}`}
                   >Draft</button>
                 </div>
               </div>
@@ -843,7 +843,7 @@ export default function CampaignsPage() {
             <div className="mb-1">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {displayedCampaigns.map((campaign) => {
-                const cardClass = 'bg-gradient-to-br from-sky-100 via-sky-50 to-white dark:from-sky-900/60 dark:via-sky-950/50 dark:to-neutral-800/70 border-2 border-sky-200 dark:border-sky-700/60';
+                const cardClass = 'bg-white dark:bg-neutral-800/80 border border-sky-200 dark:border-sky-700/50';
                 // Helper function to format city size display
                 const formatCitySize = (citySize?: string): string => {
                   // Default to '1M+' if no citySize is set (for old campaigns)

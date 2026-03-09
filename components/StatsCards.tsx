@@ -14,6 +14,10 @@ const LOGO_BLUE_FILTER =
 const PAPER_PLANE_SRC = '/paper-plane.png';
 const SENT_ICON_GREEN_STYLE = { filter: 'invert(1) sepia(1) hue-rotate(65deg) saturate(10) brightness(0.7) contrast(1.1)' };
 
+const THUMB_UP_SRC = '/thumb-up.png';
+/** Vert pour Positive Replies (thumbs up) */
+const THUMB_UP_GREEN_STYLE = { filter: 'invert(1) sepia(1) hue-rotate(100deg) saturate(10) brightness(0.75) contrast(1.1)' };
+
 interface StatsCardsProps {
   stats: {
     leadsWithEmail: number;
@@ -94,6 +98,7 @@ export default function StatsCards({ stats, compact = false, mini = false }: Sta
         ? `${Math.round(((stats.positiveRepliesCount ?? 0) / (stats.repliesCount ?? 1)) * 100)}% of replies`
         : undefined,
       icon: ThumbsUp,
+      customIconSrc: THUMB_UP_SRC,
       style: 'positive',
       href: '/messages#replies',
     },
@@ -130,6 +135,11 @@ export default function StatsCards({ stats, compact = false, mini = false }: Sta
                       <span className={`${iconSizeClass} flex items-center justify-center overflow-hidden`} style={SENT_ICON_GREEN_STYLE}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={PAPER_PLANE_SRC} alt="" width={iconPx} height={iconPx} className="w-full h-full object-contain" />
+                      </span>
+                    ) : card.style === 'positive' ? (
+                      <span className={`${iconSizeClass} flex items-center justify-center overflow-hidden`} style={THUMB_UP_GREEN_STYLE}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={THUMB_UP_SRC} alt="" width={iconPx} height={iconPx} className="w-full h-full object-contain" />
                       </span>
                     ) : (
                       <Image src={card.customIconSrc} alt="" width={iconPx} height={iconPx} className={`${iconSizeClass} object-contain ${LOGO_BLUE_FILTER}`} />
