@@ -11,3 +11,7 @@
 # Email queue: run on Scaleway every minute (see scripts/cron-process-queue-scaleway.sh)
 # [functions.cron-process-queue]
 #   schedule = "* * * * *"
+
+# GDPR purge: strip PII from non-replied leads older than 30 days (daily at 03:00 UTC)
+[functions.cron-purge-leads]
+  schedule = "0 3 * * *"

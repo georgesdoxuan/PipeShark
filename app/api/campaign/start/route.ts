@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { businessType, cities, citySize, companyDescription, toneOfVoice, campaignGoal, magicLink, campaignId, targetCount, name, mode, exampleEmail, country, gmailEmail: bodyGmailEmail, businessLinkText } = body;
+    const { businessType, cities, citySize, companyDescription, toneOfVoice, campaignGoal, magicLink, campaignId, targetCount, name, mode, exampleEmail, country, gmailEmail: bodyGmailEmail, businessLinkText, emailMaxLength, aiInstructions } = body;
 
     const planInfo = await getUserPlanInfo(user.id);
     const isPro = planInfo.plan === 'pro';
@@ -244,6 +244,7 @@ export async function POST(request: Request) {
         numberCreditsUsed: creditsToUse,
         status: 'active',
         gmailEmail: gmailEmailForTokens,
+        aiInstructions: aiInstructions && typeof aiInstructions === 'string' && aiInstructions.trim() ? aiInstructions.trim() : undefined,
       });
       console.log('📝 Campaign created:', campaign.id, campaign.businessType, 'credits:', creditsToUse);
     }
@@ -270,6 +271,14 @@ export async function POST(request: Request) {
     }
     if (businessLinkText && typeof businessLinkText === 'string' && businessLinkText.trim()) {
       payload.businessLinkText = businessLinkText.trim();
+    }
+    if (typeof emailMaxLength === 'number' && emailMaxLength >= 50 && emailMaxLength <= 300) {
+      payload.emailMaxLength = Math.round(emailMaxLength);
+    }
+    if (aiInstructions && typeof aiInstructions === 'string' && aiInstructions.trim()) {
+      payload.aiInstructions = aiInstructions.trim();
+    } else if (existingCampaign?.aiInstructions) {
+      payload.aiInstructions = existingCampaign.aiInstructions;
     }
     const effectiveTargetCount =
       typeof targetCount === 'number' && targetCount >= 1

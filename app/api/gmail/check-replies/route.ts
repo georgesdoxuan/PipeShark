@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { getLeadsForUser, markLeadReplied, markLeadEmailSent, setLeadEmailSent } from '@/lib/supabase-leads';
+import { getLeadsForUser, markLeadReplied, markLeadEmailSent, setLeadEmailSent, setLeadPositiveReply } from '@/lib/supabase-leads';
 import { getValidGmailAccessToken } from '@/lib/gmail';
-import { getGmailThread, threadHasReplyFromRecipient, threadHasMessageFromUser, getGmailUserEmail } from '@/lib/gmail-api';
+import { getGmailThread, threadHasReplyFromRecipient, threadHasMessageFromUser, getGmailUserEmail, getReplySnippetFromThread } from '@/lib/gmail-api';
+import { classifyReply } from '@/lib/leadgen/ai-draft';
 
 /**
  * POST /api/gmail/check-replies
@@ -107,7 +108,20 @@ export async function POST() {
         }
         if (!lead.replied && threadHasReplyFromRecipient(thread, userEmail)) {
           const ok = await markLeadReplied(lead.id, user.id);
-          if (ok) updatedReplies++;
+          if (ok) {
+            updatedReplies++;
+            // Classify the reply sentiment (only on new replies to save OpenAI credits)
+            const openaiKey = process.env.OPENAI_API_KEY;
+            if (openaiKey) {
+              try {
+                const snippet = getReplySnippetFromThread(thread, userEmail);
+                const isPositive = await classifyReply(openaiKey, snippet);
+                await setLeadPositiveReply(lead.id, user.id, isPositive);
+              } catch (classifyErr) {
+                console.warn(`[check-replies] classify failed for lead ${lead.id}:`, classifyErr);
+              }
+            }
+          }
         }
       } catch (e: any) {
         errors.push(`Lead ${lead.id}: ${e.message || 'Error'}`);

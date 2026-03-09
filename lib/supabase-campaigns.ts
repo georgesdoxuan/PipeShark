@@ -21,6 +21,8 @@ export interface Campaign {
   gmailEmail?: string | null;
   /** Hex color for campaign title on dashboard (e.g. #1e3a5f). */
   titleColor?: string | null;
+  /** Custom AI writing instructions for this campaign. */
+  aiInstructions?: string | null;
 }
 
 interface CreateCampaignInput {
@@ -36,6 +38,7 @@ interface CreateCampaignInput {
   numberCreditsUsed?: number;
   status?: 'active' | 'completed';
   gmailEmail?: string | null;
+  aiInstructions?: string | null;
 }
 
 function mapRecordToCampaign(record: any): Campaign {
@@ -56,6 +59,7 @@ function mapRecordToCampaign(record: any): Campaign {
     lastStartedAt: record.last_started_at ?? null,
     gmailEmail: record.gmail_email ?? null,
     titleColor: record.title_color ?? null,
+    aiInstructions: record.ai_instructions ?? null,
   };
 }
 
@@ -78,6 +82,7 @@ export async function createCampaign(userId: string, input: CreateCampaignInput)
       number_credits_used: input.numberCreditsUsed ?? 0,
       status: input.status || 'active',
       gmail_email: input.gmailEmail ?? null,
+      ai_instructions: input.aiInstructions ?? null,
     })
     .select()
     .single();
@@ -164,6 +169,7 @@ export async function updateCampaign(
     lastStartedAt: string | null;
     gmailEmail: string | null;
     titleColor: string | null;
+    aiInstructions: string | null;
   }>
 ): Promise<Campaign | null> {
   const supabase = await createServerSupabaseClient();
@@ -181,6 +187,7 @@ export async function updateCampaign(
   if (updates.lastStartedAt !== undefined) payload.last_started_at = updates.lastStartedAt;
   if (updates.gmailEmail !== undefined) payload.gmail_email = updates.gmailEmail;
   if (updates.titleColor !== undefined) payload.title_color = updates.titleColor?.trim() || null;
+  if (updates.aiInstructions !== undefined) payload.ai_instructions = updates.aiInstructions;
 
   if (Object.keys(payload).length === 0) {
     return getCampaignById(userId, campaignId);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Header from '@/components/Header';
-import { Settings, MailCheck, MailX, Scale, Lock, Send } from 'lucide-react';
+import { Settings, MailCheck, MailX, Scale, Lock, Send, FileText, Trash2, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import SenderAccountForm from '@/components/SenderAccountForm';
@@ -31,6 +31,10 @@ export default function PreferencesPage() {
   const [mailConnectionType, setMailConnectionType] = useState<'smtp' | 'gmail'>('smtp');
   const [mailConnectionLoading, setMailConnectionLoading] = useState(true);
   const [mailConnectionSaving, setMailConnectionSaving] = useState(false);
+  const [presets, setPresets] = useState<{ id: string; name: string; businessType?: string; createdAt: string }[]>([]);
+  const [presetsLoading, setPresetsLoading] = useState(true);
+  const [renamingPresetId, setRenamingPresetId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const searchParams = useSearchParams();
 
   async function fetchGmailStatus() {
@@ -95,6 +99,41 @@ export default function PreferencesPage() {
       .catch(() => {})
       .finally(() => setMailConnectionLoading(false));
   }, []);
+
+  function fetchPresets() {
+    setPresetsLoading(true);
+    fetch('/api/campaign-presets', { credentials: 'include' })
+      .then((r) => r.ok ? r.json() : [])
+      .then((d) => setPresets(Array.isArray(d) ? d : []))
+      .catch(() => setPresets([]))
+      .finally(() => setPresetsLoading(false));
+  }
+
+  useEffect(() => {
+    fetchPresets();
+  }, []);
+
+  async function deletePreset(presetId: string) {
+    const res = await fetch(`/api/campaign-presets/${presetId}`, { method: 'DELETE', credentials: 'include' });
+    if (res.ok) {
+      setPresets((prev) => prev.filter((p) => p.id !== presetId));
+    }
+  }
+
+  async function renamePreset(presetId: string, newName: string) {
+    if (!newName.trim()) return;
+    const res = await fetch(`/api/campaign-presets/${presetId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ name: newName.trim() }),
+    });
+    if (res.ok) {
+      setPresets((prev) => prev.map((p) => p.id === presetId ? { ...p, name: newName.trim() } : p));
+      setRenamingPresetId(null);
+      setRenameValue('');
+    }
+  }
 
   async function setMailConnection(value: 'smtp' | 'gmail') {
     setMailConnectionSaving(true);
@@ -309,6 +348,86 @@ export default function PreferencesPage() {
               )}
             </div>
           </div>
+
+          {/* Campaign Presets */}
+          <section className="mt-8 pt-6 border-t border-zinc-200 dark:border-neutral-800">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-zinc-500 dark:text-neutral-400" />
+              Campaign Presets
+            </h2>
+            <p className="text-sm text-zinc-600 dark:text-neutral-400 mb-4">
+              Manage your saved campaign presets. Presets can be loaded in the campaign form to quickly fill in your configuration.
+            </p>
+            {presetsLoading ? (
+              <p className="text-sm text-zinc-500 dark:text-neutral-400">Loading...</p>
+            ) : presets.length === 0 ? (
+              <p className="text-sm text-zinc-500 dark:text-neutral-400">No presets yet. Save a preset from the campaign form.</p>
+            ) : (
+              <ul className="space-y-2">
+                {presets.map((preset) => (
+                  <li key={preset.id} className="flex items-center justify-between gap-3 bg-zinc-50 dark:bg-neutral-800/60 border border-zinc-200 dark:border-neutral-700 rounded-xl px-4 py-3">
+                    <div className="flex-1 min-w-0">
+                      {renamingPresetId === preset.id ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            className="flex-1 px-2 py-1 text-sm border border-zinc-300 dark:border-sky-700/40 rounded-lg bg-white dark:bg-neutral-800 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-sky-500"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') { e.preventDefault(); renamePreset(preset.id, renameValue); }
+                              if (e.key === 'Escape') { setRenamingPresetId(null); setRenameValue(''); }
+                            }}
+                            autoFocus
+                          />
+                          <button
+                            onClick={() => renamePreset(preset.id, renameValue)}
+                            className="px-2 py-1 text-xs bg-sky-500 hover:bg-sky-400 text-white rounded-lg transition-colors"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => { setRenamingPresetId(null); setRenameValue(''); }}
+                            className="text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-sm font-medium text-zinc-900 dark:text-white">{preset.name}</p>
+                          {preset.businessType && (
+                            <p className="text-xs text-zinc-500 dark:text-neutral-400">{preset.businessType}</p>
+                          )}
+                          <p className="text-xs text-zinc-400 dark:text-neutral-500">
+                            {new Date(preset.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    {renamingPresetId !== preset.id && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => { setRenamingPresetId(preset.id); setRenameValue(preset.name); }}
+                          className="p-1.5 text-zinc-500 dark:text-neutral-400 hover:text-sky-600 dark:hover:text-sky-400 transition-colors"
+                          title="Rename"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => deletePreset(preset.id)}
+                          className="p-1.5 text-zinc-500 dark:text-neutral-400 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
           {/* LEGAL & COMPLIANCE */}
           <section className="mt-12 pt-8 border-t border-zinc-200 dark:border-neutral-800">

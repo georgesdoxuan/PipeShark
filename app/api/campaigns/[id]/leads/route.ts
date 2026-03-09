@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCampaignById } from '@/lib/supabase-campaigns';
 import { getLeadsForCampaign } from '@/lib/supabase-leads';
+import { getQueueInfoForLeads } from '@/lib/supabase-email-queue';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 
 /**
@@ -39,7 +40,16 @@ export async function GET(
       createdAt: campaign.createdAt,
     });
 
-    return NextResponse.json(leads);
+    const queueInfo = await getQueueInfoForLeads(user.id, leads.map((l) => ({ id: l.id, email: l.email ?? null })));
+
+    const leadsWithQueue = leads.map((lead) => ({
+      ...lead,
+      deliveryType: queueInfo[lead.id]?.delivery_type ?? null,
+      scheduledAt: queueInfo[lead.id]?.scheduled_at ?? null,
+      queueItemId: queueInfo[lead.id]?.queue_item_id ?? null,
+    }));
+
+    return NextResponse.json(leadsWithQueue);
   } catch (error: any) {
     console.error('Error fetching campaign leads:', error.message);
     return NextResponse.json(

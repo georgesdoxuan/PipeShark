@@ -21,6 +21,10 @@ export interface CampaignFormState {
   targetCount: number;
   /** Optional: text describing the link between user's business and the prospect's (used in AI prompt when non-empty). */
   businessLinkText: string;
+  /** Max words for the AI-generated email body (50–300). Default 150. */
+  emailMaxLength: number;
+  /** Custom AI writing instructions for this campaign. */
+  aiInstructions: string;
 }
 
 const DEFAULT_FORM_STATE: CampaignFormState = {
@@ -30,12 +34,14 @@ const DEFAULT_FORM_STATE: CampaignFormState = {
   companyDescription: '',
   exampleEmail: '',
   toneOfVoice: 'professional',
-  campaignGoal: 'book_call',
+  campaignGoal: 'Book a phone call',
   magicLink: '',
   citySize: '1M+',
   cities: '',
   targetCount: 10,
   businessLinkText: '',
+  emailMaxLength: 150,
+  aiInstructions: '',
 };
 
 interface CampaignFormProps {
@@ -69,6 +75,14 @@ export default function CampaignForm({
   const [cities, setCities] = useState(baseline.current.cities);
   const [targetCount, setTargetCount] = useState(baseline.current.targetCount);
   const [businessLinkText, setBusinessLinkText] = useState(baseline.current.businessLinkText ?? '');
+  const [emailMaxLength, setEmailMaxLength] = useState(baseline.current.emailMaxLength ?? 150);
+  const [aiInstructions, setAiInstructions] = useState(baseline.current.aiInstructions ?? '');
+  const [showAiInstructions, setShowAiInstructions] = useState(false);
+  const [presets, setPresets] = useState<{ id: string; name: string; [key: string]: unknown }[]>([]);
+  const [savePresetMode, setSavePresetMode] = useState(false);
+  const [savePresetName, setSavePresetName] = useState('');
+  const [savePresetLoading, setSavePresetLoading] = useState(false);
+  const [savePresetFeedback, setSavePresetFeedback] = useState<string | null>(null);
   const [showBackConfirm, setShowBackConfirm] = useState(false);
   const [draftSavedFeedback, setDraftSavedFeedback] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -117,6 +131,8 @@ export default function CampaignForm({
     cities,
     targetCount,
     businessLinkText,
+    emailMaxLength,
+    aiInstructions,
   };
 
   const hasChanges =
@@ -131,7 +147,9 @@ export default function CampaignForm({
     citySize !== baseline.current.citySize ||
     cities !== baseline.current.cities ||
     targetCount !== baseline.current.targetCount ||
-    (businessLinkText ?? '') !== (baseline.current.businessLinkText ?? '');
+    (businessLinkText ?? '') !== (baseline.current.businessLinkText ?? '') ||
+    emailMaxLength !== (baseline.current.emailMaxLength ?? 150) ||
+    (aiInstructions ?? '') !== (baseline.current.aiInstructions ?? '');
 
   function handleSaveDraft() {
     onSaveDraft?.(currentFormState);
@@ -152,7 +170,62 @@ export default function CampaignForm({
     setShowBackConfirm(false);
     onBack?.();
   }
-  
+
+  function loadPreset(preset: { id: string; name: string; [key: string]: unknown }) {
+    if (preset.businessType) setBusinessType(preset.businessType as string);
+    if (preset.companyDescription) setCompanyDescription(preset.companyDescription as string);
+    if (preset.toneOfVoice) setToneOfVoice(preset.toneOfVoice as string);
+    if (preset.campaignGoal) setCampaignGoal(preset.campaignGoal as string);
+    if (preset.magicLink) setMagicLink(preset.magicLink as string);
+    if (preset.citySize) setCitySize(preset.citySize as string);
+    if (preset.cities && Array.isArray(preset.cities)) setCities((preset.cities as string[]).join(', '));
+    if (preset.businessLinkText) setBusinessLinkText(preset.businessLinkText as string);
+    if (typeof preset.emailMaxLength === 'number') setEmailMaxLength(preset.emailMaxLength);
+    if (preset.exampleEmail) setExampleEmail(preset.exampleEmail as string);
+    if (preset.aiInstructions) setAiInstructions(preset.aiInstructions as string);
+  }
+
+  async function saveAsPreset() {
+    if (!savePresetName.trim()) return;
+    setSavePresetLoading(true);
+    setSavePresetFeedback(null);
+    try {
+      const citiesArray = cities.split(',').map((c) => c.trim()).filter(Boolean);
+      const res = await fetch('/api/campaign-presets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: savePresetName.trim(),
+          businessType: businessType.trim() || undefined,
+          companyDescription: companyDescription.trim() || undefined,
+          toneOfVoice: toneOfVoice || undefined,
+          campaignGoal: campaignGoal || undefined,
+          magicLink: magicLink.trim() || undefined,
+          citySize: citySize || undefined,
+          cities: citiesArray.length > 0 ? citiesArray : undefined,
+          businessLinkText: businessLinkText.trim() || undefined,
+          emailMaxLength,
+          exampleEmail: exampleEmail.trim() || undefined,
+          aiInstructions: aiInstructions.trim() || undefined,
+        }),
+      });
+      if (res.ok) {
+        const preset = await res.json();
+        setPresets((prev) => [preset, ...prev]);
+        setSavePresetName('');
+        setSavePresetMode(false);
+        setSavePresetFeedback('Preset saved!');
+        setTimeout(() => setSavePresetFeedback(null), 3000);
+      } else {
+        setSavePresetFeedback('Failed to save preset');
+      }
+    } catch {
+      setSavePresetFeedback('Failed to save preset');
+    } finally {
+      setSavePresetLoading(false);
+    }
+  }
+
   // Validate magic link
   const isValidUrl = (url: string): boolean => {
     if (!url.trim()) return true; // Empty is valid (optional field)
@@ -184,13 +257,16 @@ export default function CampaignForm({
 
   async function fetchAllDescriptions() {
     try {
-      const [savedRes, campaignsRes, templatesRes] = await Promise.all([
+      const [savedRes, campaignsRes, templatesRes, presetsRes] = await Promise.all([
         fetch('/api/company-descriptions'),
         fetch('/api/campaigns/list'),
         fetch('/api/email-templates'),
+        fetch('/api/campaign-presets'),
       ]);
       const saved: { id: string; content: string; campaignName?: string; createdAt: string }[] = savedRes.ok ? await savedRes.json() : [];
       const campaigns: { companyDescription?: string; name?: string; businessType?: string }[] = campaignsRes.ok ? await campaignsRes.json() : [];
+      const presetsData = presetsRes.ok ? await presetsRes.json() : [];
+      setPresets(Array.isArray(presetsData) ? presetsData : []);
 
       const byContent = new Map<string, { id?: string; content: string; displayName: string; source: 'saved' | 'campaign' }>();
       for (const d of Array.isArray(saved) ? saved : []) {
@@ -230,12 +306,20 @@ export default function CampaignForm({
       setCompanyDescription(merged.companyDescription);
       setExampleEmail(merged.exampleEmail ?? '');
       setToneOfVoice(merged.toneOfVoice);
-      setCampaignGoal(merged.campaignGoal);
+      // Convert legacy key values to human-readable labels
+      const goalKeyToLabel: Record<string, string> = {
+        book_call: 'Book a phone call',
+        free_audit: 'Offer a free audit/quote',
+        send_brochure: 'Send a brochure/portfolio',
+      };
+      setCampaignGoal(goalKeyToLabel[merged.campaignGoal] ?? merged.campaignGoal);
       setMagicLink(merged.magicLink);
       setCitySize(merged.citySize);
       setCities(merged.cities);
       setTargetCount(merged.targetCount);
       setBusinessLinkText(merged.businessLinkText ?? '');
+      setEmailMaxLength(merged.emailMaxLength ?? 150);
+      setAiInstructions(merged.aiInstructions ?? '');
       setDrawnCityCountry(null);
     }
   }, [initialFormState]);
@@ -450,6 +534,8 @@ export default function CampaignForm({
       };
       if (exampleEmail.trim()) payload.exampleEmail = exampleEmail.trim();
       if (businessLinkText.trim()) payload.businessLinkText = businessLinkText.trim();
+      payload.emailMaxLength = emailMaxLength;
+      if (aiInstructions.trim()) payload.aiInstructions = aiInstructions.trim();
       if (citiesArray.length > 0) {
         payload.cities = citiesArray;
         if (drawnCityCountry && citiesArray.length === 1 && citiesArray[0] === drawnCityCountry.city) {
@@ -543,6 +629,8 @@ export default function CampaignForm({
           };
           if (exampleEmail.trim()) runPayload.exampleEmail = exampleEmail.trim();
           if (businessLinkText.trim()) runPayload.businessLinkText = businessLinkText.trim();
+          runPayload.emailMaxLength = emailMaxLength;
+          if (aiInstructions.trim()) runPayload.aiInstructions = aiInstructions.trim();
           if (citiesArray.length > 0) {
             runPayload.cities = citiesArray;
             if (drawnCityCountry && citiesArray.length === 1 && citiesArray[0] === drawnCityCountry.city) {
@@ -893,6 +981,29 @@ export default function CampaignForm({
           </div>
         )}
 
+        {/* Load preset */}
+        {presets.length > 0 && (
+          <div>
+            <label className="block text-sm font-semibold text-zinc-700 dark:text-sky-200 mb-2">
+              Load a preset <span className="text-zinc-500 dark:text-sky-400/90 text-xs">(optional)</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {presets.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => loadPreset(preset)}
+                  className="px-3 py-1 rounded-full text-xs font-medium border border-zinc-300 dark:border-sky-700/40 bg-white dark:bg-neutral-800/80 text-zinc-600 dark:text-sky-300 hover:border-sky-400 hover:text-sky-600 dark:hover:text-sky-200 transition-all"
+                  title={`Load preset: ${preset.name as string}`}
+                >
+                  {preset.name as string}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div>
           <label
             htmlFor="companyDescription"
@@ -990,20 +1101,35 @@ export default function CampaignForm({
           >
             Campaign Goal <span className="text-red-500">*</span>
           </label>
-          <select
+          <div className="flex flex-wrap gap-2 mb-2">
+            {['Book a phone call', 'Offer a free audit/quote', 'Send a brochure/portfolio'].map((option) => (
+              <button
+                key={option}
+                type="button"
+                disabled={loading}
+                onClick={() => setCampaignGoal(option)}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                  campaignGoal === option
+                    ? 'bg-sky-500 border-sky-500 text-white'
+                    : 'bg-white dark:bg-neutral-800/80 border-zinc-300 dark:border-sky-700/40 text-zinc-600 dark:text-sky-300 hover:border-sky-400 hover:text-sky-600 dark:hover:text-sky-200'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          <input
             id="campaignGoal"
+            type="text"
             value={campaignGoal}
             onChange={(e) => setCampaignGoal(e.target.value)}
-            className="w-full px-4 py-3 border border-zinc-300 dark:border-sky-700/40 rounded-xl bg-white dark:bg-neutral-800/80 text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all shadow-sm"
+            placeholder="e.g. Book a 15-min discovery call"
+            className="w-full px-4 py-3 border border-zinc-300 dark:border-sky-700/40 rounded-xl bg-white dark:bg-neutral-800/80 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-sky-400/70 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all shadow-sm text-sm"
             disabled={loading}
             required
-          >
-            <option value="book_call">Book a phone call</option>
-            <option value="free_audit">Offer a free audit/quote</option>
-            <option value="send_brochure">Send a brochure/portfolio</option>
-          </select>
+          />
           <p className="text-xs text-zinc-500 dark:text-sky-400/90 mt-1">
-            What you want the prospect to do after reading the email.
+            What you want the prospect to do after reading the email. Pick a suggestion or write your own.
           </p>
         </div>
 
@@ -1023,6 +1149,74 @@ export default function CampaignForm({
             disabled={loading}
             className="w-full px-4 py-2.5 border border-zinc-300 dark:border-sky-700/40 rounded-xl bg-white dark:bg-neutral-800/80 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-sky-400/70 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent text-sm resize-none"
           />
+        </div>
+
+        {/* Email length */}
+        <div>
+          <label htmlFor="emailMaxLength" className="block text-sm font-semibold text-zinc-700 dark:text-sky-200 mb-2">
+            Email length <span className="text-zinc-500 dark:text-sky-400/90 text-xs">(words)</span>
+          </label>
+          <p className="text-xs text-zinc-500 dark:text-sky-400/90 mb-2">
+            Maximum number of words in the email body generated by the AI. Default: 150 words (~750 characters).
+          </p>
+          <div className="flex items-center gap-3">
+            <input
+              id="emailMaxLength"
+              type="range"
+              min="50"
+              max="300"
+              step="10"
+              value={emailMaxLength}
+              onChange={(e) => setEmailMaxLength(parseInt(e.target.value, 10))}
+              className="flex-1 h-2 bg-zinc-200 dark:bg-neutral-800/80 rounded-lg appearance-none cursor-pointer accent-sky-600"
+              disabled={loading}
+            />
+            <input
+              type="number"
+              min="50"
+              max="300"
+              value={emailMaxLength}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10);
+                if (!isNaN(v) && v >= 50 && v <= 300) setEmailMaxLength(v);
+              }}
+              className="w-20 px-2 py-1.5 border border-zinc-300 dark:border-sky-700/40 rounded-lg bg-white dark:bg-neutral-800/80 text-zinc-900 dark:text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-sky-500"
+              disabled={loading}
+            />
+            <span className="text-xs text-zinc-500 dark:text-sky-400/90 shrink-0">words</span>
+          </div>
+        </div>
+
+        {/* Advanced AI Instructions */}
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowAiInstructions((v) => !v)}
+            className="flex items-center gap-2 text-sm font-semibold text-zinc-700 dark:text-sky-200 hover:text-sky-600 dark:hover:text-sky-300 transition-colors"
+          >
+            <Sparkles className="w-4 h-4" />
+            Advanced AI Instructions
+            <span className="text-zinc-500 dark:text-sky-400/90 text-xs font-normal">(optional)</span>
+            <span className="text-xs text-zinc-400 dark:text-zinc-500 ml-1">{showAiInstructions ? '▲' : '▼'}</span>
+          </button>
+          {showAiInstructions && (
+            <div className="mt-2">
+              <p className="text-xs text-zinc-500 dark:text-sky-400/90 mb-2">
+                Add specific writing instructions for the AI. These will override or supplement the default rules. Examples: &quot;Always mention our 10-year guarantee&quot;, &quot;Never discuss pricing&quot;, &quot;Focus on time savings&quot;, &quot;Use formal French&quot;.
+              </p>
+              <textarea
+                value={aiInstructions}
+                onChange={(e) => setAiInstructions(e.target.value)}
+                placeholder={"e.g. Always mention that we serve businesses in their area for over 10 years. Do not mention pricing. Focus on reliability and trust. End with a specific question about their current setup."}
+                rows={4}
+                disabled={loading}
+                className="w-full px-4 py-3 border border-zinc-300 dark:border-sky-700/40 rounded-xl bg-white dark:bg-neutral-800/80 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-sky-400/70 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all shadow-sm resize-none text-sm"
+              />
+              <p className="text-xs text-zinc-500 dark:text-sky-400/90 mt-1">
+                These instructions are saved with the preset and reused across campaigns.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Example email (optional) - AI will use as inspiration */}
@@ -1360,6 +1554,50 @@ export default function CampaignForm({
             </p>
           </div>
         )}
+
+        {/* Save as preset */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {!savePresetMode ? (
+            <button
+              type="button"
+              onClick={() => setSavePresetMode(true)}
+              className="flex items-center gap-1.5 text-xs text-zinc-500 dark:text-sky-400/90 hover:text-sky-600 dark:hover:text-sky-300 transition-colors"
+            >
+              <Save className="w-3.5 h-3.5" />
+              Save as preset
+            </button>
+          ) : (
+            <>
+              <input
+                type="text"
+                value={savePresetName}
+                onChange={(e) => setSavePresetName(e.target.value)}
+                placeholder="Preset name..."
+                className="px-2 py-1 text-xs border border-zinc-300 dark:border-sky-700/40 rounded-lg bg-white dark:bg-neutral-800/80 text-zinc-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-sky-500 w-40"
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); saveAsPreset(); } if (e.key === 'Escape') setSavePresetMode(false); }}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={saveAsPreset}
+                disabled={savePresetLoading || !savePresetName.trim()}
+                className="px-2 py-1 text-xs bg-sky-500 hover:bg-sky-400 text-white rounded-lg disabled:opacity-50 transition-colors"
+              >
+                {savePresetLoading ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSavePresetMode(false)}
+                className="px-2 py-1 text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+              >
+                Cancel
+              </button>
+            </>
+          )}
+          {savePresetFeedback && (
+            <span className="text-xs text-green-600 dark:text-green-400">{savePresetFeedback}</span>
+          )}
+        </div>
 
         <button
           type="submit"

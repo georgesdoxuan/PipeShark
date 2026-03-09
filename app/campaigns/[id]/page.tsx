@@ -15,6 +15,7 @@ import EditCampaignModal from '@/components/EditCampaignModal';
 interface Lead {
   id: string;
   campaignId?: string | null;
+  name?: string | null;
   businessType: string | null;
   city: string | null;
   country?: string | null;
@@ -26,6 +27,13 @@ interface Lead {
   emailDraftCreated: boolean | null;
   draftCreatedDate: string | null;
   date: string | null;
+  replied?: boolean;
+  repliedAt?: string | null;
+  gmailThreadId?: string | null;
+  emailSent?: boolean;
+  deliveryType?: 'draft' | 'send' | null;
+  scheduledAt?: string | null;
+  queueItemId?: string | null;
 }
 
 interface Campaign {
@@ -60,6 +68,10 @@ export default function CampaignDetailPage() {
   const [editSaving, setEditSaving] = useState(false);
   const [enqueueLoading, setEnqueueLoading] = useState(false);
   const [enqueueMessage, setEnqueueMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [filterBusinessType, setFilterBusinessType] = useState('');
+  const [filterCity, setFilterCity] = useState('');
+  const [filterView, setFilterView] = useState<'all' | 'sent' | 'replied'>('all');
+  const [leadsEnqueueFeedback, setLeadsEnqueueFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [dailyLimit, setDailyLimit] = useState(300);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isPausedRef = useRef(false);
@@ -546,10 +558,70 @@ export default function CampaignDetailPage() {
             <LeadsTable
               leads={mainLeads}
               loading={loading}
+              filterBusinessType={filterBusinessType}
+              filterCity={filterCity}
+              filterView={filterView}
               toneOfVoice={campaign.toneOfVoice}
               campaignIdToName={campaign ? { [campaign.id]: campaign.name || campaign.businessType || 'Campaign' } : undefined}
               onDraftModalOpenChange={(open) => { draftModalOpenRef.current = open; }}
+              onFilterBusinessTypeChange={setFilterBusinessType}
+              onFilterCityChange={setFilterCity}
+              onFilterViewChange={setFilterView}
+              onRefresh={fetchData}
+              onTrash={async (leadIds) => {
+                await fetch('/api/leads/trash', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ leadIds, action: 'trash' }),
+                });
+                fetchData();
+              }}
+              onEnqueue={async (leadIds, deliveryType) => {
+                setLeadsEnqueueFeedback(null);
+                try {
+                  const res = await fetch('/api/leads/enqueue', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ leadIds, deliveryType }),
+                    credentials: 'include',
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (res.ok) {
+                    setLeadsEnqueueFeedback({
+                      type: 'success',
+                      text: data.enqueued === 0
+                        ? (data.message || 'Already in queue.')
+                        : `${data.enqueued} lead${data.enqueued !== 1 ? 's' : ''} added to queue.`,
+                    });
+                    fetchData();
+                    setTimeout(() => setLeadsEnqueueFeedback(null), 5000);
+                  } else {
+                    setLeadsEnqueueFeedback({ type: 'error', text: data.error || 'Failed to enqueue.' });
+                  }
+                } catch {
+                  setLeadsEnqueueFeedback({ type: 'error', text: 'Failed to enqueue.' });
+                }
+              }}
+              onUpdateDeliveryType={async (queueItemId, deliveryType) => {
+                setCampaignLeads((prev) => prev.map((l) => l.queueItemId === queueItemId ? { ...l, deliveryType } : l));
+                try {
+                  const res = await fetch('/api/leads/queue-delivery-type', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ queueItemId, deliveryType }),
+                    credentials: 'include',
+                  });
+                  if (!res.ok) fetchData();
+                } catch {
+                  fetchData();
+                }
+              }}
             />
+            {leadsEnqueueFeedback && (
+              <div className={`mt-2 px-4 py-2 rounded-xl text-sm font-medium ${leadsEnqueueFeedback.type === 'success' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30' : 'bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/30'}`}>
+                {leadsEnqueueFeedback.text}
+              </div>
+            )}
 
             {/* Additional leads without email - collapsible */}
             {leadsWithoutEmail.length > 0 && (
@@ -577,6 +649,15 @@ export default function CampaignDetailPage() {
                       toneOfVoice={campaign.toneOfVoice}
                       campaignIdToName={campaign ? { [campaign.id]: campaign.name || campaign.businessType || 'Campaign' } : undefined}
                       onDraftModalOpenChange={(open) => { draftModalOpenRef.current = open; }}
+                      onRefresh={fetchData}
+                      onTrash={async (leadIds) => {
+                        await fetch('/api/leads/trash', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ leadIds, action: 'trash' }),
+                        });
+                        fetchData();
+                      }}
                     />
                   </div>
                 )}

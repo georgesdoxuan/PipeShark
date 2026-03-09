@@ -41,6 +41,31 @@ async function chat(
   return content.trim();
 }
 
+/**
+ * Classify a prospect's reply as positive (interested) or negative (not interested, OOO, unsubscribe…).
+ * Returns true for positive, false for negative. Returns false on error/empty.
+ * Only called when a new reply is detected — not on every check — to save credits.
+ */
+export async function classifyReply(apiKey: string, replySnippet: string): Promise<boolean> {
+  if (!replySnippet.trim()) return false;
+  const userContent = `You are analyzing a prospect's reply to a cold outreach email. Classify it as POSITIVE or NEGATIVE.
+
+POSITIVE: the prospect shows interest, asks a question, wants to know more, agrees to a call, or responds warmly.
+NEGATIVE: unsubscribe request, "not interested", wrong contact, out-of-office auto-reply, rude/angry reply, or completely off-topic.
+
+Reply snippet: "${replySnippet.slice(0, 500)}"
+
+Return ONLY this JSON (no other text): {"positive": true} or {"positive": false}`;
+  try {
+    const raw = await chat(apiKey, null, userContent, true);
+    const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const parsed = JSON.parse(cleaned) as { positive?: boolean };
+    return parsed.positive === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function summarizeWebsite(
   apiKey: string,
   cleanText: string,
@@ -113,6 +138,10 @@ export interface DraftEmailInput {
   magicLink: string;
   exampleEmail: string;
   businessLinkText: string;
+  /** Max words for the email body. Default 150. */
+  emailMaxLength: number;
+  /** Custom AI writing instructions injected into the prompt. */
+  aiInstructions: string;
   business: string;
   city: string;
   websiteUrl: string;
@@ -128,12 +157,19 @@ export async function generateDraftEmail(apiKey: string, input: DraftEmailInput)
   };
   const ctaByGoal: Record<string, string> = {
     book_call: 'Goal: Schedule a phone call or meeting. Keep it low-pressure. E.g. "Free for a 15-minute call this week?"',
+    'Book a phone call': 'Goal: Schedule a phone call or meeting. Keep it low-pressure. E.g. "Free for a 15-minute call this week?"',
     free_audit: 'Goal: Offer a free audit/quote. Emphasize "no obligation" and "free".',
+    'Offer a free audit/quote': 'Goal: Offer a free audit/quote. Emphasize "no obligation" and "free".',
     send_brochure: 'Goal: Send portfolio, brochure, or more information. Make it easy and non-committal.',
+    'Send a brochure/portfolio': 'Goal: Send portfolio, brochure, or more information. Make it easy and non-committal.',
   };
 
+  const aiInstructionsBlock = input.aiInstructions?.trim()
+    ? `===== CUSTOM AI INSTRUCTIONS =====\n${input.aiInstructions.trim()}\n\n`
+    : '';
   const toneBlock = toneInstructions[input.toneOfVoice] || toneInstructions.professional;
-  const ctaBlock = ctaByGoal[input.campaignGoal] || ctaByGoal.book_call;
+  const ctaBlock = ctaByGoal[input.campaignGoal]
+    || `Goal: ${input.campaignGoal}. Write a CTA that naturally invites the recipient to take this action in one simple, low-pressure sentence.`;
   const exampleBlock = input.exampleEmail
     ? `===== STYLE REFERENCE =====\nUse this email as a style guide. Match its tone, structure, length:\n\n---\n${input.exampleEmail}\n---\n\n`
     : '';
@@ -159,12 +195,25 @@ ${toneBlock}
 CAMPAIGN GOAL: ${input.campaignGoal}
 ${ctaBlock}
 
-${linkBlock}${magicBlock}===== RULES =====
-- 150 words MAX for body
+${aiInstructionsBlock}${linkBlock}${magicBlock}===== RULES =====
+- ${input.emailMaxLength} words MAX for body
 - Pain point first, then solution, then CTA
-- Short punchy sentences. Use contractions.
-- No buzzwords (solutions, innovative, optimize). No "I am reaching out". No hyphens or dashes.
+- Mention briefly that you found their email on their website (legal obligation, one short sentence). Keep it casual, one sentence max.
 - Signature: just first name, no title.
+
+PUNCTUATION (follow exactly):
+- Use periods and commas only. No exclamation marks (!). No ellipsis (...). No semicolons (;). No em-dashes (—) or en-dashes (–). No hyphens used as pauses.
+- One idea per sentence. Two sentences max per paragraph. Never use bullet points or lists in the body.
+- Sentences vary in length: mix short (3-6 words) with medium (10-15 words). Never write three consecutive sentences of similar length.
+
+TONE & STYLE:
+- Write like a real person typing a quick email, not a marketing copy. Read it aloud — if it sounds like an ad, rewrite it.
+- Start sentences with "And" or "But" when it feels natural.
+- Use contractions everywhere: it's, you're, we've, that's, can't, won't, I'd.
+- Never open with "I am reaching out", "I hope this finds you well", "My name is", or any variant. Get straight to the point.
+
+BANNED WORDS (never use any of these):
+crucial, leverage, unlock, empower, elevate, seamless, game-changer, cutting-edge, robust, scalable, holistic, transformative, comprehensive, groundbreaking, revolutionize, ecosystem, synergy, paradigm, delve, pivotal, streamline, impactful, proactive, dynamic, tailored, bespoke, innovative, solution, solutions, optimize, optimize, foster, navigate, harness, spearhead, endeavor, facilitate, implement, utilize, leverage, orchestrate, curate, supercharge, skyrocket, resonate, captivate, amplify
 
 ===== LEAD INFO =====
 Business Type: ${input.business}

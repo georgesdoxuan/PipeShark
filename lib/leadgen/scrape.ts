@@ -143,3 +143,38 @@ export function filterValidEmail(lead: ScrapedLead): boolean {
   if (!e || e === 'no email found') return false;
   return !isInvalidEmail(e);
 }
+
+/** Free/personal email domains to filter out during campaigns. */
+const PERSONAL_EMAIL_DOMAINS = new Set([
+  'gmail.com', 'googlemail.com',
+  'yahoo.com', 'yahoo.fr', 'yahoo.co.uk', 'yahoo.ca', 'yahoo.com.au', 'yahoo.it', 'yahoo.es', 'yahoo.de',
+  'hotmail.com', 'hotmail.fr', 'hotmail.co.uk', 'hotmail.it', 'hotmail.es', 'hotmail.de',
+  'outlook.com', 'outlook.fr', 'outlook.co.uk', 'outlook.de', 'outlook.it',
+  'live.com', 'live.fr', 'live.co.uk', 'live.it', 'live.de', 'live.nl',
+  'msn.com',
+  'aol.com', 'aol.fr',
+  'icloud.com', 'me.com', 'mac.com',
+  'proton.me', 'protonmail.com', 'protonmail.ch',
+  'gmx.com', 'gmx.de', 'gmx.fr', 'gmx.at', 'gmx.ch',
+  'web.de',
+  'laposte.net', 'orange.fr', 'sfr.fr', 'free.fr', 'wanadoo.fr', 'bbox.fr', 'club-internet.fr', 'neuf.fr',
+  'btinternet.com', 'sky.com', 'talktalk.net', 'virginmedia.com', 'ntlworld.com',
+  'libero.it', 'tiscali.it', 'alice.it', 'virgilio.it',
+  't-online.de', 'freenet.de',
+  'mail.com', 'mail.ru', 'yandex.ru', 'yandex.com',
+  'telenet.be', 'skynet.be',
+  'shaw.ca', 'rogers.com', 'bell.net', 'videotron.ca',
+]);
+
+export function isPersonalEmailDomain(email: string): boolean {
+  const at = email.indexOf('@');
+  if (at === -1) return false;
+  const domain = email.slice(at + 1).toLowerCase();
+  return PERSONAL_EMAIL_DOMAINS.has(domain);
+}
+
+export function filterProfessionalEmail(lead: ScrapedLead): boolean {
+  const e = (lead.email || '').toLowerCase().trim();
+  if (!e || e === 'no email found') return false;
+  return !isPersonalEmailDomain(e);
+}

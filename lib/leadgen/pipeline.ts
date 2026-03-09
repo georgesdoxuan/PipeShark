@@ -11,6 +11,7 @@ import {
   cleanHtmlToText,
   extractPhoneAndLinkedIn,
   filterValidEmail,
+  filterProfessionalEmail,
   type ScrapedLead,
 } from './scrape';
 import { summarizeWebsite, generateDraftEmail, type DraftEmailInput } from './ai-draft';
@@ -31,6 +32,12 @@ export interface LeadgenPayload {
   magicLink?: string;
   exampleEmail?: string;
   businessLinkText?: string;
+  /** Max words for the email body. Default 150. */
+  emailMaxLength?: number;
+  /** Filter personal/free email domains (gmail, hotmail, etc.). Default true. */
+  filterPersonalEmails?: boolean;
+  /** Custom AI writing instructions injected into the draft prompt. */
+  aiInstructions?: string;
   /** 'local_businesses' (HasData) or other modes. Default local_businesses. */
   mode?: string;
   gmailAccessToken: string;
@@ -106,8 +113,13 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
     });
   }
 
-  const filtered = scraped.filter(filterValidEmail);
-  const limited = filtered.slice(0, targetCount);
+  const validEmails = scraped.filter(filterValidEmail);
+  // Filter personal email domains when requested (default: true)
+  const filterPersonal = payload.filterPersonalEmails !== false;
+  const filtered = filterPersonal ? validEmails.filter(filterProfessionalEmail) : validEmails;
+  // If personal filter removed too many, fall back to valid emails to try to meet targetCount
+  const candidates = filtered.length >= Math.ceil(targetCount * 0.5) ? filtered : validEmails;
+  const limited = candidates.slice(0, targetCount);
   const admin = createAdminClient();
 
   for (const lead of limited) {
@@ -129,6 +141,8 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
         magicLink: payload.magicLink ?? '',
         exampleEmail: payload.exampleEmail ?? '',
         businessLinkText: payload.businessLinkText ?? '',
+        emailMaxLength: payload.emailMaxLength ?? 150,
+        aiInstructions: payload.aiInstructions ?? '',
         business,
         city,
         websiteUrl: lead.url,

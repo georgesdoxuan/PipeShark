@@ -78,6 +78,7 @@ export default function CampaignsPage() {
     repliesCount: 0,
     replyRate: '0',
     avgTimeToReplyHours: null as string | null,
+    positiveRepliesCount: 0,
   });
   const [loading, setLoading] = useState(true);
   const [loadingLeads, setLoadingLeads] = useState(false);
@@ -108,7 +109,7 @@ export default function CampaignsPage() {
   const [showScheduleCampaignsModal, setShowScheduleCampaignsModal] = useState(false);
   const [scheduleModalSelectedIds, setScheduleModalSelectedIds] = useState<string[]>([]);
   const [dailyLimit, setDailyLimit] = useState(300);
-  const [repliesByDay, setRepliesByDay] = useState<{ date: string; count: number; label?: string }[]>([]);
+  const [repliesByDay, setRepliesByDay] = useState<{ date: string; count: number; positiveCount: number; label?: string }[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -337,9 +338,9 @@ export default function CampaignsPage() {
       const data = await (res.ok ? res.json() : []);
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       setRepliesByDay(
-        (Array.isArray(data) ? data : []).map(({ date, count }: { date: string; count: number }) => {
+        (Array.isArray(data) ? data : []).map(({ date, count, positiveCount }: { date: string; count: number; positiveCount?: number }) => {
           const d = new Date(date + 'T12:00:00');
-          return { date, count, label: `${dayNames[d.getDay()]} ${d.getDate()}` };
+          return { date, count, positiveCount: positiveCount ?? 0, label: `${dayNames[d.getDay()]} ${d.getDate()}` };
         })
       );
     } catch {
@@ -561,20 +562,21 @@ export default function CampaignsPage() {
 
           {/* Header Section: My Campaigns | Leads & Replies | Credits */}
           <div className="flex flex-wrap items-start gap-4 mb-1">
-            {/* Dashboard — titre + icône en gris, sans carte */}
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <svg viewBox="0 0 24 24" className="w-5 h-5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" fill="currentColor">
-                <rect x="1" y="1" width="9" height="9" rx="2.5" />
-                <rect x="13" y="1" width="9" height="9" rx="2.5" />
-                <rect x="1" y="13" width="9" height="9" rx="2.5" />
-                <rect x="13" y="13" width="9" height="9" rx="2.5" />
-              </svg>
-              <h1 className="text-base font-display font-bold text-zinc-500 dark:text-zinc-400">
-                Dashboard
-              </h1>
-            </div>
-            {/* Today's timeline — carte blanche sans contours, décalée à gauche */}
-            <div className="flex-1 min-w-0 flex items-center justify-center -translate-x-8">
+            {/* Dashboard — titre + Today's Timeline empilés */}
+            <div className="flex flex-col gap-2 flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <svg viewBox="0 0 24 24" className="w-5 h-5 text-zinc-500 dark:text-zinc-400 flex-shrink-0" fill="currentColor">
+                  <rect x="1" y="1" width="9" height="9" rx="2.5" />
+                  <rect x="13" y="1" width="9" height="9" rx="2.5" />
+                  <rect x="1" y="13" width="9" height="9" rx="2.5" />
+                  <rect x="13" y="13" width="9" height="9" rx="2.5" />
+                </svg>
+                <h1 className="text-base font-display font-bold text-zinc-500 dark:text-zinc-400">
+                  Dashboard
+                </h1>
+              </div>
+              {/* Today's timeline — juste en dessous du titre */}
+              <div className="inline-flex">
               <div className="rounded-xl bg-white dark:bg-neutral-800/80 shadow-none border border-zinc-200 dark:border-sky-700/50 px-3 py-2.5 xl:max-2xl:px-2 xl:max-2xl:py-1.5">
                 <div className="flex flex-col gap-1 items-center">
                   <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">Today's timeline</span>
@@ -628,10 +630,11 @@ export default function CampaignsPage() {
                   </div>
                 </div>
               </div>
+              </div>
             </div>
-            {/* StatsCards (3 cartes) + Daily Credits */}
+            {/* StatsCards (4 cartes: Leads, Emails sent, Replies, Positive Replies) + Daily Credits */}
             <div className="flex items-start gap-3 flex-shrink-0">
-              <div className="-translate-x-20">
+              <div className="-translate-x-28">
                 <StatsCards stats={stats} mini />
               </div>
               <div className="w-44 flex-shrink-0">
@@ -742,13 +745,20 @@ export default function CampaignsPage() {
           {/* Replies this week - remontée, détachée de My Campaigns */}
           <div className="w-56 flex-shrink-0 -mt-14">
             <div className="rounded-2xl bg-white/80 dark:bg-neutral-800/60 shadow-sm p-3">
-              <p className="text-xs font-semibold text-zinc-600 dark:text-neutral-300 mb-2">Replies this week</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-zinc-600 dark:text-neutral-300">Replies this week</p>
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-[10px] text-zinc-400 dark:text-neutral-500"><span className="inline-block w-2 h-2 rounded-sm bg-sky-400"></span>All</span>
+                  <span className="flex items-center gap-1 text-[10px] text-zinc-400 dark:text-neutral-500"><span className="inline-block w-2 h-2 rounded-sm bg-green-400"></span>Positive</span>
+                </div>
+              </div>
               <ResponsiveContainer width="100%" height={80}>
                 <BarChart data={repliesByDay} margin={{ top: 2, right: 4, left: 0, bottom: 0 }}>
                   <XAxis dataKey="label" tick={{ fontSize: 8, fill: 'var(--foreground)', opacity: 0.8 }} tickLine={false} axisLine={false} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 8, fill: 'var(--foreground)', opacity: 0.7 }} tickLine={false} axisLine={false} width={14} />
-                  <Tooltip contentStyle={{ borderRadius: 6, border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} formatter={(value: number | undefined) => [value ?? 0, 'Replies']} labelFormatter={(label) => label} />
-                  <Bar dataKey="count" fill="rgb(14 165 233)" radius={[3, 3, 0, 0]} maxBarSize={16} />
+                  <Tooltip contentStyle={{ borderRadius: 6, border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} formatter={(value: number | undefined, name: string | undefined) => [value ?? 0, name === 'count' ? 'All replies' : 'Positive']} labelFormatter={(label) => label} />
+                  <Bar dataKey="count" fill="rgb(14 165 233)" radius={[3, 3, 0, 0]} maxBarSize={12} />
+                  <Bar dataKey="positiveCount" fill="rgb(74 222 128)" radius={[3, 3, 0, 0]} maxBarSize={12} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

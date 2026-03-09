@@ -23,6 +23,8 @@ export interface Lead {
   called?: boolean;
   comments?: string | null;
   folder_id?: string | null;
+  /** AI sentiment: true = positive reply, false = negative, null = not yet classified */
+  positive_reply?: boolean | null;
 }
 
 function mapLeadRecord(record: any) {
@@ -51,6 +53,7 @@ function mapLeadRecord(record: any) {
     comments: record.comments ?? null,
     folderId: record.folder_id ?? null,
     isTrashed: !!record.is_trashed,
+    positiveReply: record.positive_reply ?? null,
   };
 }
 
@@ -62,13 +65,28 @@ export async function getLeadsForUser(userId: string, campaignId?: string) {
     .select('*')
     .eq('user_id', userId)
     .neq('is_trashed', true)
+    .is('gdpr_purged_at', null)
     .order('date', { ascending: false });
 
   if (campaignId) {
     query = query.eq('campaign_id', campaignId);
   }
 
-  const { data, error } = await query;
+  let { data, error } = await query;
+
+  // If gdpr_purged_at column doesn't exist yet (migration 033 not applied), retry without it
+  if (error && /gdpr_purged_at|does not exist/i.test(error.message)) {
+    let fallbackQuery = supabase
+      .from('leads')
+      .select('*')
+      .eq('user_id', userId)
+      .neq('is_trashed', true)
+      .order('date', { ascending: false });
+    if (campaignId) fallbackQuery = fallbackQuery.eq('campaign_id', campaignId);
+    const fallback = await fallbackQuery;
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     throw error;
@@ -198,7 +216,7 @@ export async function countTodayLeadsForUser(userId: string): Promise<number> {
   return withEmail.length;
 }
 
-const SELECT_LEADS_WITH_REPLIES = 'email, draft, replied, replied_at, date, created_at, email_sent';
+const SELECT_LEADS_WITH_REPLIES = 'email, draft, replied, replied_at, date, created_at, email_sent, positive_reply';
 const SELECT_LEADS_BASIC = 'email, draft, date, created_at';
 
 export async function getCampaignStatsForUser(userId: string) {
@@ -230,6 +248,16 @@ export async function getCampaignStatsForUser(userId: string) {
     data = fallback.data;
     error = fallback.error;
   }
+  // If positive_reply column doesn't exist (migration 034 not applied), retry without it
+  if (error && /positive_reply|does not exist/i.test(error.message)) {
+    selectColumns = 'email, draft, replied, replied_at, date, created_at, email_sent';
+    const fallback = await supabase
+      .from('leads')
+      .select(selectColumns)
+      .eq('user_id', userId);
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     throw error;
@@ -243,6 +271,7 @@ export async function getCampaignStatsForUser(userId: string) {
     date?: string | null;
     created_at?: string;
     email_sent?: boolean;
+    positive_reply?: boolean | null;
   }>;
   const total = leads.length;
   const withEmail = leads.filter(
@@ -254,8 +283,10 @@ export async function getCampaignStatsForUser(userId: string) {
   const draftsSent = leads.filter((l) => l.draft && l.draft.trim() !== '').length;
   const hasRepliedColumn = selectColumns.includes('replied');
   const hasEmailSentColumn = selectColumns.includes('email_sent');
+  const hasPositiveReplyColumn = selectColumns.includes('positive_reply');
   const emailsSentCount = hasEmailSentColumn ? leads.filter((l) => !!l.email_sent).length : draftsSent;
   const repliedCount = hasRepliedColumn ? leads.filter((l) => !!l.replied).length : 0;
+  const positiveRepliesCount = hasPositiveReplyColumn ? leads.filter((l) => l.positive_reply === true).length : 0;
   const repliedLeadsWithDates = hasRepliedColumn
     ? leads.filter(
         (l) => !!l.replied && l.replied_at && (l.date || l.created_at)
@@ -282,6 +313,7 @@ export async function getCampaignStatsForUser(userId: string) {
     emailsSent: emailsSentCount,
     conversionRate: total > 0 ? ((withEmail / total) * 100).toFixed(1) : '0',
     repliesCount: repliedCount,
+    positiveRepliesCount,
     replyRate,
     avgTimeToReplyHours: avgTimeToReplyMs != null ? (avgTimeToReplyMs / (1000 * 60 * 60)).toFixed(1) : null,
   };
@@ -405,6 +437,17 @@ export async function setLeadEmailSent(
   const { error } = await supabase
     .from('leads')
     .update({ email_sent: value })
+    .eq('id', leadId)
+    .eq('user_id', userId);
+  return !error;
+}
+
+/** Set the AI sentiment classification for a replied lead. */
+export async function setLeadPositiveReply(leadId: string, userId: string, isPositive: boolean): Promise<boolean> {
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from('leads')
+    .update({ positive_reply: isPositive })
     .eq('id', leadId)
     .eq('user_id', userId);
   return !error;
@@ -578,39 +621,55 @@ export async function deleteTrashedLeads(userId: string, leadIds: string[]): Pro
   return !error;
 }
 
-/** Reply count per day for the last N days (for dashboard chart). Returns [{ date: 'YYYY-MM-DD', count }]. */
+/** Reply count per day for the last N days (for dashboard chart). Returns [{ date: 'YYYY-MM-DD', count, positiveCount }]. */
 export async function getRepliesPerDayForUser(
   userId: string,
   days: number = 7
-): Promise<{ date: string; count: number }[]> {
+): Promise<{ date: string; count: number; positiveCount: number }[]> {
   const supabase = await createServerSupabaseClient();
   const start = new Date();
   start.setDate(start.getDate() - (days - 1));
   start.setUTCHours(0, 0, 0, 0);
   const startIso = start.toISOString();
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('leads')
-    .select('replied_at')
+    .select('replied_at, positive_reply')
     .eq('user_id', userId)
     .eq('replied', true)
     .not('replied_at', 'is', null)
     .gte('replied_at', startIso);
 
+  // Fallback if positive_reply column doesn't exist yet (migration 034 not applied)
+  if (error && /positive_reply|does not exist/i.test(error.message)) {
+    const fallback = await supabase
+      .from('leads')
+      .select('replied_at')
+      .eq('user_id', userId)
+      .eq('replied', true)
+      .not('replied_at', 'is', null)
+      .gte('replied_at', startIso);
+    data = (fallback.data as unknown) as typeof data;
+    error = fallback.error;
+  }
+
   if (error) return [];
 
-  const byDay: Record<string, number> = {};
+  const byDay: Record<string, { count: number; positiveCount: number }> = {};
   for (let i = 0; i < days; i++) {
     const d = new Date(start);
     d.setDate(d.getDate() + i);
-    byDay[d.toISOString().slice(0, 10)] = 0;
+    byDay[d.toISOString().slice(0, 10)] = { count: 0, positiveCount: 0 };
   }
-  for (const row of data || []) {
-    const date = (row as { replied_at: string }).replied_at?.slice(0, 10);
-    if (date && date in byDay) byDay[date]++;
+  for (const row of (data || []) as Array<{ replied_at: string; positive_reply?: boolean | null }>) {
+    const date = row.replied_at?.slice(0, 10);
+    if (date && date in byDay) {
+      byDay[date].count++;
+      if (row.positive_reply === true) byDay[date].positiveCount++;
+    }
   }
 
   return Object.entries(byDay)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, count]) => ({ date, count }));
+    .map(([date, { count, positiveCount }]) => ({ date, count, positiveCount }));
 }

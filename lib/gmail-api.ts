@@ -22,6 +22,7 @@ export interface GmailThreadMessage {
   id: string;
   threadId: string;
   labelIds?: string[];
+  snippet?: string;
   payload?: {
     headers?: Array<{ name: string; value: string }>;
   };
@@ -161,6 +162,22 @@ export async function getGmailThreadWithBodies(
   });
   out.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   return out;
+}
+
+/**
+ * Return the snippet of the first message from the prospect (not the user) in the thread.
+ * Used to classify the reply sentiment with AI.
+ */
+export function getReplySnippetFromThread(thread: GmailThread, userEmail: string): string {
+  const userEmailLower = userEmail.trim().toLowerCase();
+  const messages = thread.messages || [];
+  for (const msg of messages) {
+    const from = getFromEmail(msg);
+    if (from && from !== userEmailLower && msg.snippet) {
+      return msg.snippet;
+    }
+  }
+  return '';
 }
 
 /**

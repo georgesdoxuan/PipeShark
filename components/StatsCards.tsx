@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Users, TrendingUp, Send } from 'lucide-react';
+import { Users, TrendingUp, Send, ThumbsUp } from 'lucide-react';
 
 const TARGETS_ICON_SRC = '/customer.png';
 
@@ -22,6 +22,7 @@ interface StatsCardsProps {
     repliesCount?: number;
     replyRate?: string;
     avgTimeToReplyHours?: string | null;
+    positiveRepliesCount?: number;
   };
   compact?: boolean;
   mini?: boolean;
@@ -42,6 +43,11 @@ const CARD_STYLES = {
     accent: 'from-amber-500/10 to-orange-500/5 dark:from-amber-400/15 dark:to-orange-600/5',
     iconBg: 'bg-amber-500/15 dark:bg-amber-400/20',
     iconColor: 'text-amber-600 dark:text-amber-300',
+  },
+  positive: {
+    accent: 'from-green-500/10 to-emerald-500/5 dark:from-green-400/15 dark:to-emerald-600/5',
+    iconBg: 'bg-green-500/15 dark:bg-green-400/20',
+    iconColor: 'text-green-600 dark:text-green-300',
   },
 } as const;
 
@@ -79,6 +85,16 @@ export default function StatsCards({ stats, compact = false, mini = false }: Sta
       extra: stats.avgTimeToReplyHours != null ? `Avg: ${stats.avgTimeToReplyHours}h` : undefined,
       icon: TrendingUp,
       style: 'replies',
+      href: '/messages#replies',
+    },
+    {
+      title: 'Positive Replies',
+      value: stats.positiveRepliesCount ?? 0,
+      subtitle: (stats.repliesCount ?? 0) > 0
+        ? `${Math.round(((stats.positiveRepliesCount ?? 0) / (stats.repliesCount ?? 1)) * 100)}% of replies`
+        : undefined,
+      icon: ThumbsUp,
+      style: 'positive',
       href: '/messages#replies',
     },
   ];
