@@ -12,13 +12,17 @@ export async function GET(
   if (leadId) {
     // Fire-and-forget — don't block the pixel response
     const admin = createAdminClient();
-    admin
-      .from('leads')
-      .update({ email_opened: true })
-      .eq('id', leadId)
-      .eq('email_opened', false) // avoid unnecessary writes
-      .then(() => {})
-      .catch(() => {});
+    void (async () => {
+      try {
+        await admin
+          .from('leads')
+          .update({ email_opened: true })
+          .eq('id', leadId)
+          .eq('email_opened', false);
+      } catch {
+        // ignore
+      }
+    })();
   }
 
   return new Response(PIXEL, {
