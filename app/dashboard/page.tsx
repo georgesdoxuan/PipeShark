@@ -591,7 +591,7 @@ export default function CampaignsPage() {
                 </h1>
               </div>
               {/* Today's timeline — juste en dessous du titre */}
-              <div className="inline-flex">
+              <div className="inline-flex ml-6">
               <div className="rounded-xl bg-white dark:bg-neutral-800/80 shadow-none border border-zinc-200 dark:border-sky-700/50 px-3 py-2.5 xl:max-2xl:px-2 xl:max-2xl:py-1.5">
                 <div className="flex flex-col gap-1 items-center">
                   <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wide">Today's timeline</span>
@@ -799,7 +799,7 @@ export default function CampaignsPage() {
 
           {/* Section My Campaigns — remontée, détachée de Replies */}
           <div className="rounded-2xl bg-white dark:bg-neutral-800/60 shadow-md overflow-hidden mb-6 -mt-4">
-            <div className="p-4 sm:p-5 border-b border-zinc-200 dark:border-neutral-700 flex flex-wrap items-center justify-between gap-3">
+            <div className="px-4 py-2.5 sm:px-5 border-b border-zinc-200 dark:border-neutral-700 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <Zap className="w-5 h-5 text-sky-400 dark:text-sky-300 flex-shrink-0 fill-sky-400 dark:fill-sky-300" />
                 <h2 className="text-lg font-display font-bold text-zinc-900 dark:text-white shrink-0">My Campaigns</h2>
