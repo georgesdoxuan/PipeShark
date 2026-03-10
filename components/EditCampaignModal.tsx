@@ -17,6 +17,7 @@ interface Campaign {
   createdAt: string;
   status: 'active' | 'completed';
   gmailEmail?: string | null;
+  varyCityPerRun?: boolean;
 }
 
 interface EditCampaignModalProps {
@@ -32,6 +33,7 @@ interface EditCampaignModalProps {
     citySize?: string;
     numberCreditsUsed?: number;
     gmailEmail?: string | null;
+    varyCityPerRun?: boolean;
   }) => Promise<void>;
   saving: boolean;
   /** Max credits per campaign (from plan, e.g. 30 for Standard). Default 300. */
@@ -68,6 +70,7 @@ export default function EditCampaignModal({
   );
   const [citySize, setCitySize] = useState(campaign.citySize || '1M+');
   const [numberCreditsUsed, setNumberCreditsUsed] = useState(campaign.numberCreditsUsed ?? 20);
+  const [varyCityPerRun, setVaryCityPerRun] = useState(campaign.varyCityPerRun ?? false);
   const [gmailAccounts, setGmailAccounts] = useState<{ email: string; connected: boolean }[]>([]);
   const [plan, setPlan] = useState<string | null>(null);
   const [selectedGmailEmail, setSelectedGmailEmail] = useState<string>(campaign.gmailEmail ?? '');
@@ -86,6 +89,7 @@ export default function EditCampaignModal({
     setCitySize(campaign.citySize || '1M+');
     setNumberCreditsUsed(campaign.numberCreditsUsed ?? 20);
     setSelectedGmailEmail(campaign.gmailEmail ?? '');
+    setVaryCityPerRun(campaign.varyCityPerRun ?? false);
   }, [campaign]);
 
   useEffect(() => {
@@ -136,6 +140,7 @@ export default function EditCampaignModal({
     }
     const credits = Math.max(1, Math.min(maxCreditsPerCampaign, Number(numberCreditsUsed) || 20));
     updates.numberCreditsUsed = credits;
+    updates.varyCityPerRun = varyCityPerRun;
     if (plan === 'pro' && selectedGmailEmail !== undefined) {
       updates.gmailEmail = selectedGmailEmail.trim() || null;
     }
@@ -314,6 +319,21 @@ export default function EditCampaignModal({
               <option value="50K-100K">Between 50k and 100k</option>
               <option value="all">All cities</option>
             </select>
+          </div>
+
+          <div className="flex items-center justify-between rounded-xl border border-sky-700/40 bg-neutral-800/80 px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-sky-200">Change city on each run</p>
+              <p className="text-xs text-sky-400/70 mt-0.5">Pick a random city of the same size at every launch</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setVaryCityPerRun((v) => !v)}
+              disabled={saving}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${varyCityPerRun ? 'bg-sky-500' : 'bg-neutral-600'}`}
+            >
+              <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ${varyCityPerRun ? 'translate-x-5' : 'translate-x-0'}`} />
+            </button>
           </div>
 
           <div>

@@ -5,6 +5,7 @@
 
 import { createAdminClient } from '@/lib/supabase-server';
 import { searchGoogleMapsLocal } from './hasdata';
+import { jitterCityCoords } from '@/lib/city-coords';
 import {
   fetchPageHtml,
   extractEmailFromHtml,
@@ -85,9 +86,11 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
   const targetCount = Math.min(20, Math.max(1, Math.round(payload.targetCount ?? 10)));
   const business = (payload.businessType || 'plumber').trim();
 
+  const coords = jitterCityCoords(city) ?? undefined;
+
   let localResults: Array<{ website?: string; url?: string; link?: string; title?: string; name?: string; [k: string]: unknown }>;
   try {
-    localResults = await searchGoogleMapsLocal(business, city, apiKey);
+    localResults = await searchGoogleMapsLocal(business, city, apiKey, coords);
   } catch (e) {
     errors.push(e instanceof Error ? e.message : String(e));
     return { success: false, leadsCreated: 0, errors };
@@ -122,7 +125,22 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
   const limited = candidates.slice(0, targetCount);
   const admin = createAdminClient();
 
-  for (const lead of limited) {
+  // Deduplicate: skip emails already in leads for this user
+  const candidateEmails = limited.map((l) => l.email.toLowerCase().trim()).filter(Boolean);
+  const existingEmailsSet = new Set<string>();
+  if (candidateEmails.length > 0) {
+    const { data: existingLeads } = await admin
+      .from('leads')
+      .select('email')
+      .eq('user_id', payload.userId)
+      .in('email', candidateEmails);
+    for (const r of existingLeads ?? []) {
+      if (r.email) existingEmailsSet.add((r.email as string).toLowerCase().trim());
+    }
+  }
+  const deduped = limited.filter((l) => !existingEmailsSet.has(l.email.toLowerCase().trim()));
+
+  for (const lead of deduped) {
     try {
       const extraFields = [
         (lead as unknown as Record<string, unknown>).serviceOptions,

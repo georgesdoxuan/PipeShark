@@ -295,10 +295,11 @@ export async function POST(request: Request) {
     // Re-run: use the campaign's current city if it's already a single city (what the user sees). Otherwise draw one.
     const singleCityFromRequest = Array.isArray(cities) && cities.length === 1 ? cities[0] : undefined;
     const singleCityFromCampaign = existingCampaign?.cities?.length === 1 ? existingCampaign.cities[0] : undefined;
-    const cityToUse = singleCityFromRequest ?? singleCityFromCampaign;
+    const varyCityPerRun = existingCampaign?.varyCityPerRun ?? false;
+    const cityToUse = varyCityPerRun ? undefined : (singleCityFromRequest ?? singleCityFromCampaign);
 
     if (campaignId && effectiveCitySize) {
-      if (cityToUse && typeof cityToUse === 'string' && cityToUse.trim()) {
+      if (!varyCityPerRun && cityToUse && typeof cityToUse === 'string' && cityToUse.trim()) {
         // Use the city already shown (from request or campaign) – do not re-draw
         const cityName = cityToUse.trim();
         payload.cities = [cityName];

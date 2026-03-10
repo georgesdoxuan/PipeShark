@@ -439,8 +439,11 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
               <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
                 Delivery type
               </th>
-              <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
-                Draft
+              <th className="px-4 py-3.5 text-center text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0 align-middle">
+                <span className="inline-flex items-center justify-center gap-1.5 mt-0.5">
+                  <Image src="/ai.png" alt="" width={18} height={18} className="w-4 h-4 object-contain [filter:brightness(0)_invert(1)]" />
+                  Draft
+                </span>
               </th>
               <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
                 URL

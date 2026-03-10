@@ -7,6 +7,53 @@ import { drawRandomCityCountry, type CityCountry } from '@/lib/cities-countries'
 
 export type CampaignMode = 'standard' | 'local_businesses';
 
+const BUILTIN_EMAIL_TEMPLATES: { id: string; name: string; content: string }[] = [
+  {
+    id: 'short-punchy',
+    name: 'Short & punchy',
+    content: `Hey,
+
+Came across your business on Google. Really like what you're doing in your area.
+
+We help local businesses like yours get more clients without running ads. Worth a 10-minute call this week?
+
+Alex`,
+  },
+  {
+    id: 'problem-solution',
+    name: 'Problem → Solution',
+    content: `Hi,
+
+Most businesses I talk to rely on word-of-mouth. It works, but it's unpredictable — some months are great, others slow.
+
+We built a system that brings in new clients consistently. Takes 15 minutes to show you how. Worth a quick call?
+
+Alex`,
+  },
+  {
+    id: 'social-proof',
+    name: 'Social proof',
+    content: `Hi,
+
+I've been working with a few businesses similar to yours — helped them get more bookings and cut down on slow periods.
+
+Would it make sense to show you what worked for them? Quick call, 15 minutes max.
+
+Alex`,
+  },
+  {
+    id: 'question-hook',
+    name: 'Question hook',
+    content: `Quick question —
+
+Are you finding it hard to get consistent new clients, even when you're doing great work?
+
+I ask because that's exactly what I help local businesses fix. Happy to share what's working. Up for a quick call?
+
+Alex`,
+  },
+];
+
 export interface CampaignFormState {
   campaignName: string;
   campaignMode: CampaignMode;
@@ -1229,8 +1276,36 @@ export default function CampaignForm({
             Example email <span className="text-zinc-500 dark:text-sky-400/90 text-xs">(optional)</span>
           </label>
           <p className="text-xs text-zinc-500 dark:text-sky-400/90 mb-2">
-            Paste an email you like so the AI can match its style and structure. Saved templates can be reused below.
+            Paste an email you like so the AI can match its style and structure. Or pick a style below.
           </p>
+          <div className="flex flex-wrap gap-2 mb-3">
+            <span className="text-xs text-zinc-500 dark:text-sky-400/70 self-center">Styles:</span>
+            {BUILTIN_EMAIL_TEMPLATES.map((tpl) => (
+              <button
+                key={tpl.id}
+                type="button"
+                onClick={() => setExampleEmail(tpl.content)}
+                disabled={loading}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  exampleEmail === tpl.content
+                    ? 'bg-sky-500 border-sky-500 text-white'
+                    : 'bg-white dark:bg-neutral-800 border-zinc-300 dark:border-sky-700/40 text-zinc-700 dark:text-sky-200 hover:border-sky-400 hover:text-sky-600 dark:hover:text-sky-300'
+                }`}
+              >
+                {tpl.name}
+              </button>
+            ))}
+            {exampleEmail && BUILTIN_EMAIL_TEMPLATES.some((t) => t.content === exampleEmail) && (
+              <button
+                type="button"
+                onClick={() => setExampleEmail('')}
+                disabled={loading}
+                className="px-2 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+              >
+                ✕ Clear
+              </button>
+            )}
+          </div>
           {emailTemplates.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-2">
               {emailTemplates.map((tpl) => (

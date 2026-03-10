@@ -6,6 +6,7 @@ import { countLeadsForCampaignAdmin } from '@/lib/supabase-leads';
 import { getValidGmailAccessToken } from '@/lib/gmail';
 import { runLeadgenPipeline } from '@/lib/leadgen/pipeline';
 import { getGmailTokensForEmail } from '@/lib/supabase-gmail-accounts';
+import { enqueueCampaignLeadsForUser } from '@/lib/supabase-email-queue';
 
 const POLL_LEADS_INTERVAL_MS = 15_000; // poll every 15s
 const WAIT_FOR_LEADS_TIMEOUT_MS = 2 * 60 * 1000; // max 2 min per campaign so cron can launch several within serverless timeout
@@ -58,7 +59,7 @@ export async function GET(request: Request) {
     const results: { userId: string; campaignId: string; slotIndex: number; launched: boolean; error?: string }[] = [];
 
     for (const run of runsToProcess) {
-      const { userId, campaignId, slotIndex } = run;
+      const { userId, campaignId, slotIndex, deliveryMode } = run;
 
       try {
         const campaigns = await getCampaignsByIdsAdmin(userId, [campaignId]);
@@ -108,7 +109,7 @@ export async function GET(request: Request) {
           gmailRefreshToken: userProfile.gmail_refresh_token,
           gmailEmail: userProfile.gmail_email || undefined,
         };
-        if (campaign.cities && campaign.cities.length > 0) {
+        if (campaign.cities && campaign.cities.length > 0 && !campaign.varyCityPerRun) {
           payload.cities = campaign.cities;
           if (campaign.cities.length === 1) payload.city = campaign.cities[0];
         } else {
@@ -144,8 +145,14 @@ export async function GET(request: Request) {
           currentCount = await countLeadsForCampaignAdmin(userId, campaign.id);
           supplementRuns++;
         }
-        // Pas d’enqueue ici : l’utilisateur doit cliquer « Add to send queue » pour ajouter les leads à la file.
-        // Le workflow n8n « Schedule + send queue » enverra ensuite les mails aux heures programmées.
+        // Auto-enqueue: add new leads to email_queue using the user's delivery mode
+        const deliveryType = deliveryMode === 'drafts' ? 'draft' : 'send';
+        try {
+          const enqueued = await enqueueCampaignLeadsForUser(userId, campaign.id, { deliveryType });
+          console.log(`[cron] Auto-enqueued ${enqueued} leads for campaign ${campaignId} (${deliveryType})`);
+        } catch (enqErr: any) {
+          console.warn(`[cron] Auto-enqueue failed for campaign ${campaignId}: ${enqErr.message}`);
+        }
         results.push({ userId, campaignId, slotIndex, launched: true });
       } catch (err: any) {
         console.error(`[cron] Run failed:`, err.message);

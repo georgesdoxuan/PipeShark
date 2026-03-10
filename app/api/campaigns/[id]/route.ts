@@ -64,6 +64,7 @@ export async function PATCH(
     if (body.numberCreditsUsed !== undefined) updates.numberCreditsUsed = body.numberCreditsUsed;
     if (body.gmailEmail !== undefined) updates.gmailEmail = body.gmailEmail;
     if (body.titleColor !== undefined) updates.titleColor = body.titleColor;
+    if (body.varyCityPerRun !== undefined) updates.varyCityPerRun = !!body.varyCityPerRun;
 
     const campaign = await updateCampaign(user.id, params.id, updates);
     if (!campaign) {

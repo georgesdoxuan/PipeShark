@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Header from '@/components/Header';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Mail, ChevronRight, Clock, Pencil, Check, X, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Mail, ChevronRight, Clock, Pencil, Check, X, TrendingUp, TrendingDown, Minus, Sparkles, Send } from 'lucide-react';
 
 type Sentiment = 'positive' | 'neutral' | 'negative';
 
@@ -75,6 +75,12 @@ export default function MessagesPage() {
   const [savingQueueId, setSavingQueueId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'sent' | 'replies'>('all');
   const [sentimentCache, setSentimentCache] = useState<Record<string, Sentiment>>({});
+  const [generatingFollowup, setGeneratingFollowup] = useState(false);
+  const [followupDraft, setFollowupDraft] = useState<{ subject: string; body: string } | null>(null);
+  const [followupSubject, setFollowupSubject] = useState('');
+  const [followupBody, setFollowupBody] = useState('');
+  const [schedulingFollowup, setSchedulingFollowup] = useState(false);
+  const [followupScheduled, setFollowupScheduled] = useState(false);
 
   // Sync activeTab with URL hash (#sent, #replies)
   useEffect(() => {
@@ -131,6 +137,8 @@ export default function MessagesPage() {
       setThread(null);
       return;
     }
+    setFollowupDraft(null);
+    setFollowupScheduled(false);
     fetchThread();
   }, [selectedLeadId, fetchThread]);
 
@@ -172,6 +180,49 @@ export default function MessagesPage() {
       }
     } finally {
       setSavingQueueId(null);
+    }
+  }
+
+  async function generateFollowup() {
+    if (!selectedLeadId) return;
+    setGeneratingFollowup(true);
+    setFollowupDraft(null);
+    setFollowupScheduled(false);
+    try {
+      const res = await fetch('/api/messages/generate-followup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ leadId: selectedLeadId }),
+      });
+      const data = await res.json();
+      if (res.ok && data.subject && data.body) {
+        setFollowupDraft(data);
+        setFollowupSubject(data.subject);
+        setFollowupBody(data.body);
+      }
+    } finally {
+      setGeneratingFollowup(false);
+    }
+  }
+
+  async function scheduleFollowup() {
+    if (!selectedLeadId || !followupSubject.trim() || !followupBody.trim()) return;
+    setSchedulingFollowup(true);
+    try {
+      const res = await fetch('/api/messages/add-to-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ leadId: selectedLeadId, subject: followupSubject, body: followupBody }),
+      });
+      if (res.ok) {
+        setFollowupScheduled(true);
+        setFollowupDraft(null);
+        fetchThread();
+      }
+    } finally {
+      setSchedulingFollowup(false);
     }
   }
 
@@ -447,6 +498,86 @@ export default function MessagesPage() {
                       </>
                     )}
                   </div>
+
+                  {/* AI Follow-up section — shown when there's a reply */}
+                  {thread.messages.some((m) => !m.isFromUser) && (
+                    <div className="px-4 pb-4 pt-2 border-t border-zinc-100 dark:border-neutral-800 shrink-0">
+                      {!followupDraft && !followupScheduled && (
+                        <button
+                          type="button"
+                          onClick={generateFollowup}
+                          disabled={generatingFollowup}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold transition-colors disabled:opacity-60"
+                        >
+                          {generatingFollowup ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Generating…
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-4 h-4" />
+                              Generate AI follow-up
+                            </>
+                          )}
+                        </button>
+                      )}
+                      {followupScheduled && (
+                        <p className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+                          <Check className="w-4 h-4" />
+                          Follow-up scheduled in send queue.
+                        </p>
+                      )}
+                      {followupDraft && (
+                        <div className="space-y-3">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400 flex items-center gap-2">
+                            <Sparkles className="w-4 h-4" />
+                            AI-generated follow-up — review &amp; send
+                          </p>
+                          <input
+                            type="text"
+                            value={followupSubject}
+                            onChange={(e) => setFollowupSubject(e.target.value)}
+                            placeholder="Subject"
+                            className="w-full rounded-lg border border-zinc-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-zinc-900 dark:text-white"
+                          />
+                          <textarea
+                            value={followupBody}
+                            onChange={(e) => setFollowupBody(e.target.value)}
+                            rows={6}
+                            className="w-full rounded-lg border border-zinc-200 dark:border-neutral-600 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-zinc-900 dark:text-white resize-y"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={scheduleFollowup}
+                              disabled={schedulingFollowup}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium disabled:opacity-50"
+                            >
+                              <Send className="w-4 h-4" />
+                              {schedulingFollowup ? 'Scheduling…' : 'Schedule send'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setFollowupDraft(null); generateFollowup(); }}
+                              disabled={generatingFollowup}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-neutral-700 text-zinc-700 dark:text-zinc-300 text-sm font-medium hover:bg-zinc-200 dark:hover:bg-neutral-600"
+                            >
+                              <Sparkles className="w-4 h-4" />
+                              Regenerate
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFollowupDraft(null)}
+                              className="px-3 py-1.5 rounded-lg text-sm text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                            >
+                              Dismiss
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-zinc-500 dark:text-neutral-400 gap-3">

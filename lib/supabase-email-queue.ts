@@ -15,7 +15,7 @@ export type ConnectionType = 'smtp' | 'gmail';
 
 export interface EmailQueueInsert {
   user_id: string;
-  sender_account_id: string;
+  sender_account_id: string | null;
   lead_id?: string | null;
   recipient: string;
   subject: string;
@@ -359,15 +359,15 @@ export async function enqueueCampaignLeadsForUser(
   const campaigns = await getCampaignsByIdsAdmin(userId, [campaignId]);
   const campaign = campaigns[0];
   if (!campaign) throw new Error('Campaign not found');
+  const connectionType = await getMailConnectionTypeForUser(userId);
   const senderAccountId = await getSenderAccountIdByEmailAdmin(userId, campaign.gmailEmail ?? null);
-  if (!senderAccountId) throw new Error('No SMTP sender account for this campaign');
+  if (!senderAccountId && connectionType !== 'gmail') throw new Error('No SMTP sender account for this campaign');
   const leads = await getLeadsWithDraftForEnqueueAdmin(userId, campaignId);
   if (leads.length === 0) return 0;
   const leadIds = leads.map((l) => l.id);
   const alreadyInQueue = await getLeadIdsAlreadyInQueue(userId, leadIds);
   const toEnqueue = leads.filter((l) => !alreadyInQueue.has(l.id));
   if (toEnqueue.length === 0) return 0;
-  const connectionType = await getMailConnectionTypeForUser(userId);
   const scheduledTimes = buildScheduledAtForLeads(toEnqueue);
   const rows: EmailQueueInsert[] = toEnqueue.map((lead, i) => {
     const { subject, body } = parseDraftSubjectAndBody(lead.draft);

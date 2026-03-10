@@ -21,11 +21,15 @@ const HASDATA_URL = 'https://api.hasdata.com/scrape/google-maps/search';
 export async function searchGoogleMapsLocal(
   business: string,
   city: string,
-  apiKey: string
+  apiKey: string,
+  coords?: { lat: number; lng: number }
 ): Promise<HasDataLocalResult[]> {
   const q = `${business} in ${city}`;
   const url = new URL(HASDATA_URL);
   url.searchParams.set('q', q);
+  if (coords) {
+    url.searchParams.set('ll', `@${coords.lat.toFixed(6)},${coords.lng.toFixed(6)},14z`);
+  }
   // n8n used POST with query param q and x-api-key header
   const res = await fetch(url.toString(), {
     method: 'POST',

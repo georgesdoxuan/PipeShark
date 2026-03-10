@@ -237,3 +237,63 @@ Write a cold email that makes them want to reply. Return only the JSON object.`;
     return { subject: 'Follow up', body: raw };
   }
 }
+
+export interface FollowUpEmailInput {
+  companyDescription: string;
+  toneOfVoice: string;
+  campaignGoal: string;
+  magicLink: string;
+  originalEmail: string;
+  prospectReply: string;
+  businessName: string;
+}
+
+export async function generateFollowUpEmail(
+  apiKey: string,
+  input: FollowUpEmailInput
+): Promise<{ subject: string; body: string }> {
+  // Only include magic link (Calendly, etc.) if prospect seems open to next steps
+  const seemsInterested = /call|meeting|interested|schedule|yes|sure|tell me|more|when|available|book|talk|chat|how|works|sounds good|happy to/i.test(input.prospectReply);
+  const linkBlock = input.magicLink && seemsInterested
+    ? `If the prospect seems open to next steps, naturally include this link: ${input.magicLink}\n\n`
+    : '';
+
+  const systemContent = `You are writing a follow-up reply to a prospect who responded to a cold email. Return ONLY valid JSON:
+{"subject": "Re: short subject", "body": "Email body here"}
+
+No markdown, no text before or after. Pure JSON only.`;
+
+  const userContent = `WHAT OUR COMPANY DOES:
+${input.companyDescription}
+
+TONE: ${input.toneOfVoice}
+GOAL: ${input.campaignGoal}
+
+===== ORIGINAL COLD EMAIL WE SENT =====
+${input.originalEmail}
+
+===== PROSPECT'S REPLY =====
+${input.prospectReply}
+
+${linkBlock}===== RULES =====
+- 80 words MAX for the body
+- Respond directly to what they said — feel like a real human reply, not a template
+- If they're interested or asking questions: move things forward, suggest next steps
+- If uncertain/objecting: acknowledge briefly, keep it light and low-pressure
+- No exclamation marks. Contractions everywhere. Sign with just a first name.
+- No buzzwords. One idea per sentence.
+
+Write a natural reply that moves the conversation forward. Return only the JSON.`;
+
+  const raw = await chat(apiKey, systemContent, userContent, true);
+  try {
+    const cleaned = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const parsed = JSON.parse(cleaned) as { subject?: string; body?: string };
+    return {
+      subject: typeof parsed.subject === 'string' ? parsed.subject : 'Re: Follow up',
+      body: typeof parsed.body === 'string' ? parsed.body : raw,
+    };
+  } catch {
+    return { subject: 'Re: Follow up', body: raw };
+  }
+}

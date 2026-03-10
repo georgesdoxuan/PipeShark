@@ -182,10 +182,10 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/dashboard"
-              className="flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-500 text-white rounded-xl font-semibold text-sm transition-colors shadow-sm"
+              className="flex items-center gap-1 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-2 bg-sky-500 hover:bg-sky-600 dark:bg-sky-600 dark:hover:bg-sky-500 text-white rounded-xl font-semibold text-xs sm:text-sm transition-colors shadow-sm"
             >
               Try for free
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="hidden sm:block w-4 h-4" />
             </Link>
           </div>
         </div>

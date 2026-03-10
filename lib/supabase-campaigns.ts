@@ -23,6 +23,8 @@ export interface Campaign {
   titleColor?: string | null;
   /** Custom AI writing instructions for this campaign. */
   aiInstructions?: string | null;
+  /** When true, each run draws a new random city from citySize instead of reusing saved cities. */
+  varyCityPerRun?: boolean;
 }
 
 interface CreateCampaignInput {
@@ -60,6 +62,7 @@ function mapRecordToCampaign(record: any): Campaign {
     gmailEmail: record.gmail_email ?? null,
     titleColor: record.title_color ?? null,
     aiInstructions: record.ai_instructions ?? null,
+    varyCityPerRun: record.vary_city_per_run ?? false,
   };
 }
 
@@ -170,6 +173,7 @@ export async function updateCampaign(
     gmailEmail: string | null;
     titleColor: string | null;
     aiInstructions: string | null;
+    varyCityPerRun: boolean;
   }>
 ): Promise<Campaign | null> {
   const supabase = await createServerSupabaseClient();
@@ -188,6 +192,7 @@ export async function updateCampaign(
   if (updates.gmailEmail !== undefined) payload.gmail_email = updates.gmailEmail;
   if (updates.titleColor !== undefined) payload.title_color = updates.titleColor?.trim() || null;
   if (updates.aiInstructions !== undefined) payload.ai_instructions = updates.aiInstructions;
+  if (updates.varyCityPerRun !== undefined) payload.vary_city_per_run = updates.varyCityPerRun;
 
   if (Object.keys(payload).length === 0) {
     return getCampaignById(userId, campaignId);
