@@ -873,7 +873,7 @@ export default function CampaignsPage() {
             </div>
           ) : (
             <div className="mb-1">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {displayedCampaigns.map((campaign) => {
                 const cardClass = 'bg-white dark:bg-neutral-800/80 border border-sky-200 dark:border-sky-700/50';
                 // Helper function to format city size display
@@ -999,9 +999,8 @@ export default function CampaignsPage() {
                                       {campaign.name?.trim() || campaign.businessType.charAt(0).toUpperCase() + campaign.businessType.slice(1)}
                                     </h3>
                                     {scheduledCampaignIds.includes(campaign.id) && (
-                                      <span className="inline-flex items-center gap-1.5 shrink-0 text-xs font-bold text-white bg-sky-500 dark:bg-sky-600/90 border border-sky-600 dark:border-sky-500 rounded-lg px-2 py-1 shadow-sm ml-auto">
+                                      <span className="inline-flex items-center justify-center shrink-0 text-white bg-sky-500 dark:bg-sky-600/90 border border-sky-600 dark:border-sky-500 rounded-lg p-1 shadow-sm ml-auto" title="Selected for Daily Launch">
                                         <Clock className="w-3.5 h-3.5 shrink-0" />
-                                        Daily Launch
                                       </span>
                                     )}
                                   </div>
@@ -1090,8 +1089,8 @@ export default function CampaignsPage() {
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="w-4 h-4 text-sky-400 dark:text-sky-300" />
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <Calendar className="w-3 h-3 text-sky-400 dark:text-sky-300" />
                         <span className="text-zinc-500 dark:text-zinc-400" title={campaign.lastLeadAt ? 'Last leads update' : 'Created'}>
                           {formatDate(campaign.lastLeadAt ?? campaign.createdAt)}
                         </span>
