@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { runLeadgenPipeline } from '@/lib/leadgen/pipeline';
+
+// Extend Netlify/Vercel function timeout — pipeline can take 60–120s for 10+ leads
+export const maxDuration = 300;
 import { createCampaign, getCampaignById, updateCampaign, unlinkLeadsFromCampaign } from '@/lib/supabase-campaigns';
 import { countTodayLeadsForUser } from '@/lib/supabase-leads';
 import { getCitiesFromSupabase, getRandomCityFromSupabase } from '@/lib/supabase-cities';

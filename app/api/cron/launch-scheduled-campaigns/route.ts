@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getScheduledCampaignRunsNow, getAlreadyLaunchedToday, recordDailyLaunch } from '@/lib/supabase-schedule';
+
+// Pipeline can take 60–120s per campaign — extend serverless timeout
+export const maxDuration = 300;
 import { getCampaignsByIdsAdmin } from '@/lib/supabase-campaigns';
 import { getRandomCityFromSupabase } from '@/lib/supabase-cities';
 import { countLeadsForCampaignAdmin } from '@/lib/supabase-leads';
