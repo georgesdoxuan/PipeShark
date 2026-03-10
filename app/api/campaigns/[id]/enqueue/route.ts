@@ -78,7 +78,7 @@ export async function POST(
       const { subject, body } = parseDraftSubjectAndBody(lead.draft);
       return {
         user_id: user.id,
-        sender_account_id: senderAccountId ?? undefined,
+        sender_account_id: senderAccountId ?? null,
         lead_id: lead.id,
         recipient: lead.email,
         subject: subject || '(No subject)',
