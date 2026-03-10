@@ -79,6 +79,8 @@ export default function CampaignsPage() {
     replyRate: '0',
     avgTimeToReplyHours: null as string | null,
     positiveRepliesCount: 0,
+    openRate: '0',
+    openedCount: 0,
   });
   const [loading, setLoading] = useState(true);
   const [loadingLeads, setLoadingLeads] = useState(false);
@@ -101,6 +103,10 @@ export default function CampaignsPage() {
   const [leadsEnqueueFeedback, setLeadsEnqueueFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [autoEnqueueEnabled, setAutoEnqueueEnabled] = useState(true);
   const [leadsCampaignFilterId, setLeadsCampaignFilterId] = useState<string | null>(null);
+  const [statsPeriod, setStatsPeriod] = useState<'week' | 'month' | 'all'>('month');
+  const statsPeriodRef = useRef<'week' | 'month' | 'all'>('month');
+  // Keep ref in sync so closures (fetchLeads, interval) always read the current period
+  useEffect(() => { statsPeriodRef.current = statsPeriod; }, [statsPeriod]);
 
   useEffect(() => {
     const stored = localStorage.getItem('pipeshark-auto-enqueue');
@@ -162,6 +168,15 @@ export default function CampaignsPage() {
     });
     return showAllCampaigns ? sorted : sorted.slice(0, 4);
   }, [campaigns, showAllCampaigns]);
+
+  useEffect(() => {
+    if (isPaused) return;
+    fetch(`/api/campaigns?period=${statsPeriod}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setStats(d); })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statsPeriod]);
 
   useEffect(() => {
     // Only fetch if not paused
@@ -385,7 +400,7 @@ export default function CampaignsPage() {
       fetch('/api/gmail/check-replies', { method: 'POST', credentials: 'include' })
         .then(() =>
           Promise.all([
-            fetch('/api/campaigns').then((r) => r.ok ? r.json() : null),
+            fetch(`/api/campaigns?period=${statsPeriodRef.current}`).then((r) => r.ok ? r.json() : null),
             fetch('/api/leads').then((r) => r.ok ? r.json() : null),
           ])
         )
@@ -396,7 +411,7 @@ export default function CampaignsPage() {
         .catch(() => {});
 
       const [statsRes, leadsRes] = await Promise.all([
-        fetch('/api/campaigns'),
+        fetch(`/api/campaigns?period=${statsPeriodRef.current}`),
         fetch('/api/leads'),
       ]);
       const statsData = await statsRes.json();
@@ -632,10 +647,27 @@ export default function CampaignsPage() {
               </div>
               </div>
             </div>
-            {/* StatsCards (4 cartes: Leads, Emails sent, Replies, Positive Replies) + Daily Credits */}
+            {/* StatsCards (5 cards) + period selector + Daily Credits */}
             <div className="flex items-start gap-3 flex-shrink-0">
-              <div className="-translate-x-28">
-                <StatsCards stats={stats} mini />
+              <div className="-translate-x-12 flex items-stretch gap-0">
+                <div className="rounded-2xl bg-white dark:bg-neutral-900 border border-zinc-200 dark:border-sky-700/30 shadow-sm px-3 py-3">
+                  <StatsCards stats={stats} mini />
+                </div>
+                <div className="flex flex-col justify-center gap-0.5 pl-1.5">
+                  {(['week', 'month', 'all'] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setStatsPeriod(p)}
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-medium transition-colors ${
+                        statsPeriod === p
+                          ? 'bg-sky-500 text-white'
+                          : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'
+                      }`}
+                    >
+                      {p === 'week' ? '7d' : p === 'month' ? '30d' : 'All'}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="w-44 flex-shrink-0">
                 <CreditsGauge />
@@ -754,7 +786,7 @@ export default function CampaignsPage() {
               </div>
               <ResponsiveContainer width="100%" height={80}>
                 <BarChart data={repliesByDay} margin={{ top: 2, right: 4, left: 0, bottom: 0 }}>
-                  <XAxis dataKey="label" tick={{ fontSize: 8, fill: 'var(--foreground)', opacity: 0.8 }} tickLine={false} axisLine={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 8, fill: 'var(--foreground)', opacity: 0.8 }} tickLine={false} axisLine={false} interval={0} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 8, fill: 'var(--foreground)', opacity: 0.7 }} tickLine={false} axisLine={false} width={14} />
                   <Tooltip contentStyle={{ borderRadius: 6, border: 'none', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }} formatter={(value: number | undefined, name: string | undefined) => [value ?? 0, name === 'count' ? 'All replies' : 'Positive']} labelFormatter={(label) => label} />
                   <Bar dataKey="count" fill="rgb(14 165 233)" radius={[3, 3, 0, 0]} maxBarSize={12} />

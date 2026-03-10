@@ -216,17 +216,15 @@ export async function countTodayLeadsForUser(userId: string): Promise<number> {
   return withEmail.length;
 }
 
-const SELECT_LEADS_WITH_REPLIES = 'email, draft, replied, replied_at, date, created_at, email_sent, positive_reply';
+const SELECT_LEADS_WITH_REPLIES = 'email, draft, replied, replied_at, date, created_at, email_sent, positive_reply, email_opened';
 const SELECT_LEADS_BASIC = 'email, draft, date, created_at';
 
-export async function getCampaignStatsForUser(userId: string) {
+export async function getCampaignStatsForUser(userId: string, period: 'week' | 'month' | 'all' = 'month') {
   const supabase = await createServerSupabaseClient();
 
   let selectColumns = SELECT_LEADS_WITH_REPLIES;
-  let { data, error } = await supabase
-    .from('leads')
-    .select(selectColumns)
-    .eq('user_id', userId);
+  let query = supabase.from('leads').select(selectColumns).eq('user_id', userId);
+  let { data, error } = await query;
 
   // If replied/replied_at columns don't exist (migration 016 not applied), retry without them
   if (error && /replied|does not exist/i.test(error.message)) {
@@ -258,12 +256,28 @@ export async function getCampaignStatsForUser(userId: string) {
     data = fallback.data;
     error = fallback.error;
   }
+  // If email_opened column doesn't exist (migration 038 not applied), retry without it
+  if (error && /email_opened|does not exist/i.test(error.message)) {
+    selectColumns = selectColumns.replace(/, email_opened$/, '').replace(/, email_opened,/, ',');
+    const fallback = await supabase
+      .from('leads')
+      .select(selectColumns)
+      .eq('user_id', userId);
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     throw error;
   }
 
-  const leads = (data || []) as Array<{
+  // JS-side period filtering (more reliable than DB-level when created_at may be null)
+  const sinceMs =
+    period === 'week' ? Date.now() - 7 * 24 * 60 * 60 * 1000
+    : period === 'month' ? Date.now() - 30 * 24 * 60 * 60 * 1000
+    : null;
+
+  const leads = ((data || []) as Array<{
     email?: string | null;
     draft?: string | null;
     replied?: boolean;
@@ -272,6 +286,21 @@ export async function getCampaignStatsForUser(userId: string) {
     created_at?: string;
     email_sent?: boolean;
     positive_reply?: boolean | null;
+    email_opened?: boolean | null;
+  }>).filter((l) => {
+    if (!sinceMs) return true;
+    const d = l.created_at || l.date;
+    return d ? new Date(d).getTime() >= sinceMs : true;
+  }) as Array<{
+    email?: string | null;
+    draft?: string | null;
+    replied?: boolean;
+    replied_at?: string | null;
+    date?: string | null;
+    created_at?: string;
+    email_sent?: boolean;
+    positive_reply?: boolean | null;
+    email_opened?: boolean | null;
   }>;
   const total = leads.length;
   const withEmail = leads.filter(
@@ -284,9 +313,11 @@ export async function getCampaignStatsForUser(userId: string) {
   const hasRepliedColumn = selectColumns.includes('replied');
   const hasEmailSentColumn = selectColumns.includes('email_sent');
   const hasPositiveReplyColumn = selectColumns.includes('positive_reply');
+  const hasEmailOpenedColumn = selectColumns.includes('email_opened');
   const emailsSentCount = hasEmailSentColumn ? leads.filter((l) => !!l.email_sent).length : draftsSent;
   const repliedCount = hasRepliedColumn ? leads.filter((l) => !!l.replied).length : 0;
   const positiveRepliesCount = hasPositiveReplyColumn ? leads.filter((l) => l.positive_reply === true).length : 0;
+  const openedCount = hasEmailOpenedColumn ? leads.filter((l) => l.email_opened === true).length : 0;
   const repliedLeadsWithDates = hasRepliedColumn
     ? leads.filter(
         (l) => !!l.replied && l.replied_at && (l.date || l.created_at)
@@ -306,6 +337,8 @@ export async function getCampaignStatsForUser(userId: string) {
       : null;
   const replyRate =
     draftsSent > 0 ? ((repliedCount / draftsSent) * 100).toFixed(1) : '0';
+  const openRate =
+    emailsSentCount > 0 ? ((openedCount / emailsSentCount) * 100).toFixed(1) : '0';
 
   return {
     totalLeads: total,
@@ -315,6 +348,8 @@ export async function getCampaignStatsForUser(userId: string) {
     repliesCount: repliedCount,
     positiveRepliesCount,
     replyRate,
+    openRate,
+    openedCount,
     avgTimeToReplyHours: avgTimeToReplyMs != null ? (avgTimeToReplyMs / (1000 * 60 * 60)).toFixed(1) : null,
   };
 }

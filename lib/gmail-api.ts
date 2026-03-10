@@ -249,15 +249,38 @@ export async function userHasSentEmailTo(
 
 /**
  * Build RFC 2822 message and return base64url-encoded raw for Gmail API.
+ * If htmlBody is provided, sends multipart/alternative (text + HTML).
  */
-function buildRawMessage(to: string, subject: string, body: string): string {
-  const lines = [
-    `To: ${to.trim()}`,
-    `Subject: ${(subject || '').replace(/\r?\n/g, ' ') || '(No subject)'}`,
-    'Content-Type: text/plain; charset=utf-8',
-    '',
-    body || '',
-  ];
+function buildRawMessage(to: string, subject: string, body: string, htmlBody?: string): string {
+  let lines: string[];
+  if (htmlBody) {
+    const boundary = `__pipeshark_${Date.now()}__`;
+    lines = [
+      `To: ${to.trim()}`,
+      `Subject: ${(subject || '').replace(/\r?\n/g, ' ') || '(No subject)'}`,
+      `Content-Type: multipart/alternative; boundary="${boundary}"`,
+      '',
+      `--${boundary}`,
+      'Content-Type: text/plain; charset=utf-8',
+      '',
+      body || '',
+      '',
+      `--${boundary}`,
+      'Content-Type: text/html; charset=utf-8',
+      '',
+      htmlBody,
+      '',
+      `--${boundary}--`,
+    ];
+  } else {
+    lines = [
+      `To: ${to.trim()}`,
+      `Subject: ${(subject || '').replace(/\r?\n/g, ' ') || '(No subject)'}`,
+      'Content-Type: text/plain; charset=utf-8',
+      '',
+      body || '',
+    ];
+  }
   const msg = lines.join('\r\n');
   const b64 = Buffer.from(msg, 'utf8').toString('base64');
   return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -303,9 +326,13 @@ export async function sendGmailMessage(
   accessToken: string,
   to: string,
   subject: string,
-  body: string
+  body: string,
+  trackingPixelUrl?: string
 ): Promise<{ id: string } | null> {
-  const raw = buildRawMessage(to, subject, body);
+  const htmlBody = trackingPixelUrl
+    ? `${body.replace(/\n/g, '<br>')}<br><img src="${trackingPixelUrl}" width="1" height="1" style="display:none" alt="" />`
+    : undefined;
+  const raw = buildRawMessage(to, subject, body, htmlBody);
   const url = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send';
   const res = await fetch(url, {
     method: 'POST',

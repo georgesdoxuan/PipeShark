@@ -77,11 +77,16 @@ export async function POST(request: Request) {
           item.user_id,
           userProfile.gmail_email
         );
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
+        const trackingUrl = item.lead_id && appUrl
+          ? `${appUrl}/api/track/open/${item.lead_id}`
+          : undefined;
         const sent = await sendGmailMessage(
           accessToken,
           item.recipient,
           item.subject,
-          item.body
+          item.body,
+          trackingUrl
         );
         if (!sent) {
           await markQueueItemFailedAdmin(queue_id, 'Gmail send failed');
@@ -133,12 +138,17 @@ export async function POST(request: Request) {
       auth: { user: smtpUser, pass: smtpPass },
     });
 
+    const smtpLeadId = body.lead_id ?? item?.lead_id ?? undefined;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
+    const pixelTag = smtpLeadId && appUrl
+      ? `<br><img src="${appUrl}/api/track/open/${smtpLeadId}" width="1" height="1" style="display:none" alt="" />`
+      : '';
     await transporter.sendMail({
       from: creds.email,
       to: smtpRecipient,
       subject: smtpSubject,
       text: smtpBody,
-      html: smtpBody.replace(/\n/g, '<br>'),
+      html: smtpBody.replace(/\n/g, '<br>') + pixelTag,
     });
 
     return NextResponse.json({

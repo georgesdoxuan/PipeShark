@@ -18,6 +18,10 @@ const THUMB_UP_SRC = '/thumb-up.png';
 /** Vert pour Positive Replies (thumbs up) */
 const THUMB_UP_GREEN_STYLE = { filter: 'invert(1) sepia(1) hue-rotate(100deg) saturate(10) brightness(0.75) contrast(1.1)' };
 
+const EMAIL_ICON_SRC = '/email (1).png';
+/** Violet pour Open Rate */
+const EMAIL_ICON_VIOLET_STYLE = { filter: 'invert(1) sepia(1) hue-rotate(230deg) saturate(8) brightness(0.6) contrast(1.1)' };
+
 interface StatsCardsProps {
   stats: {
     leadsWithEmail: number;
@@ -27,6 +31,8 @@ interface StatsCardsProps {
     replyRate?: string;
     avgTimeToReplyHours?: string | null;
     positiveRepliesCount?: number;
+    openedCount?: number;
+    openRate?: string;
   };
   compact?: boolean;
   mini?: boolean;
@@ -53,12 +59,19 @@ const CARD_STYLES = {
     iconBg: 'bg-green-500/15 dark:bg-green-400/20',
     iconColor: 'text-green-600 dark:text-green-300',
   },
+  open: {
+    accent: 'from-violet-500/10 to-purple-500/5 dark:from-violet-400/15 dark:to-purple-600/5',
+    iconBg: 'bg-violet-500/15 dark:bg-violet-400/20',
+    iconColor: 'text-violet-600 dark:text-violet-300',
+  },
 } as const;
 
 export default function StatsCards({ stats, compact = false, mini = false }: StatsCardsProps) {
   const cards: Array<{
     title: string;
-    value: number;
+    value: number | string;
+    isPercent?: boolean;
+    inlineSuffix?: string;
     icon: typeof Users;
     customIconSrc?: string;
     subtitle?: string;
@@ -85,8 +98,7 @@ export default function StatsCards({ stats, compact = false, mini = false }: Sta
     {
       title: 'Replies',
       value: stats.repliesCount ?? 0,
-      subtitle: stats.replyRate != null ? `Reply rate: ${stats.replyRate}%` : undefined,
-      extra: stats.avgTimeToReplyHours != null ? `Avg: ${stats.avgTimeToReplyHours}h` : undefined,
+      inlineSuffix: stats.replyRate != null ? `${stats.replyRate}%` : undefined,
       icon: TrendingUp,
       style: 'replies',
       href: '/messages#replies',
@@ -102,22 +114,34 @@ export default function StatsCards({ stats, compact = false, mini = false }: Sta
       style: 'positive',
       href: '/messages#replies',
     },
+    {
+      title: 'Open Rate',
+      value: stats.openRate != null ? `${stats.openRate}%` : '0%',
+      isPercent: true,
+      subtitle: stats.openedCount != null && stats.openedCount > 0
+        ? `${stats.openedCount} opened`
+        : undefined,
+      icon: Users,
+      customIconSrc: EMAIL_ICON_SRC,
+      style: 'open',
+      href: '/messages#sent',
+    },
   ];
 
   const sizeClass = mini
-    ? 'w-28 h-24 p-3'
+    ? 'w-24 h-[4.5rem] p-2.5'
     : compact
-    ? 'w-36 min-w-[9rem] h-36 p-4'
-    : 'w-36 h-36 sm:w-40 sm:h-40 p-5';
-  const iconSizeClass = mini ? 'w-7 h-7' : compact ? 'w-11 h-11' : 'w-14 h-14 sm:w-16 sm:h-16';
-  const iconPx = mini ? 28 : compact ? 44 : 64;
-  const valueClass = mini ? 'text-2xl' : compact ? 'text-3xl' : 'text-4xl sm:text-5xl';
-  const iconPadding = mini ? 'p-1.5' : 'p-3';
-  const titleClass = mini ? 'text-xs' : 'text-sm';
-  const minWidthClass = mini ? 'min-w-[2.5rem]' : 'min-w-[4rem]';
+    ? 'w-32 min-w-[8rem] h-32 p-3.5'
+    : 'w-32 h-32 sm:w-36 sm:h-36 p-4';
+  const iconSizeClass = mini ? 'w-6 h-6' : compact ? 'w-9 h-9' : 'w-12 h-12 sm:w-14 sm:h-14';
+  const iconPx = mini ? 24 : compact ? 36 : 56;
+  const valueClass = mini ? 'text-xl' : compact ? 'text-2xl' : 'text-3xl sm:text-4xl';
+  const iconPadding = mini ? 'p-1' : 'p-2.5';
+  const titleClass = mini ? 'text-[10px]' : 'text-xs';
+  const minWidthClass = mini ? 'min-w-[2rem]' : 'min-w-[3.5rem]';
 
   return (
-    <div className={`flex gap-2 flex-nowrap ${compact ? 'shrink-0' : 'flex-wrap gap-4'}`}>
+    <div className={`flex flex-nowrap ${compact ? 'gap-2 shrink-0' : 'flex-wrap gap-3'}`}>
       {cards.map((card) => {
         const s = CARD_STYLES[card.style];
         return (
@@ -129,7 +153,7 @@ export default function StatsCards({ stats, compact = false, mini = false }: Sta
                 <p className={`text-zinc-600 dark:text-neutral-400 ${titleClass} font-semibold leading-tight break-normal line-clamp-2 flex-1 ${minWidthClass}`} title={card.title}>
                   {card.title}
                 </p>
-                <span className={`${s.iconBg} rounded-xl ${iconPadding} flex-shrink-0 flex items-center justify-center ${iconSizeClass}`}>
+                <span className={`${s.iconBg} rounded-lg ${iconPadding} flex-shrink-0 flex items-center justify-center ${iconSizeClass}`}>
                   {'customIconSrc' in card && card.customIconSrc ? (
                     card.style === 'sent' ? (
                       <span className={`${iconSizeClass} flex items-center justify-center overflow-hidden`} style={SENT_ICON_GREEN_STYLE}>
@@ -141,6 +165,11 @@ export default function StatsCards({ stats, compact = false, mini = false }: Sta
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={THUMB_UP_SRC} alt="" width={iconPx} height={iconPx} className="w-full h-full object-contain" />
                       </span>
+                    ) : card.style === 'open' ? (
+                      <span className={`${iconSizeClass} flex items-center justify-center overflow-hidden`} style={EMAIL_ICON_VIOLET_STYLE}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={EMAIL_ICON_SRC} alt="" width={iconPx} height={iconPx} className="w-full h-full object-contain" />
+                      </span>
                     ) : (
                       <Image src={card.customIconSrc} alt="" width={iconPx} height={iconPx} className={`${iconSizeClass} object-contain ${LOGO_BLUE_FILTER}`} />
                     )
@@ -149,11 +178,14 @@ export default function StatsCards({ stats, compact = false, mini = false }: Sta
                   )}
                 </span>
               </div>
-              <p className={`${valueClass} font-display font-bold text-zinc-900 dark:text-white pt-1 leading-tight tracking-tight`}>
+              <p className={`${valueClass} font-display font-bold text-zinc-900 dark:text-white pt-1 leading-tight tracking-tight flex items-baseline gap-1`}>
                 {card.value}
+                {card.inlineSuffix && (
+                  <span className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">{card.inlineSuffix}</span>
+                )}
               </p>
-              {!mini && card.extra ? (
-                <p className="text-[10px] text-zinc-500 dark:text-neutral-400 leading-tight mt-1">{card.extra}</p>
+              {card.extra ? (
+                <p className="text-[10px] text-zinc-500 dark:text-neutral-400 leading-tight mt-0.5">{card.extra}</p>
               ) : null}
             </div>
             {mini && card.subtitle ? (

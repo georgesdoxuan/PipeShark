@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { getCampaignStatsForUser } from '@/lib/supabase-leads';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createServerSupabaseClient();
     const {
@@ -13,7 +13,10 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const stats = await getCampaignStatsForUser(user.id);
+    const { searchParams } = new URL(request.url);
+    const rawPeriod = searchParams.get('period') ?? 'month';
+    const period = (rawPeriod === 'week' || rawPeriod === 'all') ? rawPeriod : 'month';
+    const stats = await getCampaignStatsForUser(user.id, period);
     return NextResponse.json(stats);
   } catch (error: any) {
     console.error('Error fetching stats:', error.message);
