@@ -46,7 +46,7 @@ export async function POST(
         return NextResponse.json(
           {
             error: ‘No SMTP sender account’,
-            hint: ‘Add an email (SMTP) account in Preferences for this campaign’s sending address, then try again.’,
+            hint: "Add an email (SMTP) account in Preferences for this campaign’s sending address, then try again.",
           },
           { status: 400 }
         );
