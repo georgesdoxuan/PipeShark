@@ -421,7 +421,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
               {selectMode && (
                 <th className="px-3 py-3.5 rounded-tl-xl w-10" title="Sélection individuelle uniquement" />
               )}
-              <th className={`px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap ${!selectMode ? 'rounded-tl-xl' : ''}`} style={{ minWidth: 120 }}>
+              <th className={`px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap ${!selectMode ? 'rounded-tl-xl' : ''}`} style={{ minWidth: 190 }}>
                 Name
               </th>
               <th className="px-4 py-3.5 text-left text-xs font-semibold tracking-widest text-white/90 uppercase whitespace-nowrap w-0">
@@ -499,7 +499,7 @@ export default function LeadsTable({ leads, loading = false, filterBusinessType 
                     />
                   </td>
                 )}
-                <td className="px-4 py-2.5">
+                <td className="px-4 py-2.5" style={{ maxWidth: 190 }}>
                   <div className="text-sm font-medium text-zinc-900 dark:text-white truncate" title={lead.name || undefined}>
                     {lead.name || '-'}
                   </div>

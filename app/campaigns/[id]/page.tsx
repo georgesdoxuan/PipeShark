@@ -353,8 +353,8 @@ export default function CampaignDetailPage() {
       <div>
         <Header />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Back button and header */}
-          <div className="flex items-center gap-4 mb-8">
+          {/* Back button and Daily Credits */}
+          <div className="flex items-center justify-between gap-4 mb-8">
             <Link
               href="/dashboard"
               className="flex items-center gap-2 text-zinc-600 dark:text-sky-300 hover:text-zinc-900 dark:hover:text-sky-200 transition-colors"
@@ -362,11 +362,9 @@ export default function CampaignDetailPage() {
               <ArrowLeft className="w-5 h-5" />
               <span className="font-medium">Back to Campaigns</span>
             </Link>
-          </div>
-
-          {/* Daily Credits - same width as dashboard */}
-          <div className="mb-6 w-64">
-            <CreditsGauge campaignId={campaignId} leadsWithEmail={todayLeadsWithEmail} />
+            <div className="w-64 shrink-0">
+              <CreditsGauge campaignId={campaignId} leadsWithEmail={todayLeadsWithEmail} />
+            </div>
           </div>
 
           {/* Campaign Info */}
@@ -530,19 +528,6 @@ export default function CampaignDetailPage() {
               <h2 className="text-2xl font-display font-bold text-zinc-900 dark:text-white">
                 Campaign Targets ({mainLeads.length})
               </h2>
-              <button
-                onClick={handleEnqueue}
-                disabled={enqueueLoading || loading || mainLeads.length === 0}
-                className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-2 rounded-xl font-medium shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                title="Add leads with drafts to the send queue (emails will be sent at random times during business hours in each lead's timezone)"
-              >
-                {enqueueLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-                <span>{enqueueLoading ? 'Adding...' : 'Add to send queue'}</span>
-              </button>
             </div>
             {enqueueMessage && (
               <div

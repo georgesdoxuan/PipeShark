@@ -874,8 +874,19 @@ export default function CampaignsPage() {
           ) : (
             <div className="mb-1">
               <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {displayedCampaigns.map((campaign) => {
-                const cardClass = 'bg-white dark:bg-neutral-800/80 border border-sky-200 dark:border-sky-700/50';
+              {displayedCampaigns.map((campaign, cardIdx) => {
+                const NAME_BAND_COLORS = [
+                  'bg-sky-200/70 dark:bg-sky-700/40',
+                  'bg-emerald-200/70 dark:bg-emerald-700/40',
+                  'bg-amber-200/70 dark:bg-amber-700/40',
+                  'bg-orange-200/70 dark:bg-orange-700/40',
+                  'bg-violet-200/70 dark:bg-violet-700/40',
+                  'bg-pink-200/70 dark:bg-pink-700/40',
+                  'bg-teal-200/70 dark:bg-teal-700/40',
+                  'bg-indigo-200/70 dark:bg-indigo-700/40',
+                ];
+                const nameBandClass = NAME_BAND_COLORS[cardIdx % NAME_BAND_COLORS.length];
+                const cardClass = 'bg-gradient-to-br from-white to-sky-100/70 dark:from-neutral-800/90 dark:to-sky-900/20';
                 // Helper function to format city size display
                 const formatCitySize = (citySize?: string): string => {
                   // Default to '1M+' if no citySize is set (for old campaigns)
@@ -995,7 +1006,7 @@ export default function CampaignsPage() {
                               <>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <h3 className="text-base font-display font-bold text-zinc-900 dark:text-white group-hover:opacity-80 transition-opacity truncate min-w-0">
+                                    <h3 className={`text-sm font-display font-bold text-zinc-900 dark:text-white group-hover:opacity-80 transition-opacity truncate min-w-0 rounded-md px-2 py-0.5 ${nameBandClass}`}>
                                       {campaign.name?.trim() || campaign.businessType.charAt(0).toUpperCase() + campaign.businessType.slice(1)}
                                     </h3>
                                     {scheduledCampaignIds.includes(campaign.id) && (
