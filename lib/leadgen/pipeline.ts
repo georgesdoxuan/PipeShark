@@ -96,7 +96,7 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
     return { success: false, leadsCreated: 0, errors };
   }
 
-  const scraped: ScrapedLead[] = [];
+  const scraped: Array<ScrapedLead & { hasdataExtra: string }> = [];
   for (const item of localResults) {
     const website = getWebsiteUrl(item);
     if (!website || !website.startsWith('http')) continue;
@@ -104,6 +104,15 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
     const email = extractEmailFromHtml(html);
     const cleanText = cleanHtmlToText(html);
     const { phone, linkedin } = extractPhoneAndLinkedIn(html, city);
+    // Carry HasData fields (rating, reviews, description, serviceOptions) for AI context
+    const r = item as Record<string, unknown>;
+    const hasdataExtra = [
+      r.rating != null ? `Rating: ${r.rating}` : '',
+      r.reviewsCount != null ? `Reviews: ${r.reviewsCount}` : '',
+      r.description ? `Description: ${r.description}` : '',
+      r.serviceOptions ? `Services: ${r.serviceOptions}` : '',
+      r.price ? `Price: ${r.price}` : '',
+    ].filter(Boolean).join('\n');
     scraped.push({
       website,
       title: getTitle(item),
@@ -113,6 +122,7 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
       cleanText,
       phone,
       linkedin,
+      hasdataExtra,
     });
   }
 
@@ -142,15 +152,7 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
 
   for (const lead of deduped) {
     try {
-      const extraFields = [
-        (lead as unknown as Record<string, unknown>).serviceOptions,
-        (lead as unknown as Record<string, unknown>).description,
-        (lead as unknown as Record<string, unknown>).price,
-      ]
-        .filter(Boolean)
-        .map((v) => String(v))
-        .join('\n');
-      const websiteSummary = await summarizeWebsite(openaiKey, lead.cleanText, extraFields);
+      const websiteSummary = await summarizeWebsite(openaiKey, lead.cleanText, lead.hasdataExtra);
 
       const draftInput: DraftEmailInput = {
         companyDescription: payload.companyDescription ?? '',

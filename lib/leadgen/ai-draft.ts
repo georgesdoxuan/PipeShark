@@ -220,8 +220,10 @@ Business Type: ${input.business}
 City: ${input.city}
 Website URL: ${input.websiteUrl}
 
-WEBSITE SUMMARY (use to personalize the hook):
+WEBSITE SUMMARY:
 ${input.websiteSummary}
+
+PERSONALIZATION RULE (mandatory): Your very first sentence MUST reference one specific, concrete detail from the WEBSITE SUMMARY above (a service they offer, their rating, a specific fact about their business). Generic pain points that could apply to any ${input.business} are NOT acceptable as an opener.
 
 Write a cold email that makes them want to reply. Return only the JSON object.`;
 
