@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Header from '@/components/Header';
-import { Search, Mail, Phone, FolderPlus, RefreshCw, Check, Loader2, Eye, X, Trash2, MousePointerClick } from 'lucide-react';
+import { Search, Mail, Phone, FolderPlus, RefreshCw, Check, Loader2, Eye, X, Trash2, MousePointerClick, Pencil } from 'lucide-react';
 import Image from 'next/image';
 
 interface Lead {
@@ -60,6 +60,7 @@ export default function CallCenterPage() {
   const [prepEditText, setPrepEditText] = useState('');
   const [prepCommentText, setPrepCommentText] = useState('');
   const [prepSaving, setPrepSaving] = useState(false);
+  const [prepEditMode, setPrepEditMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectMode, setSelectMode] = useState(false);
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
@@ -480,7 +481,7 @@ export default function CallCenterPage() {
                         {lead.preparationSummary ? (
                           <button
                             type="button"
-                            onClick={() => { setPrepModal(lead); setPrepEditText(lead.preparationSummary ?? ''); setPrepCommentText(lead.comments ?? ''); }}
+                            onClick={() => { setPrepModal(lead); setPrepEditText(lead.preparationSummary ?? ''); setPrepCommentText(lead.comments ?? ''); setPrepEditMode(false); }}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 text-xs font-medium hover:bg-sky-100 dark:hover:bg-sky-500/20 border border-sky-200 dark:border-sky-500/30 transition-colors"
                           >
                             <Eye className="w-3.5 h-3.5" />
@@ -631,29 +632,62 @@ export default function CallCenterPage() {
       {/* Preparation modal */}
       {prepModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setPrepModal(null)}>
-          <div className="relative w-full max-w-xl bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-sky-800/50 max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+          <div className="relative w-full max-w-3xl bg-white dark:bg-neutral-900 rounded-2xl shadow-2xl border border-zinc-200 dark:border-sky-800/50 max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             {/* Modal header */}
             <div className="flex items-start justify-between p-5 border-b border-zinc-200 dark:border-sky-800/50 shrink-0">
               <div>
                 <h2 className="text-base font-semibold text-zinc-900 dark:text-white">{prepModal.name || prepModal.businessType || 'Lead'}</h2>
                 <p className="text-xs text-zinc-500 dark:text-sky-400 mt-0.5">{prepModal.city}{prepModal.country ? `, ${prepModal.country}` : ''}</p>
               </div>
-              <button type="button" onClick={() => setPrepModal(null)} className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-neutral-800 text-zinc-500 dark:text-sky-400">
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPrepEditMode((v) => !v)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 border transition-colors ${prepEditMode ? 'bg-sky-500 text-white border-sky-600' : 'border-zinc-200 dark:border-sky-700/50 text-zinc-600 dark:text-sky-300 hover:bg-zinc-50 dark:hover:bg-neutral-800'}`}
+                >
+                  <Pencil className="w-3 h-3" />
+                  {prepEditMode ? 'Editing' : 'Edit'}
+                </button>
+                <button type="button" onClick={() => setPrepModal(null)} className="p-1.5 rounded-lg hover:bg-zinc-100 dark:hover:bg-neutral-800 text-zinc-500 dark:text-sky-400">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Modal body */}
             <div className="overflow-y-auto p-5 flex flex-col gap-5">
-              {/* AI prep — editable */}
+              {/* AI prep — view or edit */}
               <div>
-                <label className="block text-xs font-semibold text-zinc-500 dark:text-sky-400 uppercase tracking-wide mb-2">Preparation (AI)</label>
-                <textarea
-                  value={prepEditText}
-                  onChange={(e) => setPrepEditText(e.target.value)}
-                  rows={8}
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-zinc-50 dark:bg-neutral-800 text-zinc-800 dark:text-sky-100 leading-relaxed focus:outline-none focus:ring-2 focus:ring-sky-500/30 resize-y"
-                />
+                <label className="block text-xs font-semibold text-zinc-500 dark:text-sky-400 uppercase tracking-wide mb-3">Preparation (AI)</label>
+                {prepEditMode ? (
+                  <textarea
+                    value={prepEditText}
+                    onChange={(e) => setPrepEditText(e.target.value)}
+                    rows={14}
+                    className="w-full px-3 py-2.5 text-sm rounded-xl border border-zinc-200 dark:border-sky-700/50 bg-zinc-50 dark:bg-neutral-800 text-zinc-800 dark:text-sky-100 leading-relaxed focus:outline-none focus:ring-2 focus:ring-sky-500/30 resize-y font-mono"
+                  />
+                ) : (
+                  <div className="text-sm text-zinc-800 dark:text-zinc-100 leading-relaxed space-y-3">
+                    {prepEditText.split('\n').map((line, i) => {
+                      const trimmed = line.trim();
+                      if (!trimmed) return null;
+                      // Bold header: **text** or **text**
+                      if (/^\*\*(.+)\*\*$/.test(trimmed)) {
+                        return <p key={i} className="font-bold text-zinc-900 dark:text-white mt-4 first:mt-0 text-sm">{trimmed.replace(/\*\*/g, '')}</p>;
+                      }
+                      // Bullet point
+                      if (trimmed.startsWith('- ')) {
+                        return (
+                          <div key={i} className="flex items-start gap-2 ml-2">
+                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-sky-400 dark:bg-sky-500 shrink-0" />
+                            <span>{trimmed.slice(2)}</span>
+                          </div>
+                        );
+                      }
+                      return <p key={i}>{trimmed}</p>;
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Comments */}

@@ -15,7 +15,7 @@ import {
   filterProfessionalEmail,
   type ScrapedLead,
 } from './scrape';
-import { summarizeWebsite, generateDraftEmail, type DraftEmailInput } from './ai-draft';
+import { summarizeWebsite, generateDraftEmail, generateCallPrep, type DraftEmailInput } from './ai-draft';
 import { createGmailDraft } from '@/lib/gmail-api';
 
 export interface LeadgenPayload {
@@ -152,7 +152,10 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
 
   for (const lead of deduped) {
     try {
-      const websiteSummary = await summarizeWebsite(openaiKey, lead.cleanText, lead.hasdataExtra);
+      const [websiteSummary, callPrep] = await Promise.all([
+        summarizeWebsite(openaiKey, lead.cleanText, lead.hasdataExtra),
+        generateCallPrep(openaiKey, lead.cleanText, lead.title ?? business, business, city, lead.url),
+      ]);
 
       const draftInput: DraftEmailInput = {
         companyDescription: payload.companyDescription ?? '',
@@ -164,9 +167,11 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
         emailMaxLength: payload.emailMaxLength ?? 150,
         aiInstructions: payload.aiInstructions ?? '',
         business,
+        businessName: lead.title || business,
         city,
         websiteUrl: lead.url,
         websiteSummary,
+        hasdataExtra: lead.hasdataExtra,
       };
       const { subject, body } = await generateDraftEmail(openaiKey, draftInput);
       const draftText = `${subject}\n\n${body}`;
@@ -192,7 +197,7 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
         gmail_thread_id: gmailThreadId,
         campaign_id: payload.campaignId ?? null,
         name: lead.title ?? null,
-        preparation_summary: null,
+        preparation_summary: callPrep || null,
         date: new Date().toISOString(),
       });
       if (error) {

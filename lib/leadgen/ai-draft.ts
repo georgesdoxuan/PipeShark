@@ -143,9 +143,11 @@ export interface DraftEmailInput {
   /** Custom AI writing instructions injected into the prompt. */
   aiInstructions: string;
   business: string;
+  businessName: string;
   city: string;
   websiteUrl: string;
   websiteSummary: string;
+  hasdataExtra: string;
 }
 
 export async function generateDraftEmail(apiKey: string, input: DraftEmailInput): Promise<{ subject: string; body: string }> {
@@ -216,14 +218,15 @@ BANNED WORDS (never use any of these):
 crucial, leverage, unlock, empower, elevate, seamless, game-changer, cutting-edge, robust, scalable, holistic, transformative, comprehensive, groundbreaking, revolutionize, ecosystem, synergy, paradigm, delve, pivotal, streamline, impactful, proactive, dynamic, tailored, bespoke, innovative, solution, solutions, optimize, optimize, foster, navigate, harness, spearhead, endeavor, facilitate, implement, utilize, leverage, orchestrate, curate, supercharge, skyrocket, resonate, captivate, amplify
 
 ===== LEAD INFO =====
+Business Name: ${input.businessName}
 Business Type: ${input.business}
 City: ${input.city}
 Website URL: ${input.websiteUrl}
-
+${input.hasdataExtra ? `\nGoogle Maps Data:\n${input.hasdataExtra}` : ''}
 WEBSITE SUMMARY:
 ${input.websiteSummary}
 
-PERSONALIZATION RULE (mandatory): Your very first sentence MUST reference one specific, concrete detail from the WEBSITE SUMMARY above (a service they offer, their rating, a specific fact about their business). Generic pain points that could apply to any ${input.business} are NOT acceptable as an opener.
+PERSONALIZATION RULE (mandatory): Your very first sentence MUST reference one specific, concrete detail unique to ${input.businessName} — such as a specific service they offer, their Google rating, a fact from their website, or something from their Google Maps description. Generic pain points that could apply to any ${input.business} are FORBIDDEN as an opener. The reader must immediately feel this email was written specifically for them.
 
 Write a cold email that makes them want to reply. Return only the JSON object.`;
 
