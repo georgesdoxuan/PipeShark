@@ -132,25 +132,28 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
   const filtered = filterPersonal ? validEmails.filter(filterProfessionalEmail) : validEmails;
   // If personal filter removed too many, fall back to valid emails to try to meet targetCount
   const candidates = filtered.length >= Math.ceil(targetCount * 0.5) ? filtered : validEmails;
-  const limited = candidates.slice(0, targetCount);
+  // Take up to 3x targetCount so deduplication doesn't leave us short
+  const pool = candidates.slice(0, targetCount * 3);
   const admin = createAdminClient();
 
-  // Deduplicate: skip emails already in leads for this user
-  const candidateEmails = limited.map((l) => l.email.toLowerCase().trim()).filter(Boolean);
+  // Deduplicate against all emails in the pool
+  const poolEmails = pool.map((l) => l.email.toLowerCase().trim()).filter(Boolean);
   const existingEmailsSet = new Set<string>();
-  if (candidateEmails.length > 0) {
+  if (poolEmails.length > 0) {
     const { data: existingLeads } = await admin
       .from('leads')
       .select('email')
       .eq('user_id', payload.userId)
-      .in('email', candidateEmails);
+      .in('email', poolEmails);
     for (const r of existingLeads ?? []) {
       if (r.email) existingEmailsSet.add((r.email as string).toLowerCase().trim());
     }
   }
-  const deduped = limited.filter((l) => !existingEmailsSet.has(l.email.toLowerCase().trim()));
+  const deduped = pool.filter((l) => !existingEmailsSet.has(l.email.toLowerCase().trim()));
 
   for (const lead of deduped) {
+    // Stop once we've created the requested number of leads
+    if (leadsCreated >= targetCount) break;
     try {
       const [websiteSummary, callPrep] = await Promise.all([
         summarizeWebsite(openaiKey, lead.cleanText, lead.hasdataExtra),

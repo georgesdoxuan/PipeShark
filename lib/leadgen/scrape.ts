@@ -20,6 +20,23 @@ const INVALID_EMAILS = new Set([
   'no email found',
   'user@domain.com',
   'example@example.com',
+  'example@mysite.com',
+  'email@example.com',
+  'name@example.com',
+  'info@example.com',
+  'test@test.com',
+  'user@example.com',
+]);
+
+const PLACEHOLDER_DOMAINS = new Set([
+  'example.com', 'mysite.com', 'yoursite.com', 'yourdomain.com',
+  'domain.com', 'yourwebsite.com', 'website.com', 'test.com',
+  'placeholder.com', 'sample.com', 'demo.com',
+]);
+
+const PLACEHOLDER_LOCAL_PARTS = new Set([
+  'example', 'test', 'demo', 'sample', 'placeholder', 'your', 'noreply',
+  'no-reply', 'donotreply', 'do-not-reply', 'webmaster',
 ]);
 
 function isInvalidEmail(email: string): boolean {
@@ -31,6 +48,9 @@ function isInvalidEmail(email: string): boolean {
   if (/^[a-f0-9]{20,}@/.test(lower)) return true;
   if (lower.endsWith('.js') || lower.includes('module.') || lower.includes('.svg') || lower.includes('.png') || lower.includes('.jpg')) return true;
   if (lower.includes('sentry.io') || lower.includes('ingest.') || lower.includes('analytics') || lower.includes('tracking') || lower.includes('@o')) return true;
+  const [local, domain] = lower.split('@');
+  if (domain && PLACEHOLDER_DOMAINS.has(domain)) return true;
+  if (local && PLACEHOLDER_LOCAL_PARTS.has(local)) return true;
   return false;
 }
 

@@ -71,18 +71,23 @@ export async function summarizeWebsite(
   cleanText: string,
   extraFields: string
 ): Promise<string> {
-  const userContent = `Analyze this website content and Google Maps content and extract key information in 3-4 short sentences:
+  const userContent = `Extract key facts from this business's website and Google Maps data. Be specific and factual — no generic filler.
 
+WEBSITE CONTENT:
 ${cleanText}
 
+GOOGLE MAPS DATA:
 ${extraFields}
 
-Focus on:
-- Company name and what makes them unique
-- Main services they offer
-- Any specific details
+Extract and list:
+- Exact company name
+- Specific services/specialties they offer (list each one)
+- Google rating and review count if available
+- Any unique differentiators (24/7, family-owned, years in business, certifications, etc.)
+- Location details (neighborhoods served, service area)
+- Any pricing or package info
 
-Be specific and factual.`;
+Return 4-6 bullet points. Each bullet must be a concrete, specific fact. No generic statements like "they provide quality service".`;
   return chat(apiKey, null, userContent);
 }
 
@@ -199,7 +204,8 @@ ${ctaBlock}
 
 ${aiInstructionsBlock}${linkBlock}${magicBlock}===== RULES =====
 - ${input.emailMaxLength} words MAX for body
-- Pain point first, then solution, then CTA
+- Structure: [specific observation about THIS business] → [what we do that's relevant to THEM] → [CTA]
+- The first sentence MUST mention the business by name (${input.businessName}) AND reference something specific (a service, their rating, something from their website). Example: "Noticed ${input.businessName} offers [specific service X]..." or "Saw ${input.businessName} has [specific fact]..."
 - Mention briefly that you found their email on their website (legal obligation, one short sentence). Keep it casual, one sentence max.
 - Signature: just first name, no title.
 
@@ -226,7 +232,15 @@ ${input.hasdataExtra ? `\nGoogle Maps Data:\n${input.hasdataExtra}` : ''}
 WEBSITE SUMMARY:
 ${input.websiteSummary}
 
-PERSONALIZATION RULE (mandatory): Your very first sentence MUST reference one specific, concrete detail unique to ${input.businessName} — such as a specific service they offer, their Google rating, a fact from their website, or something from their Google Maps description. Generic pain points that could apply to any ${input.business} are FORBIDDEN as an opener. The reader must immediately feel this email was written specifically for them.
+PERSONALIZATION RULE (mandatory): The very first sentence MUST:
+1. Name the business: "${input.businessName}"
+2. Reference ONE specific fact from the data above (a real service they offer, their exact rating + number of reviews, a specific detail from their website or Maps description)
+
+BAD example (forbidden): "Running out of tools can slow you down." — generic, could be anyone
+GOOD example: "Noticed ${input.businessName} handles emergency plumbing 24/7 — that kind of availability must keep you busy."
+GOOD example: "Saw ${input.businessName} has 4.8 stars across 120 reviews — clearly you're doing something right."
+
+Do NOT invent facts. Only use what is in the data above. If data is limited, use what's available (city, business type, website URL).
 
 Write a cold email that makes them want to reply. Return only the JSON object.`;
 
