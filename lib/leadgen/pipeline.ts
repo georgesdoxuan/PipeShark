@@ -104,14 +104,48 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
     const email = extractEmailFromHtml(html);
     const cleanText = cleanHtmlToText(html);
     const { phone, linkedin } = extractPhoneAndLinkedIn(html, city);
-    // Carry HasData fields (rating, reviews, description, serviceOptions) for AI context
+    // Extract ALL HasData fields for rich AI context
     const r = item as Record<string, unknown>;
+    // Extract review snippets if available (array of review objects or strings)
+    let reviewSnippets = '';
+    const rawReviews = r.reviews ?? r.topReviews ?? r.reviewsData;
+    if (Array.isArray(rawReviews) && rawReviews.length > 0) {
+      const snippets = rawReviews
+        .slice(0, 3)
+        .map((rv: unknown) => {
+          if (typeof rv === 'string') return rv.slice(0, 200);
+          if (rv && typeof rv === 'object') {
+            const o = rv as Record<string, unknown>;
+            return (o.text ?? o.snippet ?? o.body ?? o.content ?? '') as string;
+          }
+          return '';
+        })
+        .filter((s) => s && s.trim().length > 10)
+        .map((s) => `  - "${s.trim().slice(0, 200)}"`)
+        .join('\n');
+      if (snippets) reviewSnippets = `Customer reviews:\n${snippets}`;
+    }
+    // Extract categories
+    const categories = Array.isArray(r.categories)
+      ? (r.categories as string[]).join(', ')
+      : typeof r.category === 'string' ? r.category : '';
+    // Extract hours
+    const hours = r.hours ?? r.openingHours ?? r.workingHours ?? r.schedule;
+    const hoursStr = typeof hours === 'string' ? hours
+      : Array.isArray(hours) ? (hours as string[]).slice(0, 3).join(', ')
+      : hours && typeof hours === 'object' ? JSON.stringify(hours).slice(0, 200)
+      : '';
     const hasdataExtra = [
-      r.rating != null ? `Rating: ${r.rating}` : '',
-      r.reviewsCount != null ? `Reviews: ${r.reviewsCount}` : '',
-      r.description ? `Description: ${r.description}` : '',
-      r.serviceOptions ? `Services: ${r.serviceOptions}` : '',
-      r.price ? `Price: ${r.price}` : '',
+      r.rating != null ? `Rating: ${r.rating}/5` : '',
+      r.reviewsCount != null ? `Number of Google reviews: ${r.reviewsCount}` : '',
+      r.address ? `Address: ${r.address}` : '',
+      r.description ? `Google Maps description: ${r.description}` : '',
+      categories ? `Categories: ${categories}` : '',
+      r.serviceOptions ? `Service options: ${r.serviceOptions}` : '',
+      r.price ? `Price level: ${r.price}` : '',
+      hoursStr ? `Hours: ${hoursStr}` : '',
+      r.phone ? `Phone: ${r.phone}` : '',
+      reviewSnippets,
     ].filter(Boolean).join('\n');
     scraped.push({
       website,

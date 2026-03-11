@@ -210,12 +210,12 @@ ${aiInstructionsBlock}${linkBlock}${magicBlock}===== RULES =====
 - Signature: just first name, no title.
 
 PUNCTUATION (follow exactly):
-- Use periods and commas only. No exclamation marks (!). No ellipsis (...). No semicolons (;). No em-dashes (—) or en-dashes (–). No hyphens used as pauses.
+- Use periods and commas only. No exclamation marks (!). No ellipsis (...). No semicolons (;). No em-dashes (—) or en-dashes (–). No hyphens used as pauses. No dashes of any kind.
 - One idea per sentence. Two sentences max per paragraph. Never use bullet points or lists in the body.
 - Sentences vary in length: mix short (3-6 words) with medium (10-15 words). Never write three consecutive sentences of similar length.
 
 TONE & STYLE:
-- Write like a real person typing a quick email, not a marketing copy. Read it aloud — if it sounds like an ad, rewrite it.
+- Write like a real person typing a quick email, not a marketing copy. If it sounds like an ad, rewrite it.
 - Start sentences with "And" or "But" when it feels natural.
 - Use contractions everywhere: it's, you're, we've, that's, can't, won't, I'd.
 - Never open with "I am reaching out", "I hope this finds you well", "My name is", or any variant. Get straight to the point.
@@ -232,15 +232,28 @@ ${input.hasdataExtra ? `\nGoogle Maps Data:\n${input.hasdataExtra}` : ''}
 WEBSITE SUMMARY:
 ${input.websiteSummary}
 
-PERSONALIZATION RULE (mandatory): The very first sentence MUST:
-1. Name the business: "${input.businessName}"
-2. Reference ONE specific fact from the data above (a real service they offer, their exact rating + number of reviews, a specific detail from their website or Maps description)
+PERSONALIZATION RULE — MANDATORY, NO EXCEPTIONS:
+The email body must weave in AT LEAST 2 specific facts about ${input.businessName} from the data above. Generic emails get ignored. Specific emails get replies.
 
-BAD example (forbidden): "Running out of tools can slow you down." — generic, could be anyone
-GOOD example: "Noticed ${input.businessName} handles emergency plumbing 24/7 — that kind of availability must keep you busy."
-GOOD example: "Saw ${input.businessName} has 4.8 stars across 120 reviews — clearly you're doing something right."
+FORBIDDEN openers (will be rejected):
+- Mentioning "24/7", "availability", or "emergency" without more context (too common for any ${input.business})
+- Generic pain points not tied to their specific situation
+- Vague compliments ("great work", "impressive business")
+- Any dash character (. and , only)
 
-Do NOT invent facts. Only use what is in the data above. If data is limited, use what's available (city, business type, website URL).
+HOW TO OPEN (pick the richest data available):
+1. If customer reviews exist: paraphrase or quote a specific review detail. "One of your customers mentioned [specific thing from review]."
+2. If rating + review count: use both numbers together. "Saw ${input.businessName} sitting at [X] stars across [N] reviews in ${input.city}."
+3. If specific services listed: name 2-3 of them. "Noticed ${input.businessName} covers [service A], [service B], and [service C]."
+4. If founding year / certifications / team size: lead with that. "${input.businessName} has been doing [X] since [year]."
+
+HOW TO CONNECT (second and third sentences):
+After the opener, make an explicit link between what you just said about THEM and what our company offers. Not generic. For example if they have many reviews, say something about how we could help them handle more volume. If they list many services, link to how we support businesses with diverse needs.
+
+BAD second sentence: "At [Company], we help plumbers find tool rentals." (generic, could be copy-pasted to anyone)
+GOOD second sentence: "With that many jobs across ${input.city}, having tools on-demand nearby could save you a trip or two." (linked to their specific situation)
+
+Only use facts from the data above. Do not invent numbers, reviews, or services.
 
 Write a cold email that makes them want to reply. Return only the JSON object.`;
 
