@@ -46,7 +46,13 @@ function isInvalidEmail(email: string): boolean {
   if (lower.includes('2x.webp')) return true;
   if (lower.length >= 50) return true;
   if (/^[a-f0-9]{20,}@/.test(lower)) return true;
-  if (lower.endsWith('.js') || lower.includes('module.') || lower.includes('.svg') || lower.includes('.png') || lower.includes('.jpg')) return true;
+  if (lower.endsWith('.js') || lower.includes('module.') || lower.includes('.svg') || lower.includes('.png') || lower.includes('.jpg') || lower.includes('.webp') || lower.includes('.gif') || lower.includes('.jpeg') || lower.includes('.ico') || lower.includes('.css') || lower.includes('.php')) return true;
+  // Reject emails where the TLD is a media/file extension
+  const tldMatch = lower.match(/\.([a-z]{2,6})$/);
+  if (tldMatch) {
+    const tld = tldMatch[1];
+    if (['webp','png','jpg','jpeg','gif','svg','ico','pdf','zip','mp4','mp3','css','js','ts','tsx','jsx','woff','ttf'].includes(tld)) return true;
+  }
   if (lower.includes('sentry.io') || lower.includes('ingest.') || lower.includes('analytics') || lower.includes('tracking') || lower.includes('@o')) return true;
   const [local, domain] = lower.split('@');
   if (domain && PLACEHOLDER_DOMAINS.has(domain)) return true;
@@ -56,9 +62,14 @@ function isInvalidEmail(email: string): boolean {
 
 export function extractEmailFromHtml(html: string): string {
   if (!html || typeof html !== 'string') return 'No email found';
-  const matches = html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi);
+  // Decode URL-encoded chars before extracting (e.g. %20info@ → info@)
+  let decoded = html;
+  try { decoded = decodeURIComponent(html.replace(/\+/g, ' ')); } catch { decoded = html; }
+  const matches = decoded.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/gi);
   if (!matches) return 'No email found';
-  const filtered = matches.filter((e) => !isInvalidEmail(e));
+  // Strip any leading/trailing non-alphanumeric chars left from encoding artifacts
+  const cleaned = matches.map((e) => e.replace(/^[^a-zA-Z0-9]+/, '').replace(/[^a-zA-Z0-9]+$/, ''));
+  const filtered = cleaned.filter((e) => !isInvalidEmail(e));
   return filtered.length > 0 ? filtered[0].toLowerCase() : 'No email found';
 }
 
@@ -126,6 +137,11 @@ export function extractPhoneAndLinkedIn(html: string, cityHint: string): { phone
     if (match && match[0].length >= 10) {
       const cleaned = match[0].replace(/[^\d+]/g, '');
       if (cleaned.length >= 10) {
+        // Filter placeholder/fake numbers: all same digit, or sequential like 1234567890
+        const digitsOnly = cleaned.replace(/\D/g, '');
+        const isAllSameDigit = /^(\d)\1{6,}$/.test(digitsOnly);
+        const isSequential = ['1234567890','0987654321','1234567','9999999999','0000000000','1111111111','2222222222','3333333333','5555555555','6666666666','7777777777','8888888888'].some(p => digitsOnly.includes(p));
+        if (isAllSameDigit || isSequential) continue;
         phone = formatPhone(cleaned, cityHint);
         break;
       }

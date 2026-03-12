@@ -203,25 +203,26 @@ CAMPAIGN GOAL: ${input.campaignGoal}
 ${ctaBlock}
 
 ${aiInstructionsBlock}${linkBlock}${magicBlock}===== RULES =====
-- ${input.emailMaxLength} words MAX for body
-- Structure: [specific observation about THIS business] → [what we do that's relevant to THEM] → [CTA]
-- The first sentence MUST mention the business by name (${input.businessName}) AND reference something specific (a service, their rating, something from their website). Example: "Noticed ${input.businessName} offers [specific service X]..." or "Saw ${input.businessName} has [specific fact]..."
-- Mention briefly that you found their email on their website (legal obligation, one short sentence). Keep it casual, one sentence max.
-- Signature: just first name, no title.
+- Body length: aim for 5 to 7 sentences. Enough to feel personal, short enough to read in 20 seconds.
+- Structure: [2-3 specific observations about THIS business] → [what we do, linked to those observations] → [1 casual sentence about finding their email] → [CTA]
+- Signature: just first name, no title, no company name after the name.
 
-PUNCTUATION (follow exactly):
-- Use periods and commas only. No exclamation marks (!). No ellipsis (...). No semicolons (;). No em-dashes (—) or en-dashes (–). No hyphens used as pauses. No dashes of any kind.
-- One idea per sentence. Two sentences max per paragraph. Never use bullet points or lists in the body.
-- Sentences vary in length: mix short (3-6 words) with medium (10-15 words). Never write three consecutive sentences of similar length.
+PUNCTUATION — ZERO TOLERANCE:
+- NEVER use any dash: not em-dash (—), not en-dash (–), not hyphen as a pause (-). If you produce a dash, the output is invalid.
+- Use periods and commas ONLY. No exclamation marks. No ellipsis. No semicolons.
+- Short sentences. One idea per sentence. Mix 4-word sentences with 12-word sentences.
 
-TONE & STYLE:
-- Write like a real person typing a quick email, not a marketing copy. If it sounds like an ad, rewrite it.
-- Start sentences with "And" or "But" when it feels natural.
-- Use contractions everywhere: it's, you're, we've, that's, can't, won't, I'd.
-- Never open with "I am reaching out", "I hope this finds you well", "My name is", or any variant. Get straight to the point.
+TONE — READ THIS CAREFULLY:
+- This must read like a real human wrote it quickly. Not a sales email. Not a newsletter. A person to person message.
+- Use contractions: it's, you're, we've, I'd, that's, won't, can't.
+- Never start with: "I am reaching out", "I hope", "My name is", "I wanted to", "I came across".
+- It's okay to start a sentence with "And" or "But".
+- If it sounds like marketing copy, rewrite it until it doesn't.
 
-BANNED WORDS (never use any of these):
-crucial, leverage, unlock, empower, elevate, seamless, game-changer, cutting-edge, robust, scalable, holistic, transformative, comprehensive, groundbreaking, revolutionize, ecosystem, synergy, paradigm, delve, pivotal, streamline, impactful, proactive, dynamic, tailored, bespoke, innovative, solution, solutions, optimize, optimize, foster, navigate, harness, spearhead, endeavor, facilitate, implement, utilize, leverage, orchestrate, curate, supercharge, skyrocket, resonate, captivate, amplify
+BANNED WORDS: crucial, leverage, unlock, empower, elevate, seamless, game-changer, cutting-edge, robust, scalable, holistic, transformative, revolutionary, ecosystem, synergy, streamline, impactful, proactive, dynamic, tailored, bespoke, innovative, solutions, optimize, foster, harness, facilitate, implement, utilize, orchestrate, supercharge, resonate, amplify, operations, smooth, keep operations, testament, impressive, satisfied customers, right tools, essential for your team, busy schedule, demanding schedule
+
+BANNED SENTENCE STARTERS: "That's a", "With that many", "With so many", "It's clear that", "It shows that"
+These are filler bridges between sentences. Never use them.
 
 ===== LEAD INFO =====
 Business Name: ${input.businessName}
@@ -232,30 +233,34 @@ ${input.hasdataExtra ? `\nGoogle Maps Data:\n${input.hasdataExtra}` : ''}
 WEBSITE SUMMARY:
 ${input.websiteSummary}
 
-PERSONALIZATION RULE — MANDATORY, NO EXCEPTIONS:
-The email body must weave in AT LEAST 2 specific facts about ${input.businessName} from the data above. Generic emails get ignored. Specific emails get replies.
+===== PERSONALIZATION — MOST IMPORTANT PART =====
+You MUST use at least 2 DIFFERENT concrete facts from the data. Fact 1 opens the email. Fact 2 must be a separate data point — not just a conclusion drawn from fact 1.
 
-FORBIDDEN openers (will be rejected):
-- Mentioning "24/7", "availability", or "emergency" without more context (too common for any ${input.business})
-- Generic pain points not tied to their specific situation
-- Vague compliments ("great work", "impressive business")
-- Any dash character (. and , only)
+STEP 1 — OPEN with one specific fact about this business:
+- Use exact rating AND review count together if you have them. Write the real number, not "many reviews" or "countless reviews".
+- Or quote something specific from a customer review.
+- Or name 2-3 specific services they actually list.
+- NEVER use "24/7" or "emergency service" as the opener. Every business in this category has that.
 
-HOW TO OPEN (pick the richest data available):
-1. If customer reviews exist: paraphrase or quote a specific review detail. "One of your customers mentioned [specific thing from review]."
-2. If rating + review count: use both numbers together. "Saw ${input.businessName} sitting at [X] stars across [N] reviews in ${input.city}."
-3. If specific services listed: name 2-3 of them. "Noticed ${input.businessName} covers [service A], [service B], and [service C]."
-4. If founding year / certifications / team size: lead with that. "${input.businessName} has been doing [X] since [year]."
+STEP 2 — Introduce a SECOND different specific fact, then connect it to what we offer:
+- If step 1 was about their rating, step 2 must be about their services, a review quote, their city/neighborhood, their hours, or something else from the data.
+- If step 1 was about services, step 2 must be about ratings, reviews, years in business, etc.
+- The sentence must NOT be a conclusion from step 1. "That's impressive" or "With that many customers" are NOT step 2 — they just rephrase step 1.
+- The connection to our company must follow logically from this second fact, not be invented.
 
-HOW TO CONNECT (second and third sentences):
-After the opener, make an explicit link between what you just said about THEM and what our company offers. Not generic. For example if they have many reviews, say something about how we could help them handle more volume. If they list many services, link to how we support businesses with diverse needs.
+STEP 3 — One short sentence about how you found their email, then the CTA.
 
-BAD second sentence: "At [Company], we help plumbers find tool rentals." (generic, could be copy-pasted to anyone)
-GOOD second sentence: "With that many jobs across ${input.city}, having tools on-demand nearby could save you a trip or two." (linked to their specific situation)
+EXAMPLE OF BAD EMAIL (rejected — DO NOT COPY this structure):
+"San Antonio Plumbing has an impressive 4.8 stars from 312 reviews. That's a testament to the quality you provide in plumbing repair and water heater services. With so many satisfied customers, having the right tools available must be essential. At Pennio, we connect plumbers to local suppliers for quick rentals."
+Problems: "impressive" and "testament" are filler, sentence 2 is just a conclusion from sentence 1 ("that's a testament"), sentence 3 is a generic inference that could apply to any plumber, no second real fact.
 
-Only use facts from the data above. Do not invent numbers, reviews, or services.
+EXAMPLE OF GOOD EMAIL:
+"Core Plumbing sits at 4.8 stars from 312 reviews in ${input.city}. You do water heater installs AND drain cleaning, so you're probably juggling very different parts and tools per job. Pennio connects you to local suppliers so you can get what you need same-day without driving across town. Found your email on your site. Free for 15 minutes this week?"
+Why it works: real numbers (fact 1), specific services from their listing (fact 2, different data point), connection follows from fact 2 (different parts per job type), no dashes, no filler bridge sentences, sounds like a real person wrote it.
 
-Write a cold email that makes them want to reply. Return only the JSON object.`;
+Only use facts from the data provided. Never invent ratings, review counts, services, or dates.
+
+Return only the JSON object.`;
 
   const raw = await chat(apiKey, systemContent, userContent, true);
   try {

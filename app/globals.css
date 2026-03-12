@@ -195,3 +195,18 @@ body {
 .animate-swim-left {
   animation: swim-left linear infinite;
 }
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes scan {
+  0% { transform: translateX(-200%); }
+  100% { transform: translateX(600%); }
+}
+
+@keyframes swim-bob {
+  0%, 100% { transform: scaleX(-1) translateY(0px) rotate(3deg); }
+  50% { transform: scaleX(-1) translateY(-5px) rotate(-3deg); }
+}

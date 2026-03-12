@@ -7,7 +7,7 @@ import LeadsTable from '@/components/LeadsTable';
 import CreditsGauge from '@/components/CreditsGauge';
 import { useApiPause } from '@/contexts/ApiPauseContext';
 import { useCampaignLoading } from '@/contexts/CampaignLoadingContext';
-import { ArrowLeft, RefreshCw, Play, Loader2, FileText, X, ChevronDown, ChevronUp, MailX, MessageCircle, Target, Briefcase, Send } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Play, Loader2, FileText, X, ChevronDown, ChevronUp, MailX, MessageCircle, Target, Briefcase, Send, Search, Globe, Brain, Sparkles, Mail, Zap, MapPin, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import EditCampaignModal from '@/components/EditCampaignModal';
@@ -51,6 +51,15 @@ interface Campaign {
   status: 'active' | 'completed';
 }
 
+const LOADING_STEPS = [
+  { icon: 'Search',   text: 'Scanning Google Maps for targets…',          sub: 'The shark enters the water' },
+  { icon: 'Globe',    text: 'Visiting each website…',                     sub: 'Inspecting the preys up close' },
+  { icon: 'Brain',    text: 'AI is reading and analyzing businesses…',    sub: 'The shark studies its targets' },
+  { icon: 'Sparkles', text: 'Writing personalized emails…',               sub: 'Crafting the perfect attack' },
+  { icon: 'Mail',     text: 'Creating Gmail drafts…',                     sub: 'Loading the torpedoes' },
+  { icon: 'Zap',      text: 'Finalizing and saving leads…',               sub: 'The shark is almost done hunting' },
+];
+
 export default function CampaignDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -62,6 +71,9 @@ export default function CampaignDetailPage() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [runMessage, setRunMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [loadingStep, setLoadingStep] = useState(0);
+  const loadingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [showDescription, setShowDescription] = useState(false);
   const [showEditSettings, setShowEditSettings] = useState(false);
   const [showLeadsWithoutEmail, setShowLeadsWithoutEmail] = useState(false);
@@ -129,6 +141,27 @@ export default function CampaignDetailPage() {
     };
   }, [campaignId, isPaused]);
 
+  // Cycle loading steps when running
+  useEffect(() => {
+    if (running) {
+      setLoadingStep(0);
+      let step = 0;
+      const durations = [7000, 10000, 12000, 12000, 10000, 8000];
+      function advance() {
+        step = Math.min(step + 1, LOADING_STEPS.length - 1);
+        setLoadingStep(step);
+        if (step < LOADING_STEPS.length - 1) {
+          loadingIntervalRef.current = setTimeout(advance, durations[step] ?? 8000);
+        }
+      }
+      loadingIntervalRef.current = setTimeout(advance, durations[0]);
+    } else {
+      if (loadingIntervalRef.current) clearTimeout(loadingIntervalRef.current);
+      setLoadingStep(0);
+    }
+    return () => { if (loadingIntervalRef.current) clearTimeout(loadingIntervalRef.current); };
+  }, [running]);
+
   async function fetchData() {
     // Don't fetch if paused
     if (isPaused) {
@@ -184,6 +217,22 @@ export default function CampaignDetailPage() {
     }
   }
 
+  function stopCampaign() {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    stopLoading();
+    setRunning(false);
+    runInProgressRef.current = false;
+    setRunMessage({ type: 'error', text: 'Search stopped.' });
+    setTimeout(() => setRunMessage(null), 3000);
+  }
+
   async function runCampaign() {
     if (!campaign) return;
     if (runInProgressRef.current) return; // Prevent double click / double submit
@@ -191,6 +240,7 @@ export default function CampaignDetailPage() {
 
     setRunning(true);
     setRunMessage(null);
+    abortControllerRef.current = new AbortController();
 
     // Start global loading animation in header immediately for 20 seconds
     startLoading();
@@ -206,6 +256,7 @@ export default function CampaignDetailPage() {
     try {
       const response = await fetch('/api/campaign/start', {
         method: 'POST',
+        signal: abortControllerRef.current?.signal,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -232,7 +283,7 @@ export default function CampaignDetailPage() {
         throw new Error(data.error || data.details || 'Error running campaign');
       }
 
-      setRunMessage({ type: 'success', text: '🔄 Campaign started! Waiting for new targets...' });
+      setRunMessage({ type: 'success', text: 'Campaign started! Waiting for new targets...' });
       
       // Clear any existing polling interval
       if (pollingIntervalRef.current) {
@@ -275,7 +326,7 @@ export default function CampaignDetailPage() {
 
                   setTodayLeadsWithEmail(count);
 
-                  setRunMessage({ type: 'success', text: `✅ ${leadsData.length - initialLeadCount} new target(s) found!` });
+                  setRunMessage({ type: 'success', text: `The shark found ${leadsData.length - initialLeadCount} new target${leadsData.length - initialLeadCount !== 1 ? 's' : ''}!` });
                   setTimeout(() => setRunMessage(null), 5000);
                   setRunning(false);
                   runInProgressRef.current = false;
@@ -285,13 +336,13 @@ export default function CampaignDetailPage() {
                 clearInterval(pollingIntervalRef.current);
                 pollingIntervalRef.current = null;
               }
-              setRunMessage({ type: 'error', text: '⏱️ Timeout: No new targets found after 5 minutes. Please check again later.' });
+              setRunMessage({ type: 'error', text: 'Timeout: The shark came back empty-handed. Please try again.' });
               setTimeout(() => setRunMessage(null), 5000);
               setRunning(false);
               runInProgressRef.current = false;
             } else {
               // Still waiting, update message
-              setRunMessage({ type: 'success', text: `🔄 Waiting for new targets... (${checkCount * 10}s)` });
+              setRunMessage({ type: 'success', text: `The shark keeps searching… (${checkCount * 20}s)` });
             }
           }
         } catch (error) {
@@ -299,9 +350,10 @@ export default function CampaignDetailPage() {
         }
       }, 20000); // Check every 20 seconds
     } catch (error: any) {
+      if (error?.name === 'AbortError') return; // user stopped, already handled
       console.error('Error running campaign:', error);
       stopLoading();
-      setRunMessage({ type: 'error', text: `❌ ${error.message || 'Error running campaign'}` });
+      setRunMessage({ type: 'error', text: error.message || 'Error running campaign' });
       setTimeout(() => setRunMessage(null), 5000);
       setRunning(false);
       runInProgressRef.current = false;
@@ -369,15 +421,82 @@ export default function CampaignDetailPage() {
 
           {/* Campaign Info */}
           <div className="bg-white dark:bg-neutral-900/80 rounded-xl border border-zinc-200 dark:border-sky-800/30 shadow-lg p-6 mb-8">
-            {runMessage && (
-              <div
-                className={`mb-4 flex items-center gap-2 p-3 rounded-xl ${
-                  runMessage.type === 'success'
-                    ? 'bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400 border border-sky-200 dark:border-sky-800'
-                    : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
-                }`}
-              >
-                <p className="text-sm font-medium">{runMessage.text}</p>
+            {/* Shark loading animation */}
+            {running && (() => {
+              const step = LOADING_STEPS[loadingStep] ?? LOADING_STEPS[0];
+              const IconMap: Record<string, React.ElementType> = { Search, Globe, Brain, Sparkles, Mail, Zap };
+              const StepIcon = IconMap[step.icon] ?? Search;
+              return (
+                <div className="mb-5 relative">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-sky-500 dark:bg-sky-500 flex items-center justify-center shadow-lg shadow-sky-500/40">
+                      <StepIcon className="w-5 h-5 text-white animate-pulse" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-zinc-800 dark:text-sky-200">{step.text}</p>
+                      <p className="text-xs text-zinc-500 dark:text-sky-400 mt-0.5 italic">{step.sub}</p>
+                    </div>
+                    <div className="flex-shrink-0 flex items-center gap-2">
+                      <div className="flex gap-1">
+                        {[0,1,2].map(i => (
+                          <div key={i} className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                        ))}
+                      </div>
+                      <button
+                        onClick={stopCampaign}
+                        className="flex items-center gap-1 text-xs text-zinc-400 dark:text-sky-600 hover:text-red-500 dark:hover:text-red-400 transition-colors px-1.5 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 ml-2"
+                      >
+                        <X className="w-3 h-3" />
+                        Stop
+                      </button>
+                    </div>
+                  </div>
+                  {/* Shark progress track */}
+                  <div className="relative mt-14 pb-1">
+                    {/* Track background */}
+                    <div className="h-1.5 w-full rounded-full bg-sky-100 dark:bg-sky-900/40 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-sky-400 dark:bg-sky-500 transition-all duration-700 ease-in-out"
+                        style={{ width: `${(loadingStep / (LOADING_STEPS.length - 1)) * 100}%` }}
+                      />
+                    </div>
+                    {/* Step dots */}
+                    {LOADING_STEPS.map((_, i) => (
+                      <div
+                        key={i}
+                        className={`absolute top-0 -translate-y-[1px] w-2.5 h-2.5 rounded-full border-2 transition-all duration-500 ${
+                          i <= loadingStep
+                            ? 'bg-sky-500 border-sky-500 dark:bg-sky-400 dark:border-sky-400'
+                            : 'bg-white dark:bg-neutral-900 border-sky-200 dark:border-sky-800'
+                        }`}
+                        style={{ left: `calc(${(i / (LOADING_STEPS.length - 1)) * 100}% - 5px)` }}
+                      />
+                    ))}
+                    {/* Sliding logo */}
+                    <div
+                      className="absolute -top-11 transition-all duration-700 ease-in-out"
+                      style={{ left: `calc(${(loadingStep / (LOADING_STEPS.length - 1)) * 100}% - ${(loadingStep / (LOADING_STEPS.length - 1)) * 42}px)` }}
+                    >
+                      <Image
+                        src="/viper-logo.png"
+                        alt="PipeShark"
+                        width={42}
+                        height={42}
+                        className="object-contain animate-[swim-bob_1s_ease-in-out_infinite]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+            {!running && runMessage && (
+              <div className={`mb-4 flex items-center gap-2 p-3 rounded-xl ${
+                runMessage.type === 'success'
+                  ? 'bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-400 border border-sky-200 dark:border-sky-800'
+                  : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800'
+              }`}>
+                {runMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" /> : <X className="w-4 h-4 flex-shrink-0" />}
+                <p className="text-sm font-medium">{runMessage.text.replace(/^[^\w]+/, '')}</p>
               </div>
             )}
             <div className="flex items-start justify-between gap-6">
@@ -500,7 +619,7 @@ export default function CampaignDetailPage() {
                     {running ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Running...</span>
+                        <span>Hunting…</span>
                       </>
                     ) : (
                       <>

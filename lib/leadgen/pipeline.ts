@@ -96,69 +96,102 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
     return { success: false, leadsCreated: 0, errors };
   }
 
-  const scraped: Array<ScrapedLead & { hasdataExtra: string }> = [];
-  for (const item of localResults) {
-    const website = getWebsiteUrl(item);
-    if (!website || !website.startsWith('http')) continue;
-    const html = await fetchPageHtml(website);
-    const email = extractEmailFromHtml(html);
-    const cleanText = cleanHtmlToText(html);
-    const { phone, linkedin } = extractPhoneAndLinkedIn(html, city);
-    // Extract ALL HasData fields for rich AI context
-    const r = item as Record<string, unknown>;
-    // Extract review snippets if available (array of review objects or strings)
-    let reviewSnippets = '';
-    const rawReviews = r.reviews ?? r.topReviews ?? r.reviewsData;
-    if (Array.isArray(rawReviews) && rawReviews.length > 0) {
-      const snippets = rawReviews
-        .slice(0, 3)
-        .map((rv: unknown) => {
-          if (typeof rv === 'string') return rv.slice(0, 200);
-          if (rv && typeof rv === 'object') {
-            const o = rv as Record<string, unknown>;
-            return (o.text ?? o.snippet ?? o.body ?? o.content ?? '') as string;
-          }
-          return '';
-        })
-        .filter((s) => s && s.trim().length > 10)
-        .map((s) => `  - "${s.trim().slice(0, 200)}"`)
-        .join('\n');
-      if (snippets) reviewSnippets = `Customer reviews:\n${snippets}`;
-    }
-    // Extract categories
-    const categories = Array.isArray(r.categories)
-      ? (r.categories as string[]).join(', ')
-      : typeof r.category === 'string' ? r.category : '';
-    // Extract hours
-    const hours = r.hours ?? r.openingHours ?? r.workingHours ?? r.schedule;
-    const hoursStr = typeof hours === 'string' ? hours
-      : Array.isArray(hours) ? (hours as string[]).slice(0, 3).join(', ')
-      : hours && typeof hours === 'object' ? JSON.stringify(hours).slice(0, 200)
-      : '';
-    const hasdataExtra = [
-      r.rating != null ? `Rating: ${r.rating}/5` : '',
-      r.reviewsCount != null ? `Number of Google reviews: ${r.reviewsCount}` : '',
-      r.address ? `Address: ${r.address}` : '',
-      r.description ? `Google Maps description: ${r.description}` : '',
-      categories ? `Categories: ${categories}` : '',
-      r.serviceOptions ? `Service options: ${r.serviceOptions}` : '',
-      r.price ? `Price level: ${r.price}` : '',
-      hoursStr ? `Hours: ${hoursStr}` : '',
-      r.phone ? `Phone: ${r.phone}` : '',
-      reviewSnippets,
-    ].filter(Boolean).join('\n');
-    scraped.push({
-      website,
-      title: getTitle(item),
-      email,
-      url: website,
-      html,
-      cleanText,
-      phone,
-      linkedin,
-      hasdataExtra,
-    });
+  // DEBUG: log first HasData result to see all available fields
+  if (localResults.length > 0) {
+    const firstKeys = Object.keys(localResults[0]);
+    console.log('[Pipeline] HasData fields available:', firstKeys);
+    console.log('[Pipeline] First result sample:', JSON.stringify(localResults[0], null, 2).slice(0, 1000));
   }
+
+  // Only scrape enough results to find targetCount valid emails (3x buffer for filtering/dedup)
+  const scrapeLimit = Math.min(localResults.length, targetCount * 3);
+  const itemsToScrape = localResults.slice(0, scrapeLimit).filter((item) => {
+    const website = getWebsiteUrl(item);
+    return website && website.startsWith('http');
+  });
+
+  // Scrape all sites in parallel to avoid sequential HTTP latency
+  const scrapeResults = await Promise.allSettled(
+    itemsToScrape.map(async (item) => {
+      const website = getWebsiteUrl(item);
+      const html = await fetchPageHtml(website);
+      const email = extractEmailFromHtml(html);
+      const cleanText = cleanHtmlToText(html);
+      const { phone, linkedin } = extractPhoneAndLinkedIn(html, city);
+      const r = item as Record<string, unknown>;
+
+      // Extract review snippets
+      let reviewSnippets = '';
+      const rawReviews = r.reviews ?? r.topReviews ?? r.reviewsData ?? r.userReviews;
+      if (Array.isArray(rawReviews) && rawReviews.length > 0) {
+        const snippets = rawReviews
+          .slice(0, 4)
+          .map((rv: unknown) => {
+            if (typeof rv === 'string') return rv.slice(0, 250);
+            if (rv && typeof rv === 'object') {
+              const o = rv as Record<string, unknown>;
+              const txt = (o.text ?? o.snippet ?? o.body ?? o.content ?? o.review ?? '') as string;
+              const author = (o.name ?? o.author ?? o.user ?? '') as string;
+              return author ? `${author}: "${txt.trim().slice(0, 200)}"` : `"${txt.trim().slice(0, 200)}"`;
+            }
+            return '';
+          })
+          .filter((s) => s && s.trim().length > 10)
+          .map((s) => `  - ${s}`)
+          .join('\n');
+        if (snippets) reviewSnippets = `Customer reviews (use these for personalization):\n${snippets}`;
+      }
+
+      const categories = Array.isArray(r.categories)
+        ? (r.categories as string[]).join(', ')
+        : typeof r.category === 'string' ? r.category : '';
+      const hours = r.hours ?? r.openingHours ?? r.workingHours ?? r.schedule ?? r.openHours;
+      const hoursStr = typeof hours === 'string' ? hours
+        : Array.isArray(hours) ? (hours as string[]).join(', ')
+        : hours && typeof hours === 'object' ? JSON.stringify(hours).slice(0, 300) : '';
+      const about = r.aboutThisBusiness ?? r.fromBusiness ?? r.about ?? r.businessDescription;
+      const services = r.services ?? r.serviceList ?? r.mainServices;
+      const servicesStr = Array.isArray(services)
+        ? (services as unknown[]).map((s) => typeof s === 'string' ? s : (s as Record<string, unknown>)?.name ?? '').filter(Boolean).join(', ')
+        : typeof services === 'string' ? services : '';
+      const highlights = r.highlights ?? r.attributes ?? r.features;
+      const highlightsStr = Array.isArray(highlights)
+        ? (highlights as string[]).join(', ')
+        : typeof highlights === 'string' ? highlights : '';
+
+      const hasdataExtra = [
+        r.rating != null ? `Rating: ${r.rating}/5` : '',
+        r.reviewsCount != null ? `Number of Google reviews: ${r.reviewsCount}` : '',
+        r.address ? `Address: ${r.address}` : '',
+        categories ? `Categories: ${categories}` : '',
+        r.description ? `Google Maps description: ${r.description}` : '',
+        typeof about === 'string' && about ? `About this business: ${about}` : '',
+        r.serviceOptions ? `Service options: ${r.serviceOptions}` : '',
+        servicesStr ? `Services listed: ${servicesStr}` : '',
+        highlightsStr ? `Highlights: ${highlightsStr}` : '',
+        r.price ? `Price level: ${r.price}` : '',
+        hoursStr ? `Hours: ${hoursStr}` : '',
+        r.yearFounded ?? r.foundedYear ? `Founded: ${r.yearFounded ?? r.foundedYear}` : '',
+        reviewSnippets,
+      ].filter(Boolean).join('\n');
+
+      return {
+        website,
+        title: getTitle(item),
+        email,
+        url: website,
+        html,
+        cleanText,
+        phone,
+        linkedin,
+        hasdataExtra,
+      };
+    })
+  );
+
+  const scraped: Array<ScrapedLead & { hasdataExtra: string }> = scrapeResults
+    .filter((r): r is PromiseFulfilledResult<ScrapedLead & { hasdataExtra: string }> => r.status === 'fulfilled')
+    .map((r) => r.value);
 
   const validEmails = scraped.filter(filterValidEmail);
   // Filter personal email domains when requested (default: true)
@@ -183,12 +216,13 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
       if (r.email) existingEmailsSet.add((r.email as string).toLowerCase().trim());
     }
   }
-  const deduped = pool.filter((l) => !existingEmailsSet.has(l.email.toLowerCase().trim()));
+  const deduped = pool
+    .filter((l) => !existingEmailsSet.has(l.email.toLowerCase().trim()))
+    .slice(0, targetCount);
 
-  for (const lead of deduped) {
-    // Stop once we've created the requested number of leads
-    if (leadsCreated >= targetCount) break;
-    try {
+  // Process all leads in parallel: AI summary + draft + Gmail draft simultaneously
+  const leadResults = await Promise.allSettled(
+    deduped.map(async (lead) => {
       const [websiteSummary, callPrep] = await Promise.all([
         summarizeWebsite(openaiKey, lead.cleanText, lead.hasdataExtra),
         generateCallPrep(openaiKey, lead.cleanText, lead.title ?? business, business, city, lead.url),
@@ -237,14 +271,13 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
         preparation_summary: callPrep || null,
         date: new Date().toISOString(),
       });
-      if (error) {
-        errors.push(`Insert lead: ${error.message}`);
-        continue;
-      }
-      leadsCreated++;
-    } catch (e) {
-      errors.push(`Lead ${lead.url}: ${e instanceof Error ? e.message : String(e)}`);
-    }
+      if (error) throw new Error(`Insert lead: ${error.message}`);
+    })
+  );
+
+  for (const r of leadResults) {
+    if (r.status === 'fulfilled') leadsCreated++;
+    else errors.push(r.reason instanceof Error ? r.reason.message : String(r.reason));
   }
 
   return { success: leadsCreated > 0, leadsCreated, errors };

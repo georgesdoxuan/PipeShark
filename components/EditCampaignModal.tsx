@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Sparkles } from 'lucide-react';
 
 interface Campaign {
   id: string;
@@ -18,6 +18,7 @@ interface Campaign {
   status: 'active' | 'completed';
   gmailEmail?: string | null;
   varyCityPerRun?: boolean;
+  aiInstructions?: string | null;
 }
 
 interface EditCampaignModalProps {
@@ -34,6 +35,7 @@ interface EditCampaignModalProps {
     numberCreditsUsed?: number;
     gmailEmail?: string | null;
     varyCityPerRun?: boolean;
+    aiInstructions?: string;
   }) => Promise<void>;
   saving: boolean;
   /** Max credits per campaign (from plan, e.g. 30 for Standard). Default 300. */
@@ -74,6 +76,8 @@ export default function EditCampaignModal({
   const [gmailAccounts, setGmailAccounts] = useState<{ email: string; connected: boolean }[]>([]);
   const [plan, setPlan] = useState<string | null>(null);
   const [selectedGmailEmail, setSelectedGmailEmail] = useState<string>(campaign.gmailEmail ?? '');
+  const [aiInstructions, setAiInstructions] = useState(campaign.aiInstructions || '');
+  const [showAiInstructions, setShowAiInstructions] = useState(!!(campaign.aiInstructions));
   const [errors, setErrors] = useState<{
     companyDescription?: string;
     magicLink?: string;
@@ -90,6 +94,8 @@ export default function EditCampaignModal({
     setNumberCreditsUsed(campaign.numberCreditsUsed ?? 20);
     setSelectedGmailEmail(campaign.gmailEmail ?? '');
     setVaryCityPerRun(campaign.varyCityPerRun ?? false);
+    setAiInstructions(campaign.aiInstructions || '');
+    setShowAiInstructions(!!(campaign.aiInstructions));
   }, [campaign]);
 
   useEffect(() => {
@@ -141,6 +147,7 @@ export default function EditCampaignModal({
     const credits = Math.max(1, Math.min(maxCreditsPerCampaign, Number(numberCreditsUsed) || 20));
     updates.numberCreditsUsed = credits;
     updates.varyCityPerRun = varyCityPerRun;
+    updates.aiInstructions = aiInstructions.trim();
     if (plan === 'pro' && selectedGmailEmail !== undefined) {
       updates.gmailEmail = selectedGmailEmail.trim() || null;
     }
@@ -376,6 +383,34 @@ export default function EditCampaignModal({
               </select>
             </div>
           )}
+
+          <div className="rounded-xl border border-sky-700/40 bg-neutral-800/80 p-4">
+            <button
+              type="button"
+              onClick={() => setShowAiInstructions((v) => !v)}
+              className="flex items-center gap-2 text-sm font-semibold text-sky-200 w-full text-left"
+            >
+              <Sparkles className="w-4 h-4 text-violet-400" />
+              Advanced AI Instructions
+              <span className="text-sky-400/70 text-xs font-normal">(optional)</span>
+              <span className="ml-auto text-xs text-sky-400/60">{showAiInstructions ? '▲' : '▼'}</span>
+            </button>
+            {showAiInstructions && (
+              <div className="mt-3">
+                <p className="text-xs text-sky-400/70 mb-2">
+                  Specific rules for the AI when writing emails for this campaign. Examples: "Always mention our 5-year warranty", "Never discuss pricing", "Write in French", "End with a question about their current setup".
+                </p>
+                <textarea
+                  value={aiInstructions}
+                  onChange={(e) => setAiInstructions(e.target.value)}
+                  rows={4}
+                  disabled={saving}
+                  placeholder="e.g. Always mention that we've been serving businesses in their area for over 10 years. Do not mention pricing. Focus on reliability and trust."
+                  className="w-full px-3 py-2.5 border border-sky-700/40 rounded-xl bg-neutral-900/80 text-white placeholder-sky-400/40 focus:outline-none focus:ring-2 focus:ring-violet-500/50 resize-none text-sm"
+                />
+              </div>
+            )}
+          </div>
 
           <div className="pt-6 border-t border-sky-800/40 flex gap-3 justify-end">
             <button
