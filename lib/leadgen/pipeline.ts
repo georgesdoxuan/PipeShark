@@ -190,8 +190,8 @@ export async function runLeadgenPipeline(payload: LeadgenPayload): Promise<Leadg
   );
 
   const scraped: Array<ScrapedLead & { hasdataExtra: string }> = scrapeResults
-    .filter((r): r is PromiseFulfilledResult<ScrapedLead & { hasdataExtra: string }> => r.status === 'fulfilled')
-    .map((r) => r.value);
+    .filter((r) => r.status === 'fulfilled')
+    .map((r) => (r as PromiseFulfilledResult<ScrapedLead & { hasdataExtra: string }>).value);
 
   const validEmails = scraped.filter(filterValidEmail);
   // Filter personal email domains when requested (default: true)
